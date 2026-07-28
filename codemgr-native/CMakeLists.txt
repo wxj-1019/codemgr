@@ -23,7 +23,15 @@ endif()
 add_library(${PROJECT_NAME} SHARED
   ${CMAKE_JS_SRC}
   src/addon.cpp
+  src/process_collector.cpp
 )
+
+# 源文件以 UTF-8（无 BOM）保存，含中文注释。MSVC 在简体中文系统默认按
+# 代码页 936(GBK) 解析源文件，会误判 UTF-8 多字节序列导致 C4819 警告甚至
+# 预处理器错乱（如 C1020）。/utf-8 同时设定源与执行字符集为 UTF-8。
+if(MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
   PREFIX ""

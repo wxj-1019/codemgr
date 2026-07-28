@@ -39,7 +39,7 @@ export interface NativeBindings {
   killByName(name: string): number;
 }
 
-// 加载编译产物
-const native = require('../build/Release/codemgr-native.node') as NativeBindings;
+// 加载编译产物（index.ts 位于包根，build/ 在同级）
+const native = require('./build/Release/codemgr-native.node') as NativeBindings;
 
 export default native;

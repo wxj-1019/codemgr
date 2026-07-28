@@ -1,5 +1,7 @@
 #include <napi.h>
 
+#include "process_collector.h"
+
 // 占位函数：验证模块能加载
 Napi::Value Hello(const Napi::CallbackInfo& info) {
   return Napi::String::New(info.Env(), "codemgr-native alive");
@@ -7,6 +9,7 @@ Napi::Value Hello(const Napi::CallbackInfo& info) {
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "hello"), Napi::Function::New(env, Hello));
+  exports.Set(Napi::String::New(env, "processScan"), Napi::Function::New(env, ProcessScan));
   return exports;
 }
 
