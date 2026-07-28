@@ -120,6 +120,101 @@ static inline std::string UnicodeToUtf8(const MY_UNICODE_STRING& u) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// ReadProcessCmdline — 通过 PEB 读取进程命令行
+// 流程：OpenProcess → NtQueryInformationProcess(ProcessBasicInformation)
+//       → PEB → ProcessParameters → CommandLine UNICODE_STRING
+// ---------------------------------------------------------------------------
+
+// PROCESS_BASIC_INFORMATION for NtQueryInformationProcess (class = 0)
+typedef struct _MY_PROCESS_BASIC_INFORMATION {
+    NTSTATUS ExitStatus;
+    PVOID PebBaseAddress;
+    ULONG_PTR AffinityMask;
+    KPRIORITY BasePriority;
+    ULONG_PTR UniqueProcessId;
+    ULONG_PTR InheritedFromUniqueProcessId;
+} MY_PROCESS_BASIC_INFORMATION;
+
+static constexpr ULONG ProcessBasicInformationClass = 0;
+
+typedef NTSTATUS (NTAPI *pNtQueryInformationProcess_t)(
+    HANDLE ProcessHandle,
+    ULONG ProcessInformationClass,
+    PVOID ProcessInformation,
+    ULONG ProcessInformationLength,
+    PULONG ReturnLength);
+
+typedef NTSTATUS (NTAPI *pNtReadVirtualMemory_t)(
+    HANDLE ProcessHandle,
+    PVOID BaseAddress,
+    PVOID Buffer,
+    ULONG NumberOfBytesToRead,
+    PULONG NumberOfBytesRead);
+
+static std::wstring ReadProcessCmdline(HANDLE hProcess) {
+    // 动态获取 ntdll 导出函数
+    static pNtQueryInformationProcess_t NtQIP = nullptr;
+    static pNtReadVirtualMemory_t NtRVM = nullptr;
+    if (!NtQIP) {
+        HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+        if (!ntdll) return L"";
+        NtQIP = reinterpret_cast<pNtQueryInformationProcess_t>(
+            GetProcAddress(ntdll, "NtQueryInformationProcess"));
+        NtRVM = reinterpret_cast<pNtReadVirtualMemory_t>(
+            GetProcAddress(ntdll, "NtReadVirtualMemory"));
+    }
+    if (!NtQIP || !NtRVM) return L"";
+
+    // 1. 获取 PEB 地址
+    MY_PROCESS_BASIC_INFORMATION pbi{};
+    ULONG retLen = 0;
+    NTSTATUS st = NtQIP(hProcess, ProcessBasicInformationClass,
+                        &pbi, sizeof(pbi), &retLen);
+    if (st < 0 || !pbi.PebBaseAddress) return L"";
+
+    // 2. 读取 PEB（前 256 字节，覆盖到 ProcessParameters 之后）
+    BYTE peb[256] = {};
+    ULONG nread = 0;
+    st = NtRVM(hProcess, pbi.PebBaseAddress, peb, sizeof(peb), &nread);
+    if (st < 0) return L"";
+
+    // 3. ProcessParameters 在 x64 PEB 中偏移为 0x20（稳定 ABI）
+    ULONG_PTR pp = *(ULONG_PTR*)(peb + 0x20);
+    if (!pp) return L"";
+
+    // 4. 读取 RTL_USER_PROCESS_PARAMETERS（512 字节足够覆盖所有字段）
+    BYTE par[512] = {};
+    st = NtRVM(hProcess, (PVOID)pp, par, sizeof(par), &nread);
+    if (st < 0) return L"";
+
+    // 5. 定位 CommandLine UNICODE_STRING。
+    //    RTL_USER_PROCESS_PARAMETERS 中 CommandLine 偏移因版本而异：
+    //      Win10 1607–21H2: 0x60
+    //      Win11 22000+:    0x70
+    //    UNICODE_STRING(x64) = { USHORT Length(2) + USHORT MaxLen(2)
+    //                            + 4B padding + PWSTR Buffer(8) } = 16B
+    //    Buffer 字段在 UNICODE_STRING 起始 +8 处。
+    //    试探一组常见偏移，通过 Length/Buffer 合法性筛选。
+    static const ULONG_PTR offsets[] = { 0x60, 0x68, 0x70, 0x78 };
+    for (auto off : offsets) {
+        if (off + 16 > sizeof(par)) break;
+        USHORT len = *(USHORT*)(par + off);
+        ULONG_PTR buf = *(ULONG_PTR*)(par + off + 8);
+        // Length 非零、偶数、<32KB，且 Buffer 指向用户态地址
+        if (len > 0 && len < 32768 && (len & 1) == 0 && buf >= 0x10000) {
+            ULONG cb = len < 4096 ? (ULONG)len : (ULONG)4096;
+            std::vector<WCHAR> cmd(cb / 2 + 1, 0);
+            st = NtRVM(hProcess, (PVOID)buf, cmd.data(), cb, &nread);
+            if (st >= 0 && nread > 0) {
+                cmd[nread / 2] = L'\0';
+                return std::wstring(cmd.data());
+            }
+        }
+    }
+    return L"";
+}
+
 bool CollectAllProcesses(std::vector<ProcessInfoRaw>& out, std::string& errMessage) {
   out.clear();
 
@@ -178,7 +273,25 @@ bool CollectAllProcesses(std::vector<ProcessInfoRaw>& out, std::string& errMessa
     if (info.pid == 0 && info.name.empty()) {
       info.name = "Idle";
     }
-    info.cmdline = "";  // v0.2 任务再实现（需要 NtQueryInformationProcess 读 PEB）
+	    // 读取命令行（v0.2 — 需要打开进程句柄）
+	    if (info.pid > 0) {  // 跳过 Idle（pid=0）
+	        HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+	                                   FALSE, info.pid);
+	        if (hProc) {
+	            std::wstring cmd = ReadProcessCmdline(hProc);
+	            if (!cmd.empty()) {
+	                int utf8Len = WideCharToMultiByte(CP_UTF8, 0, cmd.c_str(), -1,
+	                                                  nullptr, 0, nullptr, nullptr);
+	                if (utf8Len > 1) {
+	                    info.cmdline.resize(utf8Len - 1);
+	                    WideCharToMultiByte(CP_UTF8, 0, cmd.c_str(), -1,
+	                                        &info.cmdline[0], utf8Len, nullptr, nullptr);
+	                }
+	            }
+	            CloseHandle(hProc);
+	        }
+	    }
+	    // 对打不开的进程，cmdline 保持默认空字符串
     info.kernelTimeMs = p->KernelTime.QuadPart / 10000LL;
     info.userTimeMs = p->UserTime.QuadPart / 10000LL;
     info.workingSetBytes = static_cast<long long>(p->WorkingSetSize);
