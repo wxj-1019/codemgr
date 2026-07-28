@@ -121,22 +121,10 @@ static inline std::string UnicodeToUtf8(const MY_UNICODE_STRING& u) {
 }
 
 // ---------------------------------------------------------------------------
-// ReadProcessCmdline — 通过 PEB 读取进程命令行
-// 流程：OpenProcess → NtQueryInformationProcess(ProcessBasicInformation)
-//       → PEB → ProcessParameters → CommandLine UNICODE_STRING
+// ReadProcessCmdline — 通过官方 API 读取进程命令行
+// 流程：OpenProcess → NtQueryInformationProcess(ProcessCommandLineInformation)
+//       直接返回 { UNICODE_STRING Commandline; WCHAR Buffer[]; }
 // ---------------------------------------------------------------------------
-
-// PROCESS_BASIC_INFORMATION for NtQueryInformationProcess (class = 0)
-typedef struct _MY_PROCESS_BASIC_INFORMATION {
-    NTSTATUS ExitStatus;
-    PVOID PebBaseAddress;
-    ULONG_PTR AffinityMask;
-    KPRIORITY BasePriority;
-    ULONG_PTR UniqueProcessId;
-    ULONG_PTR InheritedFromUniqueProcessId;
-} MY_PROCESS_BASIC_INFORMATION;
-
-static constexpr ULONG ProcessBasicInformationClass = 0;
 
 typedef NTSTATUS (NTAPI *pNtQueryInformationProcess_t)(
     HANDLE ProcessHandle,
@@ -145,74 +133,58 @@ typedef NTSTATUS (NTAPI *pNtQueryInformationProcess_t)(
     ULONG ProcessInformationLength,
     PULONG ReturnLength);
 
-typedef NTSTATUS (NTAPI *pNtReadVirtualMemory_t)(
-    HANDLE ProcessHandle,
-    PVOID BaseAddress,
-    PVOID Buffer,
-    ULONG NumberOfBytesToRead,
-    PULONG NumberOfBytesRead);
+// ProcessCommandLineInformation (class = 60)
+// 微软文档化的命令行查询类（Win 8.1+）。返回结构布局：
+//   struct { UNICODE_STRING Commandline; WCHAR Buffer[ANYSIZE_ARRAY]; }
+// 即首部一个 16 字节的 UNICODE_STRING 头（Length/MaxLength/Buffer），
+// 紧跟宽字符命令行数据。关键点：Commandline.Buffer 指向【同一返回缓冲内部】
+// （头之后），而非目标进程地址空间 —— 因此读完后无需再 NtReadVirtualMemory。
+// 相比旧 PEB 偏移试探（{0x60,0x68,0x70,0x78}，x64 上 0x60 命中 ImagePathName
+// 导致 96% 进程只拿到 exe 路径），本 API 语义明确、稳定。
+static constexpr ULONG ProcessCommandLineInformationClass = 60;
 
 static std::wstring ReadProcessCmdline(HANDLE hProcess) {
-    // 动态获取 ntdll 导出函数
+    // 用官方 API ProcessCommandLineInformation (class 60)，直接返回命令行 UNICODE_STRING。
+    // 比 PEB 偏移试探稳：微软保证语义，不依赖未文档化布局。
     static pNtQueryInformationProcess_t NtQIP = nullptr;
-    static pNtReadVirtualMemory_t NtRVM = nullptr;
     if (!NtQIP) {
         HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
         if (!ntdll) return L"";
         NtQIP = reinterpret_cast<pNtQueryInformationProcess_t>(
             GetProcAddress(ntdll, "NtQueryInformationProcess"));
-        NtRVM = reinterpret_cast<pNtReadVirtualMemory_t>(
-            GetProcAddress(ntdll, "NtReadVirtualMemory"));
     }
-    if (!NtQIP || !NtRVM) return L"";
+    if (!NtQIP) return L"";
 
-    // 1. 获取 PEB 地址
-    MY_PROCESS_BASIC_INFORMATION pbi{};
-    ULONG retLen = 0;
-    NTSTATUS st = NtQIP(hProcess, ProcessBasicInformationClass,
-                        &pbi, sizeof(pbi), &retLen);
-    if (st < 0 || !pbi.PebBaseAddress) return L"";
+    // 先查所需长度
+    ULONG returnLen = 0;
+    NTSTATUS st = NtQIP(hProcess, ProcessCommandLineInformationClass,
+                        nullptr, 0, &returnLen);
+    if (returnLen == 0) return L"";
 
-    // 2. 读取 PEB（前 256 字节，覆盖到 ProcessParameters 之后）
-    BYTE peb[256] = {};
-    ULONG nread = 0;
-    st = NtRVM(hProcess, pbi.PebBaseAddress, peb, sizeof(peb), &nread);
+    std::vector<BYTE> buf(returnLen);
+    st = NtQIP(hProcess, ProcessCommandLineInformationClass,
+               buf.data(), returnLen, &returnLen);
     if (st < 0) return L"";
 
-    // 3. ProcessParameters 在 x64 PEB 中偏移为 0x20（稳定 ABI）
-    ULONG_PTR pp = *(ULONG_PTR*)(peb + 0x20);
-    if (!pp) return L"";
+    // 首 16 字节是 UNICODE_STRING 头：
+    //   { USHORT Length; USHORT MaxLength; [4B pad]; PWSTR Buffer; }
+    // 对 ProcessCommandLineInformation，Buffer 指针指向【本调用返回缓冲内部】
+    // （头之后），而非跨进程地址 —— 故直接读 buf，无需 NtReadVirtualMemory。
+    MY_UNICODE_STRING* u = reinterpret_cast<MY_UNICODE_STRING*>(buf.data());
+    if (u->Length == 0 || u->Buffer == nullptr) return L"";
 
-    // 4. 读取 RTL_USER_PROCESS_PARAMETERS（512 字节足够覆盖所有字段）
-    BYTE par[512] = {};
-    st = NtRVM(hProcess, (PVOID)pp, par, sizeof(par), &nread);
-    if (st < 0) return L"";
+    size_t charCount = u->Length / 2;
+    if (charCount == 0) return L"";
 
-    // 5. 定位 CommandLine UNICODE_STRING。
-    //    RTL_USER_PROCESS_PARAMETERS 中 CommandLine 偏移因版本而异：
-    //      Win10 1607–21H2: 0x60
-    //      Win11 22000+:    0x70
-    //    UNICODE_STRING(x64) = { USHORT Length(2) + USHORT MaxLen(2)
-    //                            + 4B padding + PWSTR Buffer(8) } = 16B
-    //    Buffer 字段在 UNICODE_STRING 起始 +8 处。
-    //    试探一组常见偏移，通过 Length/Buffer 合法性筛选。
-    static const ULONG_PTR offsets[] = { 0x60, 0x68, 0x70, 0x78 };
-    for (auto off : offsets) {
-        if (off + 16 > sizeof(par)) break;
-        USHORT len = *(USHORT*)(par + off);
-        ULONG_PTR buf = *(ULONG_PTR*)(par + off + 8);
-        // Length 非零、偶数、<32KB，且 Buffer 指向用户态地址
-        if (len > 0 && len < 32768 && (len & 1) == 0 && buf >= 0x10000) {
-            ULONG cb = len < 4096 ? (ULONG)len : (ULONG)4096;
-            std::vector<WCHAR> cmd(cb / 2 + 1, 0);
-            st = NtRVM(hProcess, (PVOID)buf, cmd.data(), cb, &nread);
-            if (st >= 0 && nread > 0) {
-                cmd[nread / 2] = L'\0';
-                return std::wstring(cmd.data());
-            }
-        }
+    // 数据紧随 UNICODE_STRING 头（x64 上 16 字节）之后。
+    const size_t headerBytes = sizeof(MY_UNICODE_STRING);  // 16
+    const WCHAR* data = reinterpret_cast<const WCHAR*>(buf.data() + headerBytes);
+
+    // 安全校验：数据应落在 buf 范围内。若越界（理论上不该发生），兜底用 Buffer 指针。
+    if (headerBytes + charCount * 2 > buf.size()) {
+        data = u->Buffer;
     }
-    return L"";
+    return std::wstring(data, charCount);
 }
 
 bool CollectAllProcesses(std::vector<ProcessInfoRaw>& out, std::string& errMessage) {
