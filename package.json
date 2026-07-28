@@ -6,6 +6,8 @@
   "license": "MIT",
   "packageManager": "pnpm@8.15.0",
   "scripts": {
+    "dev": "pnpm --filter codemgr-app dev",
+    "build:app": "pnpm --filter codemgr-app vite:build",
     "bench": "pnpm --filter codemgr-native bench",
     "test:native": "pnpm --filter codemgr-native test"
   },
