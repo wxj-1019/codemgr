@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatBytesPerSec } from '../src/lib/format';
+import { formatBytesPerSec, formatDuration, formatCpuTime, formatBytes } from '../src/lib/format';
 
 describe('formatBytesPerSec', () => {
   it('formats bytes', () => {
@@ -16,5 +16,41 @@ describe('formatBytesPerSec', () => {
   });
   it('zero', () => {
     expect(formatBytesPerSec(0)).toBe('0 B/s');
+  });
+});
+
+describe('formatDuration', () => {
+  it('formats seconds', () => {
+    expect(formatDuration(45 * 1000)).toBe('45 秒');
+  });
+  it('formats minutes:seconds', () => {
+    expect(formatDuration(125 * 1000)).toBe('2 分 5 秒');
+  });
+  it('formats hours:minutes', () => {
+    expect(formatDuration((3 * 3600 + 5 * 60) * 1000)).toBe('3 时 5 分');
+  });
+  it('formats days', () => {
+    expect(formatDuration(2 * 24 * 3600 * 1000)).toBe('2 天');
+  });
+});
+
+describe('formatCpuTime', () => {
+  it('formats ms', () => {
+    expect(formatCpuTime(500)).toBe('500 毫秒');
+  });
+  it('formats seconds', () => {
+    expect(formatCpuTime(2500)).toBe('2.5 秒');
+  });
+  it('formats minutes', () => {
+    expect(formatCpuTime(125000)).toBe('2 分 5 秒');
+  });
+});
+
+describe('formatBytes', () => {
+  it('formats MB', () => {
+    expect(formatBytes(100 * 1048576)).toBe('100.0 MB');
+  });
+  it('formats GB', () => {
+    expect(formatBytes(2 * 1073741824)).toBe('2.0 GB');
   });
 });

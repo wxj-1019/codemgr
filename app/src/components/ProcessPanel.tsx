@@ -5,6 +5,7 @@ import { ipc } from '../lib/ipc';
 import { mostCommonName } from '../lib/batchKill';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
+import { ProcessDetailSidebar } from './ProcessDetailSidebar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 
@@ -155,23 +156,29 @@ export function ProcessPanel() {
       )}
 
       {/* 加载/错误/空状态，或进程表 */}
-      <div className="flex-1 overflow-hidden">
-        {showLoadState ? (
-          <LoadState
-            loading={loading}
-            error={error}
-            empty={false}
-            isFirstLoad={isFirstLoad}
-          />
-        ) : viewMode === 'project' ? (
-          <ProjectGroupView
-            onKillSingle={(pid, name) => setPendingKill({ pid, name })}
-            onKillGroup={(name, pids) => setGroupKill({ name, pids })}
-          />
-        ) : (
-          <ProcessTable
-            onKillSingle={(pid, name) => setPendingKill({ pid, name })}
-          />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {showLoadState ? (
+            <LoadState
+              loading={loading}
+              error={error}
+              empty={false}
+              isFirstLoad={isFirstLoad}
+            />
+          ) : viewMode === 'project' ? (
+            <ProjectGroupView
+              onKillSingle={(pid, name) => setPendingKill({ pid, name })}
+              onKillGroup={(name, pids) => setGroupKill({ name, pids })}
+            />
+          ) : (
+            <ProcessTable
+              onKillSingle={(pid, name) => setPendingKill({ pid, name })}
+            />
+          )}
+        </div>
+        {/* 详情侧栏：lg+ 屏才显示，kill 复用与表格同一套 pendingKill 流程 */}
+        {!showLoadState && (
+          <ProcessDetailSidebar onKill={(pid, name) => setPendingKill({ pid, name })} />
         )}
       </div>
 
