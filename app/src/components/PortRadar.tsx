@@ -23,8 +23,12 @@ export function PortRadar() {
   const listenCount = connections.filter(
     (c) => c.protocol === 'udp' || c.state === 'LISTENING'
   ).length;
+  // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留表格，仅在表头下挂一条
+  // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
+  const hasData = connections.length > 0;
   const isFirstLoad = connections.length === 0 && !error;
-  const showLoadState = !!error || (isFirstLoad && loading) || (connections.length === 0 && !loading);
+  const showErrorBanner = !!error && hasData;
+  const showLoadState = (isFirstLoad && loading) || (!!error && !hasData);
 
   return (
     <div className="flex h-full flex-col">
@@ -37,6 +41,22 @@ export function PortRadar() {
           </p>
         </div>
       </header>
+
+      {showErrorBanner && (
+        <div className="flex items-center justify-between gap-3 border-b border-red-700/40 bg-red-950/30 px-4 py-2">
+          <p className="truncate text-xs text-red-300">
+            上次刷新失败：{error}
+          </p>
+          <button
+            onClick={() => usePortRadarStore.getState().setError(null)}
+            className="shrink-0 text-red-400 hover:text-red-200"
+            aria-label="关闭错误提示"
+            title="关闭"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <main className="flex-1 overflow-hidden p-2">
         {showLoadState ? (

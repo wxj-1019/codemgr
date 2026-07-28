@@ -10,21 +10,36 @@ export function useProcessPanel() {
   const setLoading = useProcessPanelStore((s) => s.setLoading);
   const setError = useProcessPanelStore((s) => s.setError);
   const stoppedRef = useRef(false);
+  const busyRef = useRef(false);
+  const firstRef = useRef(true);
 
   useEffect(() => {
     stoppedRef.current = false;
+    busyRef.current = false;
+    firstRef.current = true;
 
     async function poll() {
-      setLoading(true);
+      if (busyRef.current) return;          // in-flight guard
+      busyRef.current = true;
+      if (firstRef.current) setLoading(true);  // only first load shows loading
       try {
         const procs = await ipc.fetchProcesses();
-        if (!stoppedRef.current) setProcesses(procs);
-        const cpus = await ipc.fetchCpu();
-        if (!stoppedRef.current) setCpuMap(cpus);
+        if (stoppedRef.current) return;
+        setProcesses(procs);
+        firstRef.current = false;
+        // CPU is best-effort enrichment: a failure here must NOT tear down the
+        // whole panel when we already have the process list. Log and move on.
+        try {
+          const cpus = await ipc.fetchCpu();
+          if (!stoppedRef.current) setCpuMap(cpus);
+        } catch (cpuErr) {
+          console.error('fetchCpu failed:', cpuErr);
+        }
       } catch (e) {
         if (!stoppedRef.current) setError(String(e));
       } finally {
-        if (!stoppedRef.current) setLoading(false);
+        busyRef.current = false;
+        if (firstRef.current && !stoppedRef.current) setLoading(false);
       }
     }
 

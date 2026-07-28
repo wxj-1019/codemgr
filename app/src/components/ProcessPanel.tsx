@@ -53,8 +53,12 @@ export function ProcessPanel() {
     alert(`已结束 ${killed} 个 node.exe 进程`);
   }
 
+  // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留进程表，仅在表头下挂一条
+  // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
+  const hasData = processes.length > 0;
   const isFirstLoad = processes.length === 0 && !error;
-  const showLoadState = !!error || (isFirstLoad && loading);
+  const showErrorBanner = !!error && hasData;
+  const showLoadState = (isFirstLoad && loading) || (!!error && !hasData);
 
   // Show the one-click "kill all node.exe" preset only when at least one
   // node.exe is actually present in the current snapshot.
@@ -111,6 +115,22 @@ export function ProcessPanel() {
           )}
         </div>
       </header>
+
+      {showErrorBanner && (
+        <div className="flex items-center justify-between gap-3 border-b border-red-700/40 bg-red-950/30 px-4 py-2">
+          <p className="truncate text-xs text-red-300">
+            上次刷新失败：{error}
+          </p>
+          <button
+            onClick={() => useProcessPanelStore.getState().setError(null)}
+            className="shrink-0 text-red-400 hover:text-red-200"
+            aria-label="关闭错误提示"
+            title="关闭"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 加载/错误/空状态，或进程表 */}
       <div className="flex-1 overflow-hidden">
