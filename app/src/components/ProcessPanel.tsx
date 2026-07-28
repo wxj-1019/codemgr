@@ -4,11 +4,12 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
 import { ProcessTable } from './ProcessTable';
 import { ConfirmDialog } from './ConfirmDialog';
+import { LoadState } from './LoadState';
 
 export function ProcessPanel() {
   useProcessPanel(); // Start polling (2s interval)
 
-  const { processes, loading, selectedPids, filter, setFilter, clearSelection } =
+  const { processes, loading, error, selectedPids, filter, setFilter, clearSelection } =
     useProcessPanelStore();
 
   const [pendingKill, setPendingKill] = useState<{
@@ -31,6 +32,9 @@ export function ProcessPanel() {
     clearSelection();
   }
 
+  const isFirstLoad = processes.length === 0 && !error;
+  const showLoadState = !!error || (isFirstLoad && loading);
+
   return (
     <div className="flex h-full flex-col">
       {/* Header bar */}
@@ -40,6 +44,7 @@ export function ProcessPanel() {
           <p className="text-xs text-slate-500">
             {processes.length} 个进程
             {loading ? ' · 刷新中…' : ''}
+            {error && ' · 上次刷新出错'}
             {selectedPids.size > 0 && ` · 已选 ${selectedPids.size} 个`}
           </p>
         </div>
@@ -81,10 +86,21 @@ export function ProcessPanel() {
         </div>
       </header>
 
-      {/* Process tree table */}
-      <ProcessTable
-        onKillSingle={(pid, name) => setPendingKill({ pid, name })}
-      />
+      {/* 加载/错误/空状态，或进程表 */}
+      <div className="flex-1 overflow-hidden">
+        {showLoadState ? (
+          <LoadState
+            loading={loading}
+            error={error}
+            empty={false}
+            isFirstLoad={isFirstLoad}
+          />
+        ) : (
+          <ProcessTable
+            onKillSingle={(pid, name) => setPendingKill({ pid, name })}
+          />
+        )}
+      </div>
 
       {/* Single-kill confirmation */}
       <ConfirmDialog

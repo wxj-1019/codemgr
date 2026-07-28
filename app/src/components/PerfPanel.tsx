@@ -10,6 +10,7 @@ import {
 import { usePerf } from '../hooks/usePerf';
 import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
+import { LoadState } from './LoadState';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network';
 
@@ -28,11 +29,18 @@ function fmtBytes(b: number): string {
 
 export function PerfPanel() {
   usePerf();
-  const { current, history } = usePerfStore();
+  const { current, history, error } = usePerfStore();
   const [sub, setSub] = useState<SubTab>('cpu');
 
   if (!current) {
-    return <div className="p-8 text-slate-500">加载性能数据中…</div>;
+    return (
+      <LoadState
+        loading={!error}
+        error={error}
+        empty={false}
+        isFirstLoad
+      />
+    );
   }
 
   const subTabs: { id: SubTab; label: string }[] = [

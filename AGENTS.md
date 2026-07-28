@@ -141,5 +141,5 @@ scope:  native | app | ci | docs（可选）
 
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=10ms（真实 2s 轮询）、netScan p99=3ms、60s 无泄漏。
-- 测试：21/21 PASS。
+- 测试：app 21/21 + native 7/7，共 28 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。

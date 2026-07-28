@@ -4,10 +4,11 @@ import { usePortRadarStore } from '../store/portRadarStore';
 import { ipc } from '../lib/ipc';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
+import { LoadState } from './LoadState';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
-  const { connections, loading, selectedPid, select } = usePortRadarStore();
+  const { connections, loading, error, selectedPid, select } = usePortRadarStore();
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
 
   async function doKill() {
@@ -22,6 +23,8 @@ export function PortRadar() {
   const listenCount = connections.filter(
     (c) => c.protocol === 'udp' || c.state === 'LISTENING'
   ).length;
+  const isFirstLoad = connections.length === 0 && !error;
+  const showLoadState = !!error || (isFirstLoad && loading) || (connections.length === 0 && !loading);
 
   return (
     <div className="flex h-full flex-col">
@@ -30,17 +33,28 @@ export function PortRadar() {
           <h1 className="text-lg font-semibold text-slate-100">端口雷达</h1>
           <p className="text-xs text-slate-500">
             {listenCount} 个监听端口{loading ? ' · 刷新中…' : ''}
+            {error && ' · 上次刷新出错'}
           </p>
         </div>
       </header>
 
       <main className="flex-1 overflow-hidden p-2">
-        <PortTable
-          connections={connections}
-          selectedPid={selectedPid}
-          onSelect={(pid) => select(pid)}
-          onKill={(pid, name) => setPendingKill({ pid, name })}
-        />
+        {showLoadState ? (
+          <LoadState
+            loading={loading}
+            error={error}
+            empty={connections.length === 0 && !loading && !error}
+            emptyText="暂无监听端口"
+            isFirstLoad={isFirstLoad}
+          />
+        ) : (
+          <PortTable
+            connections={connections}
+            selectedPid={selectedPid}
+            onSelect={(pid) => select(pid)}
+            onKill={(pid, name) => setPendingKill({ pid, name })}
+          />
+        )}
       </main>
 
       <ConfirmDialog
