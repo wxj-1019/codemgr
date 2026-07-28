@@ -87,6 +87,15 @@ ipcMain.handle(IPC.KILL_BY_NAME, async (_evt, name: string) => {
   }
 });
 
+ipcMain.handle(IPC.KILL_BY_PIDS, async (_evt, pids: number[]) => {
+  try {
+    return native.killByPids(pids);
+  } catch (e) {
+    console.error('killByPids failed:', e);
+    return 0;
+  }
+});
+
 ipcMain.handle(IPC.FETCH_PROCESSES, async () => {
   try {
     return native.processScan();

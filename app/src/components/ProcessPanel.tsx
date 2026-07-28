@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
+import { mostCommonName } from '../lib/batchKill';
 import { ProcessTable } from './ProcessTable';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
@@ -17,23 +18,47 @@ export function ProcessPanel() {
     name: string;
   } | null>(null);
 
+  // Batch kill of *selected* PIDs (targets explicit pids, never same-name procs
+  // elsewhere on the system). Holds the most-common name among the selection
+  // purely for the confirmation dialog copy.
   const [batchKillName, setBatchKillName] = useState<string | null>(null);
+
+  // Separate confirm state for the one-click "kill ALL node.exe" preset. This
+  // path intentionally uses killByName (system-wide) because that is exactly
+  // what the preset promises — but native guard list still protects
+  // svchost/system/electron/CodeMgr.
+  const [confirmKillAllNode, setConfirmKillAllNode] = useState(false);
 
   async function doKillSingle() {
     if (!pendingKill) return;
-    await ipc.killProcess(pendingKill.pid);
+    const ok = await ipc.killProcess(pendingKill.pid);
     setPendingKill(null);
+    if (!ok) {
+      alert('结束失败：权限不足或进程已退出');
+    }
   }
 
   async function doBatchKill() {
     if (!batchKillName) return;
-    await ipc.killByName(batchKillName);
+    const killed = await ipc.killByPids([...selectedPids]);
     setBatchKillName(null);
     clearSelection();
+    alert(`已结束 ${killed} 个进程`);
+  }
+
+  async function doKillAllNode() {
+    const killed = await ipc.killByName('node.exe');
+    setConfirmKillAllNode(false);
+    clearSelection();
+    alert(`已结束 ${killed} 个 node.exe 进程`);
   }
 
   const isFirstLoad = processes.length === 0 && !error;
   const showLoadState = !!error || (isFirstLoad && loading);
+
+  // Show the one-click "kill all node.exe" preset only when at least one
+  // node.exe is actually present in the current snapshot.
+  const hasNode = processes.some((p) => p.name.toLowerCase() === 'node.exe');
 
   return (
     <div className="flex h-full flex-col">
@@ -56,27 +81,28 @@ export function ProcessPanel() {
             onChange={(e) => setFilter(e.target.value)}
             className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-accent/50"
           />
+          {hasNode && (
+            <button
+              onClick={() => setConfirmKillAllNode(true)}
+              className="rounded bg-orange-600/80 px-3 py-1 text-xs text-white hover:bg-orange-500"
+              title="结束系统中所有 node.exe 进程（受保护名单排除）"
+            >
+              结束所有 node.exe
+            </button>
+          )}
           {selectedPids.size > 0 && (
             <button
               onClick={() => {
                 // Pick the most-common name among the selected PIDs as the
-                // batch target.  This avoids killing unrelated processes
-                // when the user has selected a mix of different names.
-                const selectedNames = [...selectedPids]
-                  .map(
-                    (pid) =>
-                      processes.find((p) => p.pid === pid)?.name || '',
-                  )
-                  .filter(Boolean);
-
-                const freq: Record<string, number> = {};
-                let best = '';
-                for (const n of selectedNames) {
-                  freq[n] = (freq[n] || 0) + 1;
-                  if (freq[n] > (freq[best] || 0)) best = n;
-                }
-
-                if (best) setBatchKillName(best);
+                // batch target label. The kill itself targets explicit PIDs
+                // (killByPids), so unrelated same-name processes elsewhere are
+                // never touched.
+                const name = mostCommonName(
+                  [...selectedPids].map(
+                    (pid) => processes.find((p) => p.pid === pid)?.name || '',
+                  ),
+                );
+                if (name) setBatchKillName(name);
               }}
               className="rounded bg-red-600/80 px-3 py-1 text-xs text-white hover:bg-red-500"
             >
@@ -112,14 +138,24 @@ export function ProcessPanel() {
         onCancel={() => setPendingKill(null)}
       />
 
-      {/* Batch-kill confirmation */}
+      {/* Batch-kill confirmation — targets explicit selected PIDs */}
       <ConfirmDialog
         open={batchKillName !== null}
         title="批量结束进程"
-        message={`确定结束所有 ${batchKillName} 进程吗？（已选 ${selectedPids.size} 个）`}
+        message={`确定结束选中的 ${selectedPids.size} 个进程（均为 ${batchKillName}）吗？`}
         confirmLabel="批量结束"
         onConfirm={doBatchKill}
         onCancel={() => setBatchKillName(null)}
+      />
+
+      {/* Kill-all-node confirmation — system-wide, guarded by native protection list */}
+      <ConfirmDialog
+        open={confirmKillAllNode}
+        title="结束所有 node.exe"
+        message="将结束系统中所有 node.exe 进程（受保护进程如 CodeMgr/electron 会被自动排除）。确定继续吗？"
+        confirmLabel="全部结束"
+        onConfirm={doKillAllNode}
+        onCancel={() => setConfirmKillAllNode(false)}
       />
     </div>
   );

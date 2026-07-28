@@ -18,6 +18,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "cpuDelta"), Napi::Function::New(env, CpuTracker::CpuDelta));
   exports.Set(Napi::String::New(env, "killProcess"), Napi::Function::New(env, KillProcess));
   exports.Set(Napi::String::New(env, "killByName"), Napi::Function::New(env, KillByName));
+  exports.Set(Napi::String::New(env, "killByPids"), Napi::Function::New(env, KillByPidsJS));
   exports.Set(Napi::String::New(env, "perfCounters"), Napi::Function::New(env, PerfCounters));
   return exports;
 }

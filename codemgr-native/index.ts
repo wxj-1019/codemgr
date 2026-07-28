@@ -37,6 +37,7 @@ export interface NativeBindings {
   cpuDelta(): CpuUsage[];
   killProcess(pid: number): boolean;
   killByName(name: string): number;
+  killByPids(pids: number[]): number;
 }
 
 // 加载编译产物（index.ts 位于包根，build/ 在同级）

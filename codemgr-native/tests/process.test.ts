@@ -33,3 +33,38 @@ describe('processScan', () => {
     expect(idle).toBeDefined();
   });
 });
+
+describe('killByPids guard list', () => {
+  // 保护名单（与 process_ops.cpp IsProtected 保持一致）
+  const PROTECTED = [
+    'System', 'Registry', 'smss.exe', 'csrss.exe', 'wininit.exe', 'winlogon.exe',
+    'services.exe', 'lsass.exe', 'svchost.exe', 'electron.exe',
+  ];
+
+  it('returns a number for an empty pid list', () => {
+    const killed = native.killByPids([]);
+    expect(typeof killed).toBe('number');
+    expect(killed).toBe(0);
+  });
+
+  it('never kills a protected name (svchost/system) — returns 0', () => {
+    const procs = native.processScan();
+    const lower = new Set(PROTECTED.map((n) => n.toLowerCase()));
+    const protectedPids = procs
+      .filter((p) => lower.has(p.name.toLowerCase()))
+      .map((p) => p.pid);
+    // 任何 Windows 都至少有一个 svchost.exe / services.exe
+    expect(protectedPids.length).toBeGreaterThan(0);
+    const killed = native.killByPids(protectedPids);
+    expect(killed).toBe(0);
+  });
+});
+
+describe('killByName guard list', () => {
+  it('never kills svchost.exe even when targeted by name', () => {
+    const killed = native.killByName('svchost.exe');
+    // svchost.exe 在保护名单内 —— 必须返回 0（即便系统里有几十个）
+    expect(killed).toBe(0);
+  });
+});
+

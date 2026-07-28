@@ -6,6 +6,7 @@ const api: ExposedApi = {
   fetchConnections: () => ipcRenderer.invoke(IPC.FETCH_CONNECTIONS),
   killProcess: (pid: number) => ipcRenderer.invoke(IPC.KILL_PROCESS, pid),
   killByName: (name: string) => ipcRenderer.invoke(IPC.KILL_BY_NAME, name),
+  killByPids: (pids: number[]) => ipcRenderer.invoke(IPC.KILL_BY_PIDS, pids),
   fetchProcesses: () => ipcRenderer.invoke(IPC.FETCH_PROCESSES),
   fetchCpu: () => ipcRenderer.invoke(IPC.FETCH_CPU),
   fetchPerf: () => ipcRenderer.invoke(IPC.FETCH_PERF),

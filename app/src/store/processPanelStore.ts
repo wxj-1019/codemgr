@@ -19,7 +19,7 @@ interface ProcessPanelState {
   toggleSort: () => void;
   toggleExpand: (pid: number) => void;
   toggleSelect: (pid: number) => void;
-  selectAll: () => void;
+  selectAll: (pids?: number[]) => void;
   clearSelection: () => void;
   setLoading: (b: boolean) => void;
   setError: (e: string | null) => void;
@@ -37,7 +37,17 @@ export const useProcessPanelStore = create<ProcessPanelState>((set) => ({
   loading: false,
   error: null,
 
-  setProcesses: (p) => set({ processes: p, error: null }),
+  setProcesses: (p) => set((s) => {
+    // Prune stale entries: only keep PIDs still present in the new snapshot.
+    const pidSet = new Set(p.map((x) => x.pid));
+    const selectedPids = new Set([...s.selectedPids].filter((pid) => pidSet.has(pid)));
+    const cpuMap: Record<number, number> = {};
+    for (const k of Object.keys(s.cpuMap)) {
+      const n = Number(k);
+      if (pidSet.has(n)) cpuMap[n] = s.cpuMap[n];
+    }
+    return { processes: p, error: null, selectedPids, cpuMap };
+  }),
   setCpuMap: (c) => set((s) => {
     const m = { ...s.cpuMap };
     for (const x of c) m[x.pid] = x.cpuPercent;
@@ -56,8 +66,10 @@ export const useProcessPanelStore = create<ProcessPanelState>((set) => ({
     next.has(pid) ? next.delete(pid) : next.add(pid);
     return { selectedPids: next };
   }),
-  selectAll: () => set((s) => ({
-    selectedPids: new Set(s.processes.map(p => p.pid))
+  selectAll: (pids) => set((s) => ({
+    // If pids given, only select those (e.g. the filtered list); otherwise
+    // fall back to selecting every known process (backward compatible).
+    selectedPids: new Set(pids ?? s.processes.map((p) => p.pid)),
   })),
   clearSelection: () => set({ selectedPids: new Set() }),
   setLoading: (b) => set({ loading: b }),

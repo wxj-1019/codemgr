@@ -47,4 +47,55 @@ describe('processPanelStore', () => {
     useProcessPanelStore.getState().toggleExpand(42);
     expect(useProcessPanelStore.getState().expandedPids.has(42)).toBe(false);
   });
+
+  it('toggleSelect toggles selection', () => {
+    useProcessPanelStore.getState().toggleSelect(7);
+    expect(useProcessPanelStore.getState().selectedPids.has(7)).toBe(true);
+    useProcessPanelStore.getState().toggleSelect(7);
+    expect(useProcessPanelStore.getState().selectedPids.has(7)).toBe(false);
+  });
+
+  it('selectAll() with no args selects all processes', () => {
+    useProcessPanelStore.getState().setProcesses([sampleProc({ pid: 1 }), sampleProc({ pid: 2 }), sampleProc({ pid: 3 })]);
+    useProcessPanelStore.getState().selectAll();
+    const s = useProcessPanelStore.getState();
+    expect(s.selectedPids.has(1)).toBe(true);
+    expect(s.selectedPids.has(2)).toBe(true);
+    expect(s.selectedPids.has(3)).toBe(true);
+  });
+
+  it('selectAll(pids) only selects given pids (respects filter)', () => {
+    useProcessPanelStore.getState().setProcesses([sampleProc({ pid: 1 }), sampleProc({ pid: 2 }), sampleProc({ pid: 3 })]);
+    useProcessPanelStore.getState().selectAll([1, 2]);
+    const s = useProcessPanelStore.getState();
+    expect(s.selectedPids.has(1)).toBe(true);
+    expect(s.selectedPids.has(2)).toBe(true);
+    expect(s.selectedPids.has(3)).toBe(false);
+  });
+
+  it('clearSelection empties selectedPids', () => {
+    useProcessPanelStore.getState().toggleSelect(1);
+    useProcessPanelStore.getState().clearSelection();
+    expect(useProcessPanelStore.getState().selectedPids.size).toBe(0);
+  });
+
+  it('setProcesses prunes stale selectedPids', () => {
+    const st = useProcessPanelStore.getState();
+    st.setProcesses([sampleProc({ pid: 1 })]);
+    st.toggleSelect(1);
+    st.toggleSelect(99); // not in list
+    st.setProcesses([sampleProc({ pid: 1 })]); // 99 gone
+    expect(useProcessPanelStore.getState().selectedPids.has(99)).toBe(false);
+    expect(useProcessPanelStore.getState().selectedPids.has(1)).toBe(true);
+  });
+
+  it('setProcesses prunes stale cpuMap entries', () => {
+    const st = useProcessPanelStore.getState();
+    st.setCpuMap([{ pid: 1, cpuPercent: 10 }, { pid: 99, cpuPercent: 50 }]);
+    st.setProcesses([sampleProc({ pid: 1 })]); // 99 gone
+    const m = useProcessPanelStore.getState().cpuMap;
+    expect(m[1]).toBe(10);
+    expect(m[99]).toBeUndefined();
+  });
 });
+

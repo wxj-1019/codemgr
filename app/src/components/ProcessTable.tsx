@@ -262,6 +262,17 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
   );
 
   const setSortKey = useProcessPanelStore((s) => s.setSortKey);
+  const toggleSort = useProcessPanelStore((s) => s.toggleSort);
+
+  // Clicking a sort header: if it's already the active key, flip direction
+  // (this is what makes toggleSort non-dead); otherwise switch columns.
+  const onSort = useCallback(
+    (key: typeof sortKey) => {
+      if (sortKey === key) toggleSort();
+      else setSortKey(key);
+    },
+    [sortKey, setSortKey, toggleSort],
+  );
 
   return (
     <div className="overflow-auto flex-1">
@@ -273,32 +284,34 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
                 type="checkbox"
                 checked={allSelected}
                 onChange={() =>
-                  allSelected ? clearSelection() : selectAll()
+                  allSelected
+                    ? clearSelection()
+                    : selectAll(sorted.map((p) => p.pid))
                 }
                 className="accent-accent"
               />
             </th>
             <th
               className="px-2 py-2 font-medium cursor-pointer select-none"
-              onClick={() => setSortKey('name')}
+              onClick={() => onSort('name')}
             >
               名称 {sortKey === 'name' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
               className="w-16 px-2 py-2 font-medium cursor-pointer text-right"
-              onClick={() => setSortKey('cpu')}
+              onClick={() => onSort('cpu')}
             >
               CPU% {sortKey === 'cpu' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
               className="w-20 px-2 py-2 font-medium cursor-pointer text-right"
-              onClick={() => setSortKey('memory')}
+              onClick={() => onSort('memory')}
             >
               内存/MB {sortKey === 'memory' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
               className="w-16 px-2 py-2 font-medium cursor-pointer text-right"
-              onClick={() => setSortKey('pid')}
+              onClick={() => onSort('pid')}
             >
               PID {sortKey === 'pid' ? (sortAsc ? '↑' : '↓') : ''}
             </th>

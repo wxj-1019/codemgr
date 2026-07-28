@@ -2,6 +2,56 @@
 #include "process_collector.h"
 #include <windows.h>
 
+#include <algorithm>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+// Protection list (case-insensitive). Never kill these.
+bool IsProtected(const std::string& name) {
+  static const char* protectedNames[] = {
+    "System", "Registry", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
+    "services.exe", "lsass.exe", "svchost.exe", "CodeMgr.exe", "electron.exe", nullptr
+  };
+  std::string lower = name;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)::tolower(c); });
+  for (int i = 0; protectedNames[i]; i++) {
+    std::string p = protectedNames[i];
+    std::transform(p.begin(), p.end(), p.begin(),
+                   [](unsigned char c) { return (char)::tolower(c); });
+    if (lower == p) return true;
+  }
+  return false;
+}
+
+// Kill by explicit PID list. Skips protected names + own process. Returns actual killed count.
+size_t KillByPids(const std::vector<DWORD>& pids) {
+  size_t killed = 0;
+  DWORD selfPid = GetCurrentProcessId();
+
+  // Build pid->name map once via process enumeration (reuse process_collector's CollectAllProcesses)
+  std::vector<ProcessInfoRaw> procs;
+  std::string err;
+  if (!CollectAllProcesses(procs, err)) return 0;
+
+  std::unordered_map<DWORD, std::string> nameMap;
+  nameMap.reserve(procs.size());
+  for (const auto& p : procs) nameMap[p.pid] = p.name;
+
+  for (DWORD pid : pids) {
+    if (pid == selfPid) continue;
+    auto it = nameMap.find(pid);
+    if (it != nameMap.end() && IsProtected(it->second)) continue;
+    HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+    if (h) {
+      if (TerminateProcess(h, 1)) killed++;
+      CloseHandle(h);
+    }
+  }
+  return killed;
+}
+
 Napi::Value KillProcess(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if (info.Length() < 1 || !info[0].IsNumber()) {
@@ -35,8 +85,13 @@ Napi::Value KillByName(const Napi::CallbackInfo& info) {
     return env.Null();
   }
 
+  DWORD selfPid = GetCurrentProcessId();
   int killed = 0;
   for (const auto& p : procs) {
+    // 跳过保护名单（即便名字匹配，也不杀 System/svchost/electron 等）
+    if (IsProtected(p.name)) continue;
+    // 跳过自身
+    if (p.pid == selfPid) continue;
     // 大小写不敏感比较（Windows 进程名不区分大小写）
     if (_stricmp(p.name.c_str(), target.c_str()) == 0) {
       HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, p.pid);
@@ -47,4 +102,20 @@ Napi::Value KillByName(const Napi::CallbackInfo& info) {
     }
   }
   return Napi::Number::New(env, killed);
+}
+
+// killByPids(pids: number[]) -> number : actual killed count
+Napi::Value KillByPidsJS(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsArray()) {
+    Napi::TypeError::New(env, "expected pids:number[]").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  Napi::Array arr = info[0].As<Napi::Array>();
+  std::vector<DWORD> pids;
+  pids.reserve(arr.Length());
+  for (uint32_t i = 0; i < arr.Length(); i++) {
+    pids.push_back((DWORD)arr.Get(i).As<Napi::Number>().Int32Value());
+  }
+  return Napi::Number::New(env, (double)KillByPids(pids));
 }

@@ -7,9 +7,20 @@
 ## [Unreleased] — v1.0 优化迭代
 
 ### 新增
+- **批量结束安全加固**：批量结束改为按显式 PID 列表（`killByPids`）精确终止选中的进程，不再误杀系统中同名进程。确认弹窗展示实际选中数量与统一进程名。
+- **保护名单**：native 层新增保护名单（System/Registry/smss/csrss/wininit/winlogon/services/lsass/svchost/CodeMgr/electron），`killByPids` 与 `killByName` 均拒绝终止保护进程，且永不终止自身。
+- **一键结束所有 node.exe**：进程面板新增预设按钮（仅当快照中存在 node.exe 时显示），通过 `killByName` 全量清理，仍受保护名单约束。
+- **采集层**：新增 `killByPids(pids: number[]): number` 接口。
 - **磁盘 IO 速率**：性能面板的磁盘子标签从「仅空间」升级为「空间 + 读/写速率 + 活动时间%」（PDH 计数器 `\LogicalDisk(*)\*`）。
 - **统一加载/错误/空状态**（LoadState 组件）：三个面板（端口雷达/进程/性能）首屏骨架加载、出错提示 + 自动重试、空数据占位，体验一致。
 - **组件测试**：LoadState / ConfirmDialog / PortTable 单元测试（+12 用例，共 40 PASS）。
+
+### 优化
+- **进程面板**：`selectAll` 现接受 PID 列表参数，表头全选复选框只选中当前过滤后的进程（不再无视过滤选中全部）。
+- **进程面板**：`setProcesses` 自动修剪失效的 `selectedPids` 与 `cpuMap`（进程退出后选中状态/CPU 缓存随之清理）。
+- **进程面板**：单击结束失败时弹窗提示（原先静默失败）；表头排序点击同一列可切换升/降序（`toggleSort` 不再是死代码）。
+- **进程列表渲染性能**：ProcessRow 抽为 `React.memo` + 稳定 callback，预计算 childrenParentSet（O(n) 替代每行 O(n²)），300+ 进程时不必要重渲染大幅减少。
+- **usePerf 错误处理**：补 setError，修复 perfStore.error 死字段。
 
 ### 优化
 - **进程列表渲染性能**：ProcessRow 抽为 `React.memo` + 稳定 callback，预计算 childrenParentSet（O(n) 替代每行 O(n²)），300+ 进程时不必要重渲染大幅减少。
