@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog } from 'electron';
 import path from 'node:path';
 import { IPC } from './ipc-types';
 
@@ -7,10 +7,22 @@ const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const RENDERER_DIST = path.join(__dirname, '..', 'dist-renderer');
 
 // 加载 v0.1 已为 electron 编译的 native addon（Task 1 产物）
-const native = require(path.join(__dirname, '..', '..', 'codemgr-native', 'build', 'Release', 'codemgr-native.node'));
+// ABI 不匹配（未为 Electron 重编译）时给出对话框提示，避免无提示闪退
+let native: any;
+try {
+  native = require(path.join(__dirname, '..', '..', 'codemgr-native', 'build', 'Release', 'codemgr-native.node'));
+} catch (e) {
+  dialog.showErrorBox(
+    'CodeMgr 启动失败',
+    'native 采集层加载失败（可能未为 Electron 重编译）。\n请在仓库根目录执行：cd codemgr-native && pnpm build:electron\n\n' + String(e)
+  );
+  app.exit(1);
+}
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
+// 托盘"退出"菜单置位此标志，让 close 处理器不再拦截，app.quit() 才能真正生效
+let isQuitting = false;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -37,6 +49,7 @@ function createWindow() {
 
   // 关闭按钮 → 仅隐藏，真正退出由托盘菜单控制
   win.on('close', (e) => {
+    if (isQuitting) return; // 真正退出时不拦截
     e.preventDefault();
     win?.hide();
   });
@@ -123,7 +136,7 @@ app.whenReady().then(() => {
     { label: '显示', click: () => { win?.show(); win?.focus(); } },
     { label: '隐藏', click: () => win?.hide() },
     { type: 'separator' },
-    { label: '退出', click: () => { tray?.destroy(); tray = null; app.quit(); } },
+    { label: '退出', click: () => { isQuitting = true; tray?.destroy(); tray = null; app.quit(); } },
   ]);
   tray.setContextMenu(contextMenu);
 
