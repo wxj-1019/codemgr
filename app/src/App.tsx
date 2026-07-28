@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { PortRadar } from './components/PortRadar';
 import { ProcessPanel } from './components/ProcessPanel';
+import { PerfPanel } from './components/PerfPanel';
 
-type Tab = 'port' | 'process';
+type Tab = 'port' | 'process' | 'perf';
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'port', label: '端口雷达' },
   { id: 'process', label: '进程' },
+  { id: 'perf', label: '性能' },
 ];
 
 export function App() {
@@ -33,7 +35,9 @@ export function App() {
 
       {/* Active panel */}
       <div className="flex-1 overflow-hidden">
-        {active === 'port' ? <PortRadar /> : <ProcessPanel />}
+        {active === 'port' && <PortRadar />}
+        {active === 'process' && <ProcessPanel />}
+        {active === 'perf' && <PerfPanel />}
       </div>
     </div>
   );

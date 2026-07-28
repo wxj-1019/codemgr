@@ -5,6 +5,7 @@ export const IPC = {
   KILL_BY_NAME: 'proc:killByName',
   FETCH_PROCESSES: 'proc:fetchProcesses',
   FETCH_CPU: 'proc:fetchCpu',
+  FETCH_PERF: 'perf:fetch',
 } as const;
 
 // 与 codemgr-native 的 NetConnection 一致（重新声明，避免渲染层直接依赖 native 包）
@@ -39,6 +40,22 @@ export interface CpuUsage {
   cpuPercent: number;
 }
 
+// PerfData 匹配 codemgr-native perfCounters() 的返回形状
+export interface PerfData {
+  cpu: { totalPercent: number; perCore: number[] };
+  memory: { totalBytes: number; availableBytes: number; usedPercent: number };
+  disks: Array<{
+    name: string;
+    totalBytes: number;
+    freeBytes: number;
+    readBytesPerSec: number;
+    writeBytesPerSec: number;
+    activePercent: number;
+  }>;
+  networks: Array<{ name: string; recvBytesPerSec: number; sendBytesPerSec: number }>;
+  timestamp: number;
+}
+
 // preload 暴露给 window 的 API 形状
 export interface ExposedApi {
   fetchConnections(): Promise<NetConnection[]>;
@@ -46,4 +63,5 @@ export interface ExposedApi {
   killByName(name: string): Promise<number>;
   fetchProcesses(): Promise<ProcessInfo[]>;
   fetchCpu(): Promise<CpuUsage[]>;
+  fetchPerf(): Promise<PerfData | null>;
 }

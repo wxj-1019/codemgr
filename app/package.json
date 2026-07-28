@@ -13,6 +13,7 @@
   "dependencies": {
     "react": "18",
     "react-dom": "18",
+    "recharts": "2",
     "zustand": "4"
   },
   "devDependencies": {

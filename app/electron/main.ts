@@ -76,6 +76,15 @@ ipcMain.handle(IPC.FETCH_CPU, async () => {
   }
 });
 
+ipcMain.handle(IPC.FETCH_PERF, async () => {
+  try {
+    return native.perfCounters();
+  } catch (e) {
+    console.error('perfCounters failed:', e);
+    return null;
+  }
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {

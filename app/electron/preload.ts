@@ -8,6 +8,7 @@ const api: ExposedApi = {
   killByName: (name: string) => ipcRenderer.invoke(IPC.KILL_BY_NAME, name),
   fetchProcesses: () => ipcRenderer.invoke(IPC.FETCH_PROCESSES),
   fetchCpu: () => ipcRenderer.invoke(IPC.FETCH_CPU),
+  fetchPerf: () => ipcRenderer.invoke(IPC.FETCH_PERF),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);
