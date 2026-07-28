@@ -1,0 +1,24 @@
+{
+  "name": "codemgr-native",
+  "version": "0.1.0",
+  "description": "CodeMgr C++ native collector addon",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "install": "cmake-js compile",
+    "build": "cmake-js compile",
+    "rebuild": "cmake-js clean && cmake-js compile",
+    "bench": "tsx bench/process.bench.ts && tsx bench/net.bench.ts && tsx bench/leak.bench.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.0.0"
+  },
+  "devDependencies": {
+    "cmake-js": "^7.3.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.11.0"
+  }
+}

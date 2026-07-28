@@ -1,0 +1,12 @@
+{
+  "name": "codemgr",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CodeMgr — 开发者工作流管理器",
+  "license": "MIT",
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "bench": "pnpm --filter codemgr-native bench",
+    "test:native": "pnpm --filter codemgr-native test"
+  }
+}
