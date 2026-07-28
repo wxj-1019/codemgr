@@ -11,6 +11,7 @@ import { usePerf } from '../hooks/usePerf';
 import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
 import { LoadState } from './LoadState';
+import { formatBytesPerSec } from '../lib/format';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network';
 
@@ -253,6 +254,9 @@ function DiskView({ current }: { current: PerfData }) {
                   className={`h-full ${color}`}
                   style={{ width: `${usedPct}%` }}
                 />
+              </div>
+              <div className="mt-0.5 text-xs text-slate-500">
+                读 {formatBytesPerSec(d.readBytesPerSec)} · 写 {formatBytesPerSec(d.writeBytesPerSec)} · 活跃 {d.activePercent.toFixed(0)}%
               </div>
             </div>
           );
