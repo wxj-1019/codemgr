@@ -1,9 +1,13 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { IPC } from './ipc-types';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const RENDERER_DIST = path.join(__dirname, '..', 'dist-renderer');
+
+// 加载 v0.1 已为 electron 编译的 native addon（Task 1 产物）
+const native = require(path.join(__dirname, '..', '..', 'codemgr-native', 'build', 'Release', 'codemgr-native.node'));
 
 let win: BrowserWindow | null = null;
 
@@ -26,10 +30,33 @@ function createWindow() {
   }
 }
 
-// 先注册占位 handler（下个任务换成真实 native 调用）
-ipcMain.handle('net:fetchConnections', async () => []);
-ipcMain.handle('proc:killProcess', async () => false);
-ipcMain.handle('proc:killByName', async () => 0);
+// 注册真实 native handler（调用 v0.1 codemgr-native addon）
+ipcMain.handle(IPC.FETCH_CONNECTIONS, async () => {
+  try {
+    return native.netScan();
+  } catch (e) {
+    console.error('netScan failed:', e);
+    return [];
+  }
+});
+
+ipcMain.handle(IPC.KILL_PROCESS, async (_evt, pid: number) => {
+  try {
+    return native.killProcess(pid);
+  } catch (e) {
+    console.error('killProcess failed:', e);
+    return false;
+  }
+});
+
+ipcMain.handle(IPC.KILL_BY_NAME, async (_evt, name: string) => {
+  try {
+    return native.killByName(name);
+  } catch (e) {
+    console.error('killByName failed:', e);
+    return 0;
+  }
+});
 
 app.whenReady().then(createWindow);
 
