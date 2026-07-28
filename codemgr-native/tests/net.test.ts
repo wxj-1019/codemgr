@@ -14,6 +14,15 @@ describe('netScan', () => {
     expect(listening.length).toBeGreaterThan(0);
   });
 
+  it('fills processName for connections with a valid pid', () => {
+    const conns = native.netScan();
+    const withPid = conns.filter((c) => c.pid > 0);
+    expect(withPid.length).toBeGreaterThan(0);
+    // 至少 90% 的连接能解析出进程名（少数系统连接可能失败）
+    const named = withPid.filter((c) => c.processName.length > 0);
+    expect(named.length / withPid.length).toBeGreaterThan(0.9);
+  });
+
   it('all TCP entries have valid fields', () => {
     const conns = native.netScan().filter(c => c.protocol === 'tcp');
     for (const c of conns) {

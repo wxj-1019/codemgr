@@ -12,6 +12,7 @@ struct NetConnRaw {
   USHORT remotePort;
   std::string state;        // "LISTEN" / "ESTABLISHED" / ...
   ULONG pid;
+  std::string processName;  // 占用进程名（查不到时为空）
 };
 
 bool CollectAllConnections(std::vector<NetConnRaw>& out, std::string& errMessage);
