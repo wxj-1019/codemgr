@@ -187,6 +187,72 @@ static std::wstring ReadProcessCmdline(HANDLE hProcess) {
     return std::wstring(data, charCount);
 }
 
+// ---------------------------------------------------------------------------
+// ExtractCwdFromCmdline — 从命令行里启发式推断工作目录（零额外系统调用）
+// ---------------------------------------------------------------------------
+// 设计取舍（重要）：
+// 理想方案是直读 PEB ProcessParameters.CurrentDirectory（offset 0x38，CURDIR
+// DosPath），那样能拿到 96% 进程的【真实】cwd。但实测每进程需 1 次 NtQIP +
+// 3 次 NtReadVirtualMemory，~360 进程下单次采集 p99 从 ~16ms 升到 ~21ms，
+// 超过 20ms 的 Go/No-Go 红线（见 bench/process.bench.ts）。
+//
+// 因此这里退而求其次：从已读到的 cmdline 字符串里抽取【首个盘符路径】作为
+// cwd 近似。命令行已由 ProcessCommandLineInformation(class 60) 零额外读取得
+// 到，本函数纯字符串处理，不再产生系统调用 → bench 不回归。
+//
+// 已知局限（必须知道）：
+//   1. 仅当命令行显式包含项目路径时才有效。`node server.js`（相对路径）、
+//      `npm run dev` 这类不含绝对路径的命令行 → cwd 为空 → 进程归到「未分组」。
+//   2. 抽到的是首个盘符路径，可能是脚本路径而非工作目录本身；这里取其【目录
+//      部分】作为分组键——同目录下启动的多个脚本仍能正确归到一组。
+//   3. 对开发场景的核心价值成立：dev server / 构建工具常以绝对路径启动
+//      （如 IDE 启动的 node、docker 挂载路径），这些是 CodeMgr 最想分组的对象。
+//
+// 返回推断出的目录（已规范化为去尾部反斜杠的盘符路径），无匹配返回空串。
+// ---------------------------------------------------------------------------
+static std::wstring ExtractCwdFromCmdline(const std::wstring& cmdline) {
+    if (cmdline.empty()) return L"";
+    // 扫描首个 "盘符:\" 形态（如 C:\），这是 Windows 绝对路径的可靠标志。
+    for (size_t i = 0; i + 2 < cmdline.size(); ++i) {
+        wchar_t c0 = cmdline[i];
+        // 盘符：A-Z / a-z
+        bool isDrive = (c0 >= L'a' && c0 <= L'z') || (c0 >= L'A' && c0 <= L'Z');
+        if (!isDrive) continue;
+        if (cmdline[i + 1] != L':') continue;
+        if (cmdline[i + 2] != L'\\') continue;
+
+        // 找到绝对路径起点 i。向后延展到路径末尾：兼容 \ / 两种分隔符，并在
+        // 引号/空白处终止。我们取到路径末尾，再去掉最后一段（文件名/参数），
+        // 保留目录部分作为分组键——这样同目录下不同脚本能归到同一组。
+        size_t end = i + 3;
+        while (end < cmdline.size()) {
+            wchar_t ch = cmdline[end];
+            if (ch == L'"' || ch == L' ' || ch == L'\t') break;
+            ++end;
+        }
+        std::wstring path = cmdline.substr(i, end - i);
+        // 去掉尾部反斜杠
+        while (path.size() > 1 && path.back() == L'\\') path.pop_back();
+        // 取目录部分：最后一个分隔符之前。若无分隔符（理论上不会，因为至少有 C:\），
+        // 就用整条路径。
+        size_t lastSep = std::wstring::npos;
+        for (size_t k = path.size(); k > 0; --k) {
+            if (path[k - 1] == L'\\' || path[k - 1] == L'/') {
+                lastSep = k - 1;
+                break;
+            }
+        }
+        // 保留至少 "X:\" —— 不把盘符根当成有意义的项目目录，丢弃。
+        if (lastSep == std::wstring::npos || lastSep <= 2) return L"";
+        std::wstring dir = path.substr(0, lastSep);
+        while (dir.size() > 1 && dir.back() == L'\\') dir.pop_back();
+        // 去掉后若只剩盘符根（如 "C:"），视为无效
+        if (dir.size() <= 2) return L"";
+        return dir;
+    }
+    return L"";
+}
+
 bool CollectAllProcesses(std::vector<ProcessInfoRaw>& out, std::string& errMessage) {
   out.clear();
 
@@ -245,7 +311,7 @@ bool CollectAllProcesses(std::vector<ProcessInfoRaw>& out, std::string& errMessa
     if (info.pid == 0 && info.name.empty()) {
       info.name = "Idle";
     }
-	    // 读取命令行（v0.2 — 需要打开进程句柄）
+	    // 读取命令行 + 当前工作目录（v0.2 — 需要打开进程句柄）
 	    if (info.pid > 0) {  // 跳过 Idle（pid=0）
 	        HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
 	                                   FALSE, info.pid);
@@ -260,10 +326,23 @@ bool CollectAllProcesses(std::vector<ProcessInfoRaw>& out, std::string& errMessa
 	                                        &info.cmdline[0], utf8Len, nullptr, nullptr);
 	                }
 	            }
+		            // cwd：从命令行启发式抽取首个盘符路径的目录部分（见
+		            // ExtractCwdFromCmdline 注释——为不回归 bench 而放弃了 PEB 直读）。
+		            // 零额外系统调用：复用已读到的 cmd 字符串。
+		            std::wstring cwd = ExtractCwdFromCmdline(cmd);
+		            if (!cwd.empty()) {
+		                int utf8Len = WideCharToMultiByte(CP_UTF8, 0, cwd.c_str(), -1,
+		                                                  nullptr, 0, nullptr, nullptr);
+		                if (utf8Len > 1) {
+		                    info.cwd.resize(utf8Len - 1);
+		                    WideCharToMultiByte(CP_UTF8, 0, cwd.c_str(), -1,
+		                                        &info.cwd[0], utf8Len, nullptr, nullptr);
+		                }
+		            }
 	            CloseHandle(hProc);
 	        }
 	    }
-	    // 对打不开的进程，cmdline 保持默认空字符串
+	    // 对打不开的进程，cmdline/cwd 保持默认空字符串
     info.kernelTimeMs = p->KernelTime.QuadPart / 10000LL;
     info.userTimeMs = p->UserTime.QuadPart / 10000LL;
     info.workingSetBytes = static_cast<long long>(p->WorkingSetSize);
@@ -301,6 +380,7 @@ Napi::Value ProcessScan(const Napi::CallbackInfo& info) {
     obj.Set("ppid", Napi::Number::New(env, static_cast<double>(p.ppid)));
     obj.Set("name", Napi::String::New(env, p.name));
     obj.Set("cmdline", Napi::String::New(env, p.cmdline));
+    obj.Set("cwd", Napi::String::New(env, p.cwd));
     obj.Set("kernelTimeMs", Napi::Number::New(env, static_cast<double>(p.kernelTimeMs)));
     obj.Set("userTimeMs", Napi::Number::New(env, static_cast<double>(p.userTimeMs)));
     obj.Set("workingSetBytes", Napi::Number::New(env, static_cast<double>(p.workingSetBytes)));

@@ -4,14 +4,17 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
 import { mostCommonName } from '../lib/batchKill';
 import { ProcessTable } from './ProcessTable';
+import { ProjectGroupView } from './ProjectGroupView';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 
 export function ProcessPanel() {
   useProcessPanel(); // Start polling (2s interval)
 
-  const { processes, loading, error, selectedPids, filter, setFilter, clearSelection } =
-    useProcessPanelStore();
+  const {
+    processes, loading, error, selectedPids, filter, setFilter, clearSelection,
+    viewMode, toggleViewMode,
+  } = useProcessPanelStore();
 
   const [pendingKill, setPendingKill] = useState<{
     pid: number;
@@ -28,6 +31,10 @@ export function ProcessPanel() {
   // what the preset promises — but native guard list still protects
   // svchost/system/electron/CodeMgr.
   const [confirmKillAllNode, setConfirmKillAllNode] = useState(false);
+
+  // Group-kill (project view): 结束本组 kills every pid in the group via
+  // killByPids. We hold the group name + pid count for the confirm dialog copy.
+  const [groupKill, setGroupKill] = useState<{ name: string; pids: number[] } | null>(null);
 
   async function doKillSingle() {
     if (!pendingKill) return;
@@ -51,6 +58,14 @@ export function ProcessPanel() {
     setConfirmKillAllNode(false);
     clearSelection();
     alert(`已结束 ${killed} 个 node.exe 进程`);
+  }
+
+  async function doKillGroup() {
+    if (!groupKill) return;
+    const killed = await ipc.killByPids(groupKill.pids);
+    const name = groupKill.name;
+    setGroupKill(null);
+    alert(`已结束 ${name} 组内 ${killed} 个进程`);
   }
 
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留进程表，仅在表头下挂一条
@@ -85,6 +100,13 @@ export function ProcessPanel() {
             onChange={(e) => setFilter(e.target.value)}
             className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
           />
+          <button
+            onClick={toggleViewMode}
+            className="rounded border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700"
+            title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
+          >
+            {viewMode === 'tree' ? '📁 按项目' : '🌲 树形'}
+          </button>
           {hasNode && (
             <button
               onClick={() => setConfirmKillAllNode(true)}
@@ -141,6 +163,11 @@ export function ProcessPanel() {
             empty={false}
             isFirstLoad={isFirstLoad}
           />
+        ) : viewMode === 'project' ? (
+          <ProjectGroupView
+            onKillSingle={(pid, name) => setPendingKill({ pid, name })}
+            onKillGroup={(name, pids) => setGroupKill({ name, pids })}
+          />
         ) : (
           <ProcessTable
             onKillSingle={(pid, name) => setPendingKill({ pid, name })}
@@ -176,6 +203,20 @@ export function ProcessPanel() {
         confirmLabel="全部结束"
         onConfirm={doKillAllNode}
         onCancel={() => setConfirmKillAllNode(false)}
+      />
+
+      {/* Group-kill confirmation (project view) — targets the explicit pids in the group */}
+      <ConfirmDialog
+        open={groupKill !== null}
+        title="结束本组进程"
+        message={
+          groupKill
+            ? `确定结束「${groupKill.name}」组内的 ${groupKill.pids.length} 个进程吗？`
+            : ''
+        }
+        confirmLabel="结束本组"
+        onConfirm={doKillGroup}
+        onCancel={() => setGroupKill(null)}
       />
     </div>
   );

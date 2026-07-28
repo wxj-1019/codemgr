@@ -3,7 +3,7 @@ import { useProcessPanelStore } from '../src/store/processPanelStore';
 import type { ProcessInfo } from '../electron/ipc-types';
 
 const sampleProc = (over: Partial<ProcessInfo> = {}): ProcessInfo => ({
-  pid: 1234, ppid: 0, name: 'node.exe', cmdline: 'node index.js',
+  pid: 1234, ppid: 0, name: 'node.exe', cmdline: 'node index.js', cwd: '',
   kernelTimeMs: 100, userTimeMs: 200, workingSetBytes: 100 * 1024 * 1024,
   createTimeMs: Date.now(), threadCount: 8, handleCount: 100,
   ...over,
@@ -103,20 +103,37 @@ describe('processPanelStore', () => {
     expect(m[99]).toBeUndefined();
   });
 
-  it('persists only sortKey/sortAsc/filter (partialize shape)', () => {
+  it('persists only sortKey/sortAsc/filter/viewMode (partialize shape)', () => {
     localStorage.clear();
     const st = useProcessPanelStore.getState();
     st.setSortKey('cpu');
     st.toggleSort(); // sortAsc -> false
     st.setFilter('node');
-    // partialize must produce exactly { sortKey, sortAsc, filter } — no
+    st.setViewMode('project');
+    // partialize must produce exactly { sortKey, sortAsc, filter, viewMode } — no
     // processes/cpuMap/selectedPids/etc. The store exposes its persist API.
     const api = (useProcessPanelStore as unknown as {
       persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
     }).persist;
     const opts = api.getOptions();
     const persisted = opts.partialize(useProcessPanelStore.getState());
-    expect(persisted).toEqual({ sortKey: 'cpu', sortAsc: false, filter: 'node' });
+    expect(persisted).toEqual({ sortKey: 'cpu', sortAsc: false, filter: 'node', viewMode: 'project' });
+  });
+
+  it('toggleViewMode switches tree <-> project', () => {
+    expect(useProcessPanelStore.getState().viewMode).toBe('tree');
+    useProcessPanelStore.getState().toggleViewMode();
+    expect(useProcessPanelStore.getState().viewMode).toBe('project');
+    useProcessPanelStore.getState().toggleViewMode();
+    expect(useProcessPanelStore.getState().viewMode).toBe('tree');
+  });
+
+  it('toggleGroup toggles a project group expand', () => {
+    expect(useProcessPanelStore.getState().expandedGroups.has('app')).toBe(false);
+    useProcessPanelStore.getState().toggleGroup('app');
+    expect(useProcessPanelStore.getState().expandedGroups.has('app')).toBe(true);
+    useProcessPanelStore.getState().toggleGroup('app');
+    expect(useProcessPanelStore.getState().expandedGroups.has('app')).toBe(false);
   });
 });
 

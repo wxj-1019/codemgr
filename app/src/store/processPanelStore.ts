@@ -8,7 +8,9 @@ interface ProcessPanelState {
   filter: string;
   sortKey: 'pid' | 'name' | 'cpu' | 'memory';
   sortAsc: boolean;
+  viewMode: 'tree' | 'project';     // 树形 / 按项目
   expandedPids: Set<number>;
+  expandedGroups: Set<string>;      // 项目视图下展开的组名
   selectedPids: Set<number>;
   loading: boolean;
   error: string | null;
@@ -18,7 +20,10 @@ interface ProcessPanelState {
   setFilter: (f: string) => void;
   setSortKey: (k: ProcessPanelState['sortKey']) => void;
   toggleSort: () => void;
+  setViewMode: (m: ProcessPanelState['viewMode']) => void;
+  toggleViewMode: () => void;
   toggleExpand: (pid: number) => void;
+  toggleGroup: (name: string) => void;
   toggleSelect: (pid: number) => void;
   selectAll: (pids?: number[]) => void;
   clearSelection: () => void;
@@ -35,7 +40,9 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       filter: '',
       sortKey: 'pid',
       sortAsc: true,
+      viewMode: 'tree',
       expandedPids: new Set<number>(),
+      expandedGroups: new Set<string>(),
       selectedPids: new Set<number>(),
       loading: false,
       error: null,
@@ -59,10 +66,17 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       setFilter: (f) => set({ filter: f }),
       setSortKey: (k) => set({ sortKey: k }),
       toggleSort: () => set((s) => ({ sortAsc: !s.sortAsc })),
+      setViewMode: (m) => set({ viewMode: m }),
+      toggleViewMode: () => set((s) => ({ viewMode: s.viewMode === 'tree' ? 'project' : 'tree' })),
       toggleExpand: (pid) => set((s) => {
         const next = new Set(s.expandedPids);
         next.has(pid) ? next.delete(pid) : next.add(pid);
         return { expandedPids: next };
+      }),
+      toggleGroup: (name) => set((s) => {
+        const next = new Set(s.expandedGroups);
+        next.has(name) ? next.delete(name) : next.add(name);
+        return { expandedGroups: next };
       }),
       toggleSelect: (pid) => set((s) => {
         const next = new Set(s.selectedPids);
@@ -79,13 +93,19 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       setError: (e) => set({ error: e }),
       reset: () => set({
         processes: [], cpuMap: {}, filter: '', sortKey: 'pid', sortAsc: true,
-        expandedPids: new Set(), selectedPids: new Set(), loading: false, error: null,
+        viewMode: 'tree', expandedPids: new Set(), expandedGroups: new Set(),
+        selectedPids: new Set(), loading: false, error: null,
       }),
     }),
     {
       name: 'codemgr:process-panel',
-      // 只持久化排序/过滤偏好；processes/cpuMap/selectedPids 是运行时数据，不存
-      partialize: (s) => ({ sortKey: s.sortKey, sortAsc: s.sortAsc, filter: s.filter }),
+      // 只持久化排序/过滤/视图偏好；processes/cpuMap/selectedPids 是运行时数据，不存
+      partialize: (s) => ({
+        sortKey: s.sortKey,
+        sortAsc: s.sortAsc,
+        filter: s.filter,
+        viewMode: s.viewMode,
+      }),
     },
   ),
 );

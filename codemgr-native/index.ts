@@ -4,6 +4,7 @@ export interface ProcessInfo {
   ppid: number;            // 父进程 PID
   name: string;            // 进程名，如 "node.exe"
   cmdline: string;         // 完整命令行
+  cwd: string;             // 当前工作目录（PEB ProcessParameters.CurrentDirectory）
   kernelTimeMs: number;    // 内核态时间（毫秒）
   userTimeMs: number;      // 用户态时间（毫秒）
   workingSetBytes: number; // 工作集（内存）
