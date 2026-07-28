@@ -8,5 +8,13 @@
   "scripts": {
     "bench": "pnpm --filter codemgr-native bench",
     "test:native": "pnpm --filter codemgr-native test"
+  },
+  "cmake-js": {
+    "runtime": "electron",
+    "runtimeVersion": "43.2.0",
+    "arch": "x64"
+  },
+  "devDependencies": {
+    "electron": "43.2.0"
   }
 }

@@ -5,8 +5,8 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "install": "cmake-js compile --cmake-path \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe\"",
     "build": "cmake-js compile --cmake-path \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe\"",
+    "build:electron": "cmake-js compile --runtime=electron --runtime-version=43.2.0 --arch=x64 --cmake-path \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe\"",
     "rebuild": "cmake-js clean && cmake-js compile --cmake-path \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe\"",
     "bench": "tsx bench/process.bench.ts && tsx bench/net.bench.ts && node --expose-gc --import tsx bench/leak.bench.ts",
     "test": "vitest run"
