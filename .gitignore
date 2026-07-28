@@ -1,6 +1,8 @@
 node_modules/
 build/
 dist/
+dist-renderer/
+dist-electron/
 *.node
 .DS_Store
 *.log
