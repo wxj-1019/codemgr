@@ -10,7 +10,12 @@ const sampleProc = (over: Partial<ProcessInfo> = {}): ProcessInfo => ({
 });
 
 describe('processPanelStore', () => {
-  beforeEach(() => useProcessPanelStore.getState().reset());
+  // persist middleware reads/writes localStorage; clear it before each test so
+  // rehydrated state from a prior test can't leak in (reset() alone re-persists).
+  beforeEach(() => {
+    localStorage.clear();
+    useProcessPanelStore.getState().reset();
+  });
 
   it('starts empty', () => {
     const s = useProcessPanelStore.getState();
@@ -96,6 +101,22 @@ describe('processPanelStore', () => {
     const m = useProcessPanelStore.getState().cpuMap;
     expect(m[1]).toBe(10);
     expect(m[99]).toBeUndefined();
+  });
+
+  it('persists only sortKey/sortAsc/filter (partialize shape)', () => {
+    localStorage.clear();
+    const st = useProcessPanelStore.getState();
+    st.setSortKey('cpu');
+    st.toggleSort(); // sortAsc -> false
+    st.setFilter('node');
+    // partialize must produce exactly { sortKey, sortAsc, filter } — no
+    // processes/cpuMap/selectedPids/etc. The store exposes its persist API.
+    const api = (useProcessPanelStore as unknown as {
+      persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
+    }).persist;
+    const opts = api.getOptions();
+    const persisted = opts.partialize(useProcessPanelStore.getState());
+    expect(persisted).toEqual({ sortKey: 'cpu', sortAsc: false, filter: 'node' });
   });
 });
 

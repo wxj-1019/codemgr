@@ -34,8 +34,8 @@ export function PortRadar() {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100">端口雷达</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-lg font-semibold text-fg-primary">端口雷达</h1>
+          <p className="text-xs text-fg-muted">
             {listenCount} 个监听端口{loading ? ' · 刷新中…' : ''}
             {error && ' · 上次刷新出错'}
           </p>

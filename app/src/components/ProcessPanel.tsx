@@ -69,8 +69,8 @@ export function ProcessPanel() {
       {/* Header bar */}
       <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100">进程</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-lg font-semibold text-fg-primary">进程</h1>
+          <p className="text-xs text-fg-muted">
             {processes.length} 个进程
             {loading ? ' · 刷新中…' : ''}
             {error && ' · 上次刷新出错'}
@@ -83,7 +83,7 @@ export function ProcessPanel() {
             placeholder="搜索进程/命令行/PID…"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-accent/50"
+            className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
           />
           {hasNode && (
             <button

@@ -54,7 +54,7 @@ export function PerfPanel() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <h1 className="text-lg font-semibold text-slate-100">性能</h1>
+        <h1 className="text-lg font-semibold text-fg-primary">性能</h1>
         <div className="flex gap-1">
           {subTabs.map((t) => (
             <button
@@ -63,7 +63,7 @@ export function PerfPanel() {
               className={`rounded px-3 py-1 text-sm ${
                 sub === t.id
                   ? 'bg-accent/20 text-accent'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-fg-secondary hover:text-fg-primary'
               }`}
             >
               {t.label}
@@ -93,7 +93,7 @@ function CpuView({
     <div className="space-y-4">
       <div className="rounded-lg border border-base-700 bg-base-800 p-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-slate-400">CPU 使用率</span>
+          <span className="text-sm text-fg-secondary">CPU 使用率</span>
           <span className="font-mono text-3xl font-bold text-accent">
             {current.cpu.totalPercent.toFixed(1)}%
           </span>
@@ -137,20 +137,20 @@ function CpuView({
         </div>
       </div>
       <div className="rounded-lg border border-base-700 bg-base-800 p-4">
-        <div className="mb-2 text-sm text-slate-400">
+        <div className="mb-2 text-sm text-fg-secondary">
           各核心 ({current.cpu.perCore.length} 核)
         </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {current.cpu.perCore.map((c: number, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="w-12 text-xs text-slate-500">Core {i}</span>
+              <span className="w-12 text-xs text-fg-muted">Core {i}</span>
               <div className="h-2 flex-1 overflow-hidden rounded bg-base-700">
                 <div
                   className="h-full bg-accent"
                   style={{ width: `${Math.min(100, c)}%` }}
                 />
               </div>
-              <span className="w-10 text-right font-mono text-xs text-slate-400">
+              <span className="w-10 text-right font-mono text-xs text-fg-secondary">
                 {c.toFixed(0)}%
               </span>
             </div>
@@ -174,12 +174,12 @@ function MemoryView({
     <div className="space-y-4">
       <div className="rounded-lg border border-base-700 bg-base-800 p-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-slate-400">内存使用</span>
+          <span className="text-sm text-fg-secondary">内存使用</span>
           <span className="font-mono text-3xl font-bold text-accent">
             {mem.usedPercent.toFixed(0)}%
           </span>
         </div>
-        <div className="mt-2 text-sm text-slate-500">
+        <div className="mt-2 text-sm text-fg-muted">
           {fmtBytes(usedBytes)} / {fmtBytes(mem.totalBytes)}
         </div>
         <div className="mt-3 h-40">
@@ -227,7 +227,7 @@ function MemoryView({
 function DiskView({ current }: { current: PerfData }) {
   return (
     <div className="rounded-lg border border-base-700 bg-base-800 p-4">
-      <div className="mb-3 text-sm text-slate-400">磁盘空间</div>
+      <div className="mb-3 text-sm text-fg-secondary">磁盘空间</div>
       <div className="space-y-3">
         {current.disks.map((d, i) => {
           const usedPct =
@@ -243,8 +243,8 @@ function DiskView({ current }: { current: PerfData }) {
           return (
             <div key={i}>
               <div className="mb-1 flex justify-between text-sm">
-                <span className="font-mono text-slate-300">{d.name}</span>
-                <span className="text-slate-500">
+                <span className="font-mono text-fg-primary">{d.name}</span>
+                <span className="text-fg-muted">
                   {fmtBytes(d.totalBytes - d.freeBytes)} /{' '}
                   {fmtBytes(d.totalBytes)}
                 </span>
@@ -255,7 +255,7 @@ function DiskView({ current }: { current: PerfData }) {
                   style={{ width: `${usedPct}%` }}
                 />
               </div>
-              <div className="mt-0.5 text-xs text-slate-500">
+              <div className="mt-0.5 text-xs text-fg-muted">
                 读 {formatBytesPerSec(d.readBytesPerSec)} · 写 {formatBytesPerSec(d.writeBytesPerSec)} · 活跃 {d.activePercent.toFixed(0)}%
               </div>
             </div>
@@ -272,12 +272,12 @@ function NetworkView({ current }: { current: PerfData }) {
   );
   return (
     <div className="rounded-lg border border-base-700 bg-base-800 p-4">
-      <div className="mb-3 text-sm text-slate-400">网络适配器（活跃）</div>
+      <div className="mb-3 text-sm text-fg-secondary">网络适配器（活跃）</div>
       {active.length === 0 ? (
-        <div className="text-sm text-slate-500">无活跃网络流量</div>
+        <div className="text-sm text-fg-muted">无活跃网络流量</div>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-xs uppercase text-slate-500">
+          <thead className="text-xs uppercase text-fg-muted">
             <tr>
               <th className="py-1 text-left">适配器</th>
               <th className="py-1 text-right">↓ 接收</th>
@@ -287,7 +287,7 @@ function NetworkView({ current }: { current: PerfData }) {
           <tbody>
             {active.map((n, i) => (
               <tr key={i} className="border-t border-base-700/30">
-                <td className="py-1.5 font-mono text-slate-300">{n.name}</td>
+                <td className="py-1.5 font-mono text-fg-primary">{n.name}</td>
                 <td className="py-1.5 text-right font-mono text-accent">
                   {fmtBytes(n.recvBytesPerSec)}/s
                 </td>

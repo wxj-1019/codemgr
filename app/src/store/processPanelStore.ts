@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { ProcessInfo } from '../../electron/ipc-types';
 
 interface ProcessPanelState {
@@ -26,56 +27,65 @@ interface ProcessPanelState {
   reset: () => void;
 }
 
-export const useProcessPanelStore = create<ProcessPanelState>((set) => ({
-  processes: [],
-  cpuMap: {},
-  filter: '',
-  sortKey: 'pid',
-  sortAsc: true,
-  expandedPids: new Set<number>(),
-  selectedPids: new Set<number>(),
-  loading: false,
-  error: null,
+export const useProcessPanelStore = create<ProcessPanelState>()(
+  persist(
+    (set) => ({
+      processes: [],
+      cpuMap: {},
+      filter: '',
+      sortKey: 'pid',
+      sortAsc: true,
+      expandedPids: new Set<number>(),
+      selectedPids: new Set<number>(),
+      loading: false,
+      error: null,
 
-  setProcesses: (p) => set((s) => {
-    // Prune stale entries: only keep PIDs still present in the new snapshot.
-    const pidSet = new Set(p.map((x) => x.pid));
-    const selectedPids = new Set([...s.selectedPids].filter((pid) => pidSet.has(pid)));
-    const cpuMap: Record<number, number> = {};
-    for (const k of Object.keys(s.cpuMap)) {
-      const n = Number(k);
-      if (pidSet.has(n)) cpuMap[n] = s.cpuMap[n];
-    }
-    return { processes: p, error: null, selectedPids, cpuMap };
-  }),
-  setCpuMap: (c) => set((s) => {
-    const m = { ...s.cpuMap };
-    for (const x of c) m[x.pid] = x.cpuPercent;
-    return { cpuMap: m };
-  }),
-  setFilter: (f) => set({ filter: f }),
-  setSortKey: (k) => set({ sortKey: k }),
-  toggleSort: () => set((s) => ({ sortAsc: !s.sortAsc })),
-  toggleExpand: (pid) => set((s) => {
-    const next = new Set(s.expandedPids);
-    next.has(pid) ? next.delete(pid) : next.add(pid);
-    return { expandedPids: next };
-  }),
-  toggleSelect: (pid) => set((s) => {
-    const next = new Set(s.selectedPids);
-    next.has(pid) ? next.delete(pid) : next.add(pid);
-    return { selectedPids: next };
-  }),
-  selectAll: (pids) => set((s) => ({
-    // If pids given, only select those (e.g. the filtered list); otherwise
-    // fall back to selecting every known process (backward compatible).
-    selectedPids: new Set(pids ?? s.processes.map((p) => p.pid)),
-  })),
-  clearSelection: () => set({ selectedPids: new Set() }),
-  setLoading: (b) => set({ loading: b }),
-  setError: (e) => set({ error: e }),
-  reset: () => set({
-    processes: [], cpuMap: {}, filter: '', sortKey: 'pid', sortAsc: true,
-    expandedPids: new Set(), selectedPids: new Set(), loading: false, error: null,
-  }),
-}));
+      setProcesses: (p) => set((s) => {
+        // Prune stale entries: only keep PIDs still present in the new snapshot.
+        const pidSet = new Set(p.map((x) => x.pid));
+        const selectedPids = new Set([...s.selectedPids].filter((pid) => pidSet.has(pid)));
+        const cpuMap: Record<number, number> = {};
+        for (const k of Object.keys(s.cpuMap)) {
+          const n = Number(k);
+          if (pidSet.has(n)) cpuMap[n] = s.cpuMap[n];
+        }
+        return { processes: p, error: null, selectedPids, cpuMap };
+      }),
+      setCpuMap: (c) => set((s) => {
+        const m = { ...s.cpuMap };
+        for (const x of c) m[x.pid] = x.cpuPercent;
+        return { cpuMap: m };
+      }),
+      setFilter: (f) => set({ filter: f }),
+      setSortKey: (k) => set({ sortKey: k }),
+      toggleSort: () => set((s) => ({ sortAsc: !s.sortAsc })),
+      toggleExpand: (pid) => set((s) => {
+        const next = new Set(s.expandedPids);
+        next.has(pid) ? next.delete(pid) : next.add(pid);
+        return { expandedPids: next };
+      }),
+      toggleSelect: (pid) => set((s) => {
+        const next = new Set(s.selectedPids);
+        next.has(pid) ? next.delete(pid) : next.add(pid);
+        return { selectedPids: next };
+      }),
+      selectAll: (pids) => set((s) => ({
+        // If pids given, only select those (e.g. the filtered list); otherwise
+        // fall back to selecting every known process (backward compatible).
+        selectedPids: new Set(pids ?? s.processes.map((p) => p.pid)),
+      })),
+      clearSelection: () => set({ selectedPids: new Set() }),
+      setLoading: (b) => set({ loading: b }),
+      setError: (e) => set({ error: e }),
+      reset: () => set({
+        processes: [], cpuMap: {}, filter: '', sortKey: 'pid', sortAsc: true,
+        expandedPids: new Set(), selectedPids: new Set(), loading: false, error: null,
+      }),
+    }),
+    {
+      name: 'codemgr:process-panel',
+      // 只持久化排序/过滤偏好；processes/cpuMap/selectedPids 是运行时数据，不存
+      partialize: (s) => ({ sortKey: s.sortKey, sortAsc: s.sortAsc, filter: s.filter }),
+    },
+  ),
+);

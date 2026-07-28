@@ -20,7 +20,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   return (
     <div className="overflow-auto">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-slate-500">
+        <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
             <th className="px-3 py-2 font-medium">端口</th>
             <th className="px-3 py-2 font-medium">协议</th>
@@ -44,10 +44,10 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                 }`}
               >
                 <td className="px-3 py-2 font-mono text-accent">{c.localPort}</td>
-                <td className="px-3 py-2 uppercase text-slate-400">{c.protocol}</td>
-                <td className="px-3 py-2 text-slate-200">{c.processName || '—'}</td>
-                <td className="px-3 py-2 font-mono text-slate-400">{c.pid}</td>
-                <td className="px-3 py-2 font-mono text-slate-500">{c.localAddr}</td>
+                <td className="px-3 py-2 uppercase text-fg-secondary">{c.protocol}</td>
+                <td className="px-3 py-2 text-fg-primary">{c.processName || '—'}</td>
+                <td className="px-3 py-2 font-mono text-fg-secondary">{c.pid}</td>
+                <td className="px-3 py-2 font-mono text-fg-muted">{c.localAddr}</td>
                 <td className="px-3 py-2">
                   {label && (
                     <span
@@ -56,7 +56,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                           ? 'bg-accent/20 text-accent'
                           : isDbPort(c.localPort)
                           ? 'bg-amber-500/20 text-amber-400'
-                          : 'bg-slate-600/30 text-slate-400'
+                          : 'bg-slate-600/30 text-fg-secondary'
                       }`}
                     >
                       {label}
@@ -76,7 +76,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-3 py-8 text-center text-slate-500">暂无监听端口</td>
+              <td colSpan={7} className="px-3 py-8 text-center text-fg-muted">暂无监听端口</td>
             </tr>
           )}
         </tbody>

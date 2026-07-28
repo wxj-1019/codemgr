@@ -13,6 +13,7 @@ html, body, #root {
   --bg-elevated: #242c38;
   --text-primary: #e2e8f0;
   --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   --border: #2f3947;
 }
 
@@ -21,7 +22,8 @@ html, body, #root {
   --bg-panel: #ffffff;
   --bg-elevated: #e5e7eb;
   --text-primary: #1e293b;
-  --text-secondary: #64748b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   --border: #d1d5db;
 }
 

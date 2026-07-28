@@ -27,7 +27,7 @@ export function App() {
             className={`px-4 py-2 text-sm transition-colors border-b-2 -mb-[1px] ${
               active === t.id
                 ? 'text-accent border-accent'
-                : 'text-slate-500 border-transparent hover:text-slate-300'
+                : 'text-fg-muted border-transparent hover:text-fg-primary'
             }`}
           >
             {t.label}
@@ -35,7 +35,7 @@ export function App() {
         ))}
         <button
           onClick={toggle}
-          className="ml-auto px-3 py-2 text-sm text-slate-400 hover:text-slate-200"
+          className="ml-auto px-3 py-2 text-sm text-fg-secondary hover:text-fg-primary"
           aria-label="切换主题"
         >
           {theme === 'dark' ? '☀️' : '🌙'}

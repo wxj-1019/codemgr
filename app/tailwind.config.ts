@@ -13,6 +13,12 @@ export default {
           700: 'var(--bg-elevated)',
           600: 'var(--border)',
         },
+        // 前景色（文本）同样由变量驱动，随主题自适应
+        fg: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+        },
         // 青绿强调
         accent: { DEFAULT: '#2dd4bf', hover: '#14b8a6', muted: '#0d9488' },
       },

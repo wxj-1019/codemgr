@@ -71,7 +71,7 @@ const KIND_COLORS: Record<string, string> = {
   build: 'bg-purple-500/20 text-purple-400',
   container: 'bg-blue-500/20 text-blue-400',
   db: 'bg-amber-500/20 text-amber-400',
-  system: 'bg-slate-600/30 text-slate-400',
+  system: 'bg-slate-600/30 text-fg-secondary',
 };
 
 // ---- Memoized row: only re-renders when its own inputs change ----
@@ -124,20 +124,20 @@ const ProcessRow = memo(function ProcessRow({
                 e.stopPropagation();
                 onToggleExpand(proc.pid);
               }}
-              className="w-4 text-xs text-slate-500 hover:text-slate-300"
+              className="w-4 text-xs text-fg-muted hover:text-fg-primary"
             >
               {isExpanded ? '▾' : '▸'}
             </button>
           )}
           {!hasChildren && <span className="w-4" />}
-          <span className="text-slate-200 truncate max-w-[200px]">
+          <span className="text-fg-primary truncate max-w-[200px]">
             {proc.name}
           </span>
           {label && (
             <span
               className={`ml-1 rounded px-1 text-[10px] ${
                 KIND_COLORS[label.kind] ||
-                'bg-slate-600/30 text-slate-400'
+                'bg-slate-600/30 text-fg-secondary'
               }`}
             >
               {label.label}
@@ -147,26 +147,26 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       <td
         className={`px-2 py-1 text-right font-mono ${
-          cpuHighlight ? 'text-red-400' : 'text-slate-300'
+          cpuHighlight ? 'text-red-400' : 'text-fg-primary'
         }`}
       >
         {cpu.toFixed(1)}
       </td>
       <td
         className={`px-2 py-1 text-right font-mono ${
-          memHighlight ? 'text-amber-400' : 'text-slate-300'
+          memHighlight ? 'text-amber-400' : 'text-fg-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-slate-400">
+      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-slate-400">
+      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1 font-mono text-slate-500 truncate max-w-[400px] text-xs"
+        className="px-2 py-1 font-mono text-fg-muted truncate max-w-[400px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
@@ -277,7 +277,7 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
   return (
     <div className="overflow-auto flex-1">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-slate-500">
+        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
             <th className="w-8 px-1 py-2">
               <input
@@ -337,7 +337,7 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
           ))}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+              <td colSpan={8} className="px-3 py-8 text-center text-fg-muted">
                 无进程
               </td>
             </tr>
