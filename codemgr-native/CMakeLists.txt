@@ -25,6 +25,7 @@ add_library(${PROJECT_NAME} SHARED
   src/addon.cpp
   src/process_collector.cpp
   src/net_collector.cpp
+  src/cpu_tracker.cpp
 )
 
 # 源文件以 UTF-8（无 BOM）保存，含中文注释。MSVC 在简体中文系统默认按
