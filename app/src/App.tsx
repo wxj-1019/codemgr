@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PortRadar } from './components/PortRadar';
 import { ProcessPanel } from './components/ProcessPanel';
 import { PerfPanel } from './components/PerfPanel';
+import { useThemeStore } from './store/themeStore';
 
 type Tab = 'port' | 'process' | 'perf';
 
@@ -13,6 +14,7 @@ const tabs: { id: Tab; label: string }[] = [
 
 export function App() {
   const [active, setActive] = useState<Tab>('port');
+  const { theme, toggle } = useThemeStore();
 
   return (
     <div className="flex h-screen flex-col bg-base-900">
@@ -31,6 +33,13 @@ export function App() {
             {t.label}
           </button>
         ))}
+        <button
+          onClick={toggle}
+          className="ml-auto px-3 py-2 text-sm text-slate-400 hover:text-slate-200"
+          aria-label="切换主题"
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
       </nav>
 
       {/* Active panel */}

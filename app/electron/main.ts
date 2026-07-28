@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage } from 'electron';
 import path from 'node:path';
 import { IPC } from './ipc-types';
 
@@ -10,6 +10,7 @@ const RENDERER_DIST = path.join(__dirname, '..', 'dist-renderer');
 const native = require(path.join(__dirname, '..', '..', 'codemgr-native', 'build', 'Release', 'codemgr-native.node'));
 
 let win: BrowserWindow | null = null;
+let tray: Tray | null = null;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -28,6 +29,21 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'));
   }
+
+  // 最小化 → 隐藏到托盘
+  win.on('minimize', () => {
+    win?.hide();
+  });
+
+  // 关闭按钮 → 仅隐藏，真正退出由托盘菜单控制
+  win.on('close', (e) => {
+    e.preventDefault();
+    win?.hide();
+  });
+
+  win.on('show', () => {
+    win?.focus();
+  });
 }
 
 // 注册真实 native handler（调用 v0.1 codemgr-native addon）
@@ -85,9 +101,52 @@ ipcMain.handle(IPC.FETCH_PERF, async () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
 
+  // 系统托盘
+  const iconPath = path.join(__dirname, '..', 'build', 'tray-icon.png');
+  const icon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon);
+  tray.setToolTip('CodeMgr — 开发者工作流管理器');
+  tray.on('click', () => {
+    if (win) {
+      if (win.isVisible()) {
+        win.hide();
+      } else {
+        win.show();
+        win.focus();
+      }
+    }
+  });
+  const contextMenu = Menu.buildFromTemplate([
+    { label: '显示', click: () => { win?.show(); win?.focus(); } },
+    { label: '隐藏', click: () => win?.hide() },
+    { type: 'separator' },
+    { label: '退出', click: () => { tray?.destroy(); tray = null; app.quit(); } },
+  ]);
+  tray.setContextMenu(contextMenu);
+
+  // 全局热键：Ctrl+Shift+M 切换窗口
+  const ret = globalShortcut.register('CommandOrControl+Shift+M', () => {
+    if (!win) return;
+    if (win.isVisible() && win.isFocused()) {
+      win.hide();
+    } else {
+      win.show();
+      win.focus();
+    }
+  });
+  if (!ret) console.error('globalShortcut registration failed');
+});
+
+// 窗口已改为“关闭即隐藏”，window-all-closed 不会触发；
+// 即便触发也直接返回，不调用 app.quit()，保持托盘常驻。
 app.on('window-all-closed', () => {
-  // Windows/Linux 关窗即退出
-  app.quit();
+  // 不退出：托盘菜单 / 全局热键控制显隐，真正退出走“退出”菜单项。
+});
+
+// 退出时清理全局热键
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });

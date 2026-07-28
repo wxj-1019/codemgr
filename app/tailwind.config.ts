@@ -6,8 +6,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 深灰底
-        base: { 900: '#0f1419', 800: '#1a2028', 700: '#242c38', 600: '#2f3947' },
+        // 由 CSS 变量驱动，自动适配 .dark / .light（见 index.css）
+        base: {
+          900: 'var(--bg-base)',
+          800: 'var(--bg-panel)',
+          700: 'var(--bg-elevated)',
+          600: 'var(--border)',
+        },
         // 青绿强调
         accent: { DEFAULT: '#2dd4bf', hover: '#14b8a6', muted: '#0d9488' },
       },

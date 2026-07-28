@@ -7,7 +7,26 @@ html, body, #root {
   margin: 0;
 }
 
+:root {
+  --bg-base: #0f1419;
+  --bg-panel: #1a2028;
+  --bg-elevated: #242c38;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --border: #2f3947;
+}
+
+:root.light {
+  --bg-base: #f5f5f5;
+  --bg-panel: #ffffff;
+  --bg-elevated: #e5e7eb;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border: #d1d5db;
+}
+
 body {
-  @apply bg-base-900 text-slate-200;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
