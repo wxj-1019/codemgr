@@ -17,6 +17,7 @@ if(WIN32)
     iphlpapi     # GetExtendedTcpTable
     ws2_32       # 网络辅助
     user32
+    pdh          # PDH 磁盘 IO 速率计数器
   )
 endif()
 

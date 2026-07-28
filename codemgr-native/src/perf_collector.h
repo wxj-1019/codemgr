@@ -12,9 +12,9 @@ struct DiskPerf {
   std::string name;                  // "C:\\"
   unsigned long long totalBytes;
   unsigned long long freeBytes;
-  unsigned long long readBytesPerSec;   // v1 暂为 0（TODO: PDH）
-  unsigned long long writeBytesPerSec;  // v1 暂为 0（TODO: PDH）
-  double activePercent;                 // v1 暂为 0（TODO: PDH）
+  unsigned long long readBytesPerSec;   // PDH \LogicalDisk(*)\Disk Read Bytes/sec
+  unsigned long long writeBytesPerSec;  // PDH \LogicalDisk(*)\Disk Write Bytes/sec
+  double activePercent;                 // PDH \LogicalDisk(*)\% Disk Time (0-100)
 };
 
 struct NetPerf {

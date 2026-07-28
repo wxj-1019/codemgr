@@ -7,7 +7,8 @@
 //               动态加载 ntdll，本地定义结构，按返回长度推导 entry stride，
 //               规避 x64 上 entry 大小（40 vs 48）的文档不一致问题。
 //   - 磁盘：GetLogicalDriveStringsA 枚举，GetDiskFreeSpaceExA 取容量；
-//           读/写速率与 activePercent v1 返回 0（TODO: PDH）。
+//           读/写速率与 activePercent 通过 PDH \LogicalDisk(...)\* 计数器
+//           采集（PDH 内部维护差分时间窗，直接给出 per-sec 速率）。
 //   - 网络：GetIfTable2 → MIB_IF_ROW2，按 InterfaceIndex 维护双快照，
 //           InOctets/OutOctets 差分 ÷ dt 得到 bytes/sec。
 //
@@ -22,9 +23,12 @@
 
 #include "perf_collector.h"
 #include <windows.h>
+#include <pdh.h>
+#include <pdhmsg.h>
 
 #include <chrono>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -85,6 +89,60 @@ struct NetSample {
 };
 static std::unordered_map<DWORD, NetSample> g_netLast;
 static bool g_netValid = false;
+
+// 磁盘 IO 速率（PDH \LogicalDisk(C:)\* 计数器）
+//   - PDH 内部维护采样时间窗，单次 PdhGetFormattedCounterValue 即给出
+//     当前 per-sec 速率，不需要像 CPU/网络那样自己做差分。
+//   - 一个 query 持有每个盘 3 个计数器（read/write bytes/sec + % Disk Time）。
+//   - query/counter 随进程生命周期存在，不做 per-call 关闭。
+struct DiskPdhState {
+  PDH_HQUERY query = nullptr;
+  // (盘符, hRead, hWrite, hActive)
+  std::vector<std::tuple<std::string, PDH_HCOUNTER, PDH_HCOUNTER, PDH_HCOUNTER>> counters;
+  bool initialized = false;
+};
+static DiskPdhState g_diskPdh;
+
+// ASCII 盘符（如 "C"）→ 宽字符计数器路径前缀 "\LogicalDisk(C:)\"
+static std::wstring BuildLogicalDiskBasePath(const std::string& letter) {
+  // letter 为单字节 ASCII，可直接扩展到 wchar_t
+  return L"\\LogicalDisk(" + std::wstring(letter.begin(), letter.end()) + L":)\\";
+}
+
+static void InitDiskPdh() {
+  if (g_diskPdh.initialized) return;
+  if (PdhOpenQueryW(nullptr, 0, &g_diskPdh.query) != ERROR_SUCCESS) {
+    g_diskPdh.query = nullptr;
+    g_diskPdh.initialized = true;  // 避免反复尝试失败
+    return;
+  }
+
+  // 枚举逻辑驱动器，为每个盘添加 3 个计数器
+  char drives[512];
+  DWORD len = GetLogicalDriveStringsA(sizeof(drives), drives);
+  if (len == 0 || len >= sizeof(drives)) {
+    g_diskPdh.initialized = true;
+    return;
+  }
+  for (const char* p = drives; *p != '\0'; p += strlen(p) + 1) {
+    std::string letter(1, p[0]);
+    std::wstring basePath = BuildLogicalDiskBasePath(letter);
+    PDH_HCOUNTER hRead = nullptr, hWrite = nullptr, hActive = nullptr;
+    if (PdhAddCounterW(g_diskPdh.query,
+            (basePath + L"Disk Read Bytes/sec").c_str(), 0, &hRead) == ERROR_SUCCESS &&
+        PdhAddCounterW(g_diskPdh.query,
+            (basePath + L"Disk Write Bytes/sec").c_str(), 0, &hWrite) == ERROR_SUCCESS &&
+        PdhAddCounterW(g_diskPdh.query,
+            (basePath + L"% Disk Time").c_str(), 0, &hActive) == ERROR_SUCCESS) {
+      g_diskPdh.counters.push_back({letter, hRead, hWrite, hActive});
+    }
+    // 某些盘（网络/无介质可移动盘）添加失败是正常的，跳过即可
+  }
+
+  // 首次采集建立基线，否则首次取格式化值会返回 PDH_CALC_NEGATIVE_DENOMINATOR
+  PdhCollectQueryData(g_diskPdh.query);
+  g_diskPdh.initialized = true;
+}
 
 // ---------------------------------------------------------------------------
 // 小工具
@@ -246,9 +304,41 @@ static void CollectCpuPerCore(PerfDataRaw& out) {
 }
 
 // ---------------------------------------------------------------------------
-// 磁盘 —— 枚举逻辑驱动器 + 容量。速率 v1 = 0（TODO: PDH）
+// 磁盘 —— 枚举逻辑驱动器 + 容量；读/写速率与 active% 来自 PDH 计数器
 // ---------------------------------------------------------------------------
 static void CollectDisks(PerfDataRaw& out) {
+  InitDiskPdh();
+
+  // 每次采集刷新 PDH 数据（per-sec 速率需要时间窗）
+  if (g_diskPdh.query) {
+    PdhCollectQueryData(g_diskPdh.query);
+  }
+
+  // 盘符 → (readBps, writeBps, activePct)
+  std::unordered_map<std::string, std::tuple<unsigned long long,
+                                              unsigned long long, double>> pdhVals;
+  if (g_diskPdh.query) {
+    for (auto& entry : g_diskPdh.counters) {
+      const std::string& letter = std::get<0>(entry);
+      PDH_HCOUNTER hRead = std::get<1>(entry);
+      PDH_HCOUNTER hWrite = std::get<2>(entry);
+      PDH_HCOUNTER hActive = std::get<3>(entry);
+      PDH_FMT_COUNTERVALUE vRead{}, vWrite{}, vActive{};
+      unsigned long long readBps = 0, writeBps = 0;
+      double activePct = 0.0;
+      if (PdhGetFormattedCounterValue(hRead, PDH_FMT_LARGE, nullptr, &vRead) == ERROR_SUCCESS) {
+        readBps = (unsigned long long)vRead.largeValue;
+      }
+      if (PdhGetFormattedCounterValue(hWrite, PDH_FMT_LARGE, nullptr, &vWrite) == ERROR_SUCCESS) {
+        writeBps = (unsigned long long)vWrite.largeValue;
+      }
+      if (PdhGetFormattedCounterValue(hActive, PDH_FMT_DOUBLE, nullptr, &vActive) == ERROR_SUCCESS) {
+        activePct = vActive.doubleValue;
+      }
+      pdhVals[letter] = {readBps, writeBps, activePct};
+    }
+  }
+
   char drives[512];
   DWORD len = GetLogicalDriveStringsA(sizeof(drives), drives);
   if (len == 0 || len >= sizeof(drives)) return;
@@ -267,13 +357,23 @@ static void CollectDisks(PerfDataRaw& out) {
       continue;
     }
 
+    std::string letter(1, p[0]);
     DiskPerf d{};
     d.name = std::string(p);  // 形如 "C:\\"
     d.totalBytes = totalBytes;
     d.freeBytes = totalFreeBytes;
-    d.readBytesPerSec = 0;    // TODO(PDH): \PhysicalDisk(*)\Disk Read Bytes/sec
-    d.writeBytesPerSec = 0;   // TODO(PDH): \PhysicalDisk(*)\Disk Write Bytes/sec
-    d.activePercent = 0.0;    // TODO(PDH): \PhysicalDisk(*)\% Disk Time
+    d.readBytesPerSec = 0;
+    d.writeBytesPerSec = 0;
+    d.activePercent = 0.0;
+    auto it = pdhVals.find(letter);
+    if (it != pdhVals.end()) {
+      d.readBytesPerSec = std::get<0>(it->second);
+      d.writeBytesPerSec = std::get<1>(it->second);
+      d.activePercent = std::get<2>(it->second);
+      // % Disk Time 偶尔会略超 100 或为负（驱动报告），钳到 0-100
+      if (d.activePercent < 0) d.activePercent = 0;
+      if (d.activePercent > 100) d.activePercent = 100;
+    }
     out.disks.push_back(std::move(d));
   }
 }
