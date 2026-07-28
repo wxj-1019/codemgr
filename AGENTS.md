@@ -136,12 +136,16 @@ scope:  native | app | ci | docs（可选）
 6. **设计文档曾在外部目录**：历史原因 spec/plan 曾在 `ZCodeProject/docs/`，现已迁入仓库 `docs/superpowers/`。引用时用仓库内路径。
 7. **用 electron 跑临时脚本验证 native**：`npx electron script.js` 会启动 app 的 GUI 主入口而非执行脚本。要跑独立脚本验证 native addon，用 `ELECTRON_RUN_AS_NODE=1 node_modules/.bin/electron script.js`，或在脚本里 `app.whenReady().then(()=>{...})` 后退出。
 8. **PDH 类型名**：Windows SDK 的 `pdh.h` 用 `PDH_HQUERY`（查询句柄）和 `PDH_HCOUNTER`（计数器句柄），没有 `PDH_HQ`/`PDH_HC` 这种简写。
+9. **命令行读取**：用 `NtQueryInformationProcess(ProcessCommandLineInformation = 60)`，**不要**手读 PEB 偏移——后者会误取 ImagePathName（只有 exe 路径无参数）。
+10. **cwd 性能权衡**：直读 PEB CurrentDirectory 每进程多 1+3 次系统调用，把 processScan p99 推到 21ms（超 20ms 红线）。当前用命令行启发式抽取 cwd（零额外系统调用，p99=17.7ms）。若需精确 cwd，考虑低频单独扫描而非每轮采集。
+11. **kill 保护名单**：`killByPids`/`killByName` 内置保护名单（System/svchost/electron 等），新增 kill 路径必须复用 `IsProtected()` 检查。
 
 ---
 
 ## 8. 当前版本状态
 
+- **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
-- 性能基线：processScan p99=10ms（真实 2s 轮询）、netScan p99=3ms、60s 无泄漏。
-- 测试：app 33/33 + native 7/7，共 40 PASS。
+- 性能基线：processScan p99=17.7ms（真实 2s 轮询，含 cwd 抽取）、netScan p99=3ms、60s 无泄漏。
+- 测试：app 67/67 + native 11/11，共 78 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。

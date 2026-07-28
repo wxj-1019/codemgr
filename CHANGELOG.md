@@ -4,30 +4,34 @@
 
 ---
 
-## [Unreleased] — v1.0 优化迭代
+## [v1.1] — 2026-07-29
 
 ### 新增
-- **进程详情侧栏**：进程面板选中单个进程时，右侧（lg+ 宽屏）展示详情——命令行（可滚动 + 一键复制）、工作目录、父进程 PID、运行时长、累计 CPU 时间（kernel+user）、内存、线程数、句柄数，底部「结束进程」复用与表格一致的确认弹窗。未选 / 多选 / 进程已退出时显示对应提示。
 - **按项目分组视图（核心差异化）**：进程面板新增「树形 / 按项目」视图切换。按项目视图读取每个进程的工作目录，把同目录下的进程归为一组（组名取目录最后一段），可展开查看组内进程，并一键「结束本组」（复用 `killByPids`）。无法识别工作目录的进程归到「未分组」。视图偏好随排序/过滤一并持久化。
-- **采集层**：`ProcessInfo` 新增 `cwd` 字段。为不回归 processScan 基准（p99 < 20ms），cwd 改为从命令行启发式抽取首个盘符路径的目录（放弃直读 PEB CurrentDirectory，后者每进程多 1 次 NtQIP + 3 次 NtReadVirtualMemory，实测把 p99 推到 ~21ms 超标）。局限见 `process_collector.cpp` 注释。
-- **批量结束安全加固**：批量结束改为按显式 PID 列表（`killByPids`）精确终止选中的进程，不再误杀系统中同名进程。确认弹窗展示实际选中数量与统一进程名。
+- **进程详情侧栏**：进程面板选中单个进程时，右侧（lg+ 宽屏）展示详情——命令行（可滚动 + 一键复制）、工作目录、父进程 PID、运行时长、累计 CPU 时间（kernel+user）、内存、线程数、句柄数。未选 / 多选 / 进程已退出时显示对应提示。
 - **保护名单**：native 层新增保护名单（System/Registry/smss/csrss/wininit/winlogon/services/lsass/svchost/CodeMgr/electron），`killByPids` 与 `killByName` 均拒绝终止保护进程，且永不终止自身。
 - **一键结束所有 node.exe**：进程面板新增预设按钮（仅当快照中存在 node.exe 时显示），通过 `killByName` 全量清理，仍受保护名单约束。
-- **采集层**：新增 `killByPids(pids: number[]): number` 接口。
+- **采集层接口**：新增 `killByPids(pids: number[]): number`；`ProcessInfo` 新增 `cwd` 字段。
 - **磁盘 IO 速率**：性能面板的磁盘子标签从「仅空间」升级为「空间 + 读/写速率 + 活动时间%」（PDH 计数器 `\LogicalDisk(*)\*`）。
-- **统一加载/错误/空状态**（LoadState 组件）：三个面板（端口雷达/进程/性能）首屏骨架加载、出错提示 + 自动重试、空数据占位，体验一致。
-- **组件测试**：LoadState / ConfirmDialog / PortTable 单元测试（+12 用例，共 40 PASS）。
+- **统一加载/错误/空状态**（LoadState 组件）：三个面板首屏骨架加载、出错提示 + 自动重试、空数据占位，体验一致。
+- **轮询健壮性**：三个 hook 加 in-flight 防重入守卫；加载态仅首载闪烁；单次刷新失败降级为可关闭的顶部 banner（保留已有数据，不再整屏替换）。
+- **亮色主题**：语义化颜色变量（`fg.primary/secondary/muted` + `bg-*`），亮/暗两套完整适配，53 处硬编码 `text-slate-*` 替换为自适应变量。
+- **状态持久化**：主题、排序、过滤、视图模式重启后保留（Zustand persist）。
+
+### 修复
+- **托盘退出**：托盘「退出」菜单真正退出应用（`isQuitting` 标志修复 close 拦截），全局快捷键正确注销；native 加载失败时弹出错误对话框而非无提示闪退。
+- **端口雷达 processName**：`netScan()` 现填充真实进程名（93% 连接可解析），端口雷达表格不再显示「—」。
+- **命令行读取 bug**：改用官方 `ProcessCommandLineInformation`（class 60）替代 PEB 偏移试探——原实现误取 ImagePathName（96% 进程只有 exe 路径无参数），导致 vite/npm/jest 等参数标签全部失效。修复后带参数命令行正确获取。
+- **批量 kill 误伤**：批量结束改为按显式 PID 列表精确终止选中的进程，不再 `killByName` 误杀全系统同名进程。
+- **全选无视过滤**：`selectAll` 接受 PID 列表参数，表头全选只选中当前过滤后的进程。
+- **死 PID 残留**：`setProcesses` 自动修剪失效的 `selectedPids` 与 `cpuMap`。
+- **排序方向**：表头排序点击同一列可切换升/降序（`toggleSort` 不再是死代码）。
+- **kill 静默失败**：单击结束失败时弹窗提示（原先静默）。
 
 ### 优化
-- **进程面板**：`selectAll` 现接受 PID 列表参数，表头全选复选框只选中当前过滤后的进程（不再无视过滤选中全部）。
-- **进程面板**：`setProcesses` 自动修剪失效的 `selectedPids` 与 `cpuMap`（进程退出后选中状态/CPU 缓存随之清理）。
-- **进程面板**：单击结束失败时弹窗提示（原先静默失败）；表头排序点击同一列可切换升/降序（`toggleSort` 不再是死代码）。
-- **进程列表渲染性能**：ProcessRow 抽为 `React.memo` + 稳定 callback，预计算 childrenParentSet（O(n) 替代每行 O(n²)），300+ 进程时不必要重渲染大幅减少。
-- **usePerf 错误处理**：补 setError，修复 perfStore.error 死字段。
-
-### 优化
-- **进程列表渲染性能**：ProcessRow 抽为 `React.memo` + 稳定 callback，预计算 childrenParentSet（O(n) 替代每行 O(n²)），300+ 进程时不必要重渲染大幅减少。
-- **usePerf 错误处理**：补 setError，修复 perfStore.error 死字段。
+- **进程列表渲染性能**：ProcessRow 抽为 `React.memo` + 稳定 callback，预计算 childrenParentSet（O(n) 替代每行 O(n²)）。
+- **采集层**：cwd 改为从命令行启发式抽取（放弃直读 PEB CurrentDirectory，后者每进程多 1 次 NtQIP + 3 次 NtRVM，实测把 p99 推到 ~21ms 超标；启发式抽取 p99=17.7ms 通过）。局限见 `process_collector.cpp` 注释。
+- **测试覆盖**：LoadState/ConfirmDialog/PortTable/batchKill/projectGroup/format 组件与纯函数测试，共 78 PASS（native 11 + app 67）。
 
 ---
 
