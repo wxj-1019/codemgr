@@ -1,4 +1,4 @@
-import type { NetConnection } from '../../electron/ipc-types';
+import type { NetConnection, ProcessInfo, CpuUsage } from '../../electron/ipc-types';
 
 // 渲染层统一通过此封装访问 native（绝不直接 require）
 export const ipc = {
@@ -10,5 +10,11 @@ export const ipc = {
   },
   async killByName(name: string): Promise<number> {
     return window.codemgr.killByName(name);
+  },
+  async fetchProcesses(): Promise<ProcessInfo[]> {
+    return window.codemgr.fetchProcesses();
+  },
+  async fetchCpu(): Promise<CpuUsage[]> {
+    return window.codemgr.fetchCpu();
   },
 };

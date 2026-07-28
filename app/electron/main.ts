@@ -58,6 +58,24 @@ ipcMain.handle(IPC.KILL_BY_NAME, async (_evt, name: string) => {
   }
 });
 
+ipcMain.handle(IPC.FETCH_PROCESSES, async () => {
+  try {
+    return native.processScan();
+  } catch (e) {
+    console.error('processScan failed:', e);
+    return [];
+  }
+});
+
+ipcMain.handle(IPC.FETCH_CPU, async () => {
+  try {
+    return native.cpuDelta();
+  } catch (e) {
+    console.error('cpuDelta failed:', e);
+    return [];
+  }
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
