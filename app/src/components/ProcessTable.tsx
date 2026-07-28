@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
@@ -74,6 +74,118 @@ const KIND_COLORS: Record<string, string> = {
   system: 'bg-slate-600/30 text-slate-400',
 };
 
+// ---- Memoized row: only re-renders when its own inputs change ----
+interface ProcessRowProps {
+  proc: ProcessInfo;
+  depth: number;
+  cpu: number;
+  hasChildren: boolean;
+  isExpanded: boolean;
+  isSelected: boolean;
+  onToggleExpand: (pid: number) => void;
+  onToggleSelect: (pid: number) => void;
+  onKill: (pid: number, name: string) => void;
+}
+
+const ProcessRow = memo(function ProcessRow({
+  proc, depth, cpu, hasChildren, isExpanded, isSelected,
+  onToggleExpand, onToggleSelect, onKill,
+}: ProcessRowProps) {
+  const label = labelForProcess(proc.name, proc.cmdline);
+  const memMB = proc.workingSetBytes / 1048576;
+  const memHighlight = memMB > 500;
+  const cpuHighlight = cpu > 50;
+
+  return (
+    <tr
+      key={proc.pid}
+      className={`border-b border-base-700/30 hover:bg-base-700/30 cursor-pointer ${
+        isSelected ? 'bg-base-700/50' : ''
+      } ${memHighlight ? 'bg-yellow-900/10' : ''}`}
+      onClick={() => onToggleSelect(proc.pid)}
+    >
+      <td className="px-1 py-1">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(proc.pid)}
+          className="accent-accent"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </td>
+      <td className="px-2 py-1">
+        <div
+          className="flex items-center gap-1"
+          style={{ paddingLeft: depth * 16 }}
+        >
+          {hasChildren && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand(proc.pid);
+              }}
+              className="w-4 text-xs text-slate-500 hover:text-slate-300"
+            >
+              {isExpanded ? '▾' : '▸'}
+            </button>
+          )}
+          {!hasChildren && <span className="w-4" />}
+          <span className="text-slate-200 truncate max-w-[200px]">
+            {proc.name}
+          </span>
+          {label && (
+            <span
+              className={`ml-1 rounded px-1 text-[10px] ${
+                KIND_COLORS[label.kind] ||
+                'bg-slate-600/30 text-slate-400'
+              }`}
+            >
+              {label.label}
+            </span>
+          )}
+        </div>
+      </td>
+      <td
+        className={`px-2 py-1 text-right font-mono ${
+          cpuHighlight ? 'text-red-400' : 'text-slate-300'
+        }`}
+      >
+        {cpu.toFixed(1)}
+      </td>
+      <td
+        className={`px-2 py-1 text-right font-mono ${
+          memHighlight ? 'text-amber-400' : 'text-slate-300'
+        }`}
+      >
+        {formatMem(proc.workingSetBytes)}
+      </td>
+      <td className="px-2 py-1 text-right font-mono text-slate-400">
+        {proc.pid}
+      </td>
+      <td className="px-2 py-1 text-right font-mono text-slate-400">
+        {proc.threadCount}
+      </td>
+      <td
+        className="px-2 py-1 font-mono text-slate-500 truncate max-w-[400px] text-xs"
+        title={proc.cmdline}
+      >
+        {proc.cmdline || '—'}
+      </td>
+      <td className="px-2 py-1 text-right">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onKill(proc.pid, proc.name);
+          }}
+          className="rounded bg-red-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-red-500"
+        >
+          结束
+        </button>
+      </td>
+    </tr>
+  );
+});
+
 export function ProcessTable({ onKillSingle }: ProcessTableProps) {
   const {
     processes,
@@ -88,6 +200,10 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
     selectAll,
     clearSelection,
   } = useProcessPanelStore();
+
+  // Stable callbacks so memoized rows don't re-render on every parent render.
+  const onToggleExpand = useCallback((pid: number) => toggleExpand(pid), [toggleExpand]);
+  const onToggleSelect = useCallback((pid: number) => toggleSelect(pid), [toggleSelect]);
 
   // ---- Filter ----
   const filtered = useMemo(() => {
@@ -133,8 +249,17 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
     [sorted, expandedPids],
   );
 
-  const allSelected =
-    selectedPids.size > 0 && sorted.every((p) => selectedPids.has(p.pid));
+  // ---- Precompute set of PIDs that have children (O(n) instead of O(n²) per row) ----
+  const childrenParentSet = useMemo(() => {
+    const s = new Set<number>();
+    for (const p of sorted) s.add(p.ppid);
+    return s;
+  }, [sorted]);
+
+  const allSelected = useMemo(
+    () => selectedPids.size > 0 && sorted.every((p) => selectedPids.has(p.pid)),
+    [selectedPids, sorted],
+  );
 
   const setSortKey = useProcessPanelStore((s) => s.setSortKey);
 
@@ -183,105 +308,20 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ proc, depth }) => {
-            const cpu = cpuMap[proc.pid] || 0;
-            const hasChildren = processes.some((p) => p.ppid === proc.pid);
-            const isExpanded = expandedPids.has(proc.pid);
-            const isSelected = selectedPids.has(proc.pid);
-            const label = labelForProcess(proc.name, proc.cmdline);
-            const memMB = proc.workingSetBytes / 1048576;
-            const memHighlight = memMB > 500;
-            const cpuHighlight = cpu > 50;
-
-            return (
-              <tr
-                key={proc.pid}
-                className={`border-b border-base-700/30 hover:bg-base-700/30 cursor-pointer ${
-                  isSelected ? 'bg-base-700/50' : ''
-                } ${memHighlight ? 'bg-yellow-900/10' : ''}`}
-                onClick={() => toggleSelect(proc.pid)}
-              >
-                <td className="px-1 py-1">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelect(proc.pid)}
-                    className="accent-accent"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <div
-                    className="flex items-center gap-1"
-                    style={{ paddingLeft: depth * 16 }}
-                  >
-                    {hasChildren && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleExpand(proc.pid);
-                        }}
-                        className="w-4 text-xs text-slate-500 hover:text-slate-300"
-                      >
-                        {isExpanded ? '▾' : '▸'}
-                      </button>
-                    )}
-                    {!hasChildren && <span className="w-4" />}
-                    <span className="text-slate-200 truncate max-w-[200px]">
-                      {proc.name}
-                    </span>
-                    {label && (
-                      <span
-                        className={`ml-1 rounded px-1 text-[10px] ${
-                          KIND_COLORS[label.kind] ||
-                          'bg-slate-600/30 text-slate-400'
-                        }`}
-                      >
-                        {label.label}
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td
-                  className={`px-2 py-1 text-right font-mono ${
-                    cpuHighlight ? 'text-red-400' : 'text-slate-300'
-                  }`}
-                >
-                  {cpu.toFixed(1)}
-                </td>
-                <td
-                  className={`px-2 py-1 text-right font-mono ${
-                    memHighlight ? 'text-amber-400' : 'text-slate-300'
-                  }`}
-                >
-                  {formatMem(proc.workingSetBytes)}
-                </td>
-                <td className="px-2 py-1 text-right font-mono text-slate-400">
-                  {proc.pid}
-                </td>
-                <td className="px-2 py-1 text-right font-mono text-slate-400">
-                  {proc.threadCount}
-                </td>
-                <td
-                  className="px-2 py-1 font-mono text-slate-500 truncate max-w-[400px] text-xs"
-                  title={proc.cmdline}
-                >
-                  {proc.cmdline || '—'}
-                </td>
-                <td className="px-2 py-1 text-right">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onKillSingle(proc.pid, proc.name);
-                    }}
-                    className="rounded bg-red-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-red-500"
-                  >
-                    结束
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
+          {rows.map(({ proc, depth }) => (
+            <ProcessRow
+              key={proc.pid}
+              proc={proc}
+              depth={depth}
+              cpu={cpuMap[proc.pid] || 0}
+              hasChildren={childrenParentSet.has(proc.pid)}
+              isExpanded={expandedPids.has(proc.pid)}
+              isSelected={selectedPids.has(proc.pid)}
+              onToggleExpand={onToggleExpand}
+              onToggleSelect={onToggleSelect}
+              onKill={onKillSingle}
+            />
+          ))}
           {rows.length === 0 && (
             <tr>
               <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
