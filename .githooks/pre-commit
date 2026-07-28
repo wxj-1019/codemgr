@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# CodeMgr pre-commit hook —— 增量检查
+# 按 staged 文件涉及的包，只跑相关检查。改 docs 不触发任何测试。
+# 安装: pnpm install 会通过根 package.json 的 prepare 脚本自动软链此文件。
+
+set -e
+
+# 拿本次暂存的文件（相对仓库根）
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# 判断各包是否有改动
+CHANGED_APP=$(echo "$STAGED" | grep -E '^app/' || true)
+CHANGED_NATIVE=$(echo "$STAGED" | grep -E '^codemgr-native/(src|tests)/' || true)
+CHANGED_NATIVE_BUILD=$(echo "$STAGED" | grep -E '^codemgr-native/(CMakeLists|package\.json)' || true)
+
+EXIT_CODE=0
+
+# --- app 包：typecheck + test ---
+if [ -n "$CHANGED_APP" ]; then
+  echo "▶ 检测到 app/ 改动，跑 typecheck + vitest..."
+  (cd app && pnpm typecheck) || { echo "✗ typecheck 失败"; EXIT_CODE=1; }
+  (cd app && pnpm vitest run) || { echo "✗ vitest 失败"; EXIT_CODE=1; }
+fi
+
+# --- native 包：test（仅当 src/tests 改动）---
+if [ -n "$CHANGED_NATIVE" ]; then
+  echo "▶ 检测到 codemgr-native/src|tests 改动，跑 native 测试..."
+  # 先确保为 node 编译（测试跑在 node 上）
+  (cd codemgr-native && pnpm build >/dev/null 2>&1) || { echo "✗ native 编译失败"; EXIT_CODE=1; }
+  (cd codemgr-native && pnpm test) || { echo "✗ native 测试失败"; EXIT_CODE=1; }
+elif [ -n "$CHANGED_NATIVE_BUILD" ]; then
+  echo "▶ 检测到 codemgr-native 构建配置改动，验证编译..."
+  (cd codemgr-native && pnpm build >/dev/null 2>&1) || { echo "✗ native 编译失败"; EXIT_CODE=1; }
+fi
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "✗ pre-commit 检查未通过，提交已阻止。修复后重新 git commit。"
+  echo "  如需临时跳过（不推荐）：git commit --no-verify"
+  exit 1
+fi
+
+echo "✓ pre-commit 检查通过"
+exit 0

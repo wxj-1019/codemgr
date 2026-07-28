@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Native tests (Node target)
+        working-directory: codemgr-native
+        run: |
+          pnpm build
+          pnpm test
+
+      - name: Renderer typecheck
+        working-directory: app
+        run: pnpm typecheck
+
+      - name: Renderer tests
+        working-directory: app
+        run: pnpm vitest run
+
+      - name: Build native for Electron
+        working-directory: codemgr-native
+        run: pnpm build:electron
+
+      - name: Build app
+        run: pnpm build:app

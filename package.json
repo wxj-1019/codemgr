@@ -11,7 +11,8 @@
     "build": "pnpm --filter codemgr-app build && pnpm --filter codemgr-native build:electron",
     "build:app": "pnpm --filter codemgr-app vite:build",
     "bench": "pnpm --filter codemgr-native bench",
-    "test:native": "pnpm --filter codemgr-native test"
+    "test:native": "pnpm --filter codemgr-native test",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "cmake-js": {
     "runtime": "electron",
