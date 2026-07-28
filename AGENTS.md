@@ -134,6 +134,8 @@ scope:  native | app | ci | docs（可选）
 4. **SystemProcessorPerformanceInformation (class 8)**：缓冲区必须**精确**等于 `核数×48` 字节，否则静默返回空。
 5. **winsock 冲突**：net_collector.cpp 必须先 `#define WIN32_LEAN_AND_MEAN` 再 include winsock2/ws2tcpip/iphlpapi，否则与 windows.h 的旧 winsock 冲突。
 6. **设计文档曾在外部目录**：历史原因 spec/plan 曾在 `ZCodeProject/docs/`，现已迁入仓库 `docs/superpowers/`。引用时用仓库内路径。
+7. **用 electron 跑临时脚本验证 native**：`npx electron script.js` 会启动 app 的 GUI 主入口而非执行脚本。要跑独立脚本验证 native addon，用 `ELECTRON_RUN_AS_NODE=1 node_modules/.bin/electron script.js`，或在脚本里 `app.whenReady().then(()=>{...})` 后退出。
+8. **PDH 类型名**：Windows SDK 的 `pdh.h` 用 `PDH_HQUERY`（查询句柄）和 `PDH_HCOUNTER`（计数器句柄），没有 `PDH_HQ`/`PDH_HC` 这种简写。
 
 ---
 
@@ -141,5 +143,5 @@ scope:  native | app | ci | docs（可选）
 
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=10ms（真实 2s 轮询）、netScan p99=3ms、60s 无泄漏。
-- 测试：app 21/21 + native 7/7，共 28 PASS。
+- 测试：app 33/33 + native 7/7，共 40 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。

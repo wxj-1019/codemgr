@@ -4,6 +4,19 @@
 
 ---
 
+## [Unreleased] — v1.0 优化迭代
+
+### 新增
+- **磁盘 IO 速率**：性能面板的磁盘子标签从「仅空间」升级为「空间 + 读/写速率 + 活动时间%」（PDH 计数器 `\LogicalDisk(*)\*`）。
+- **统一加载/错误/空状态**（LoadState 组件）：三个面板（端口雷达/进程/性能）首屏骨架加载、出错提示 + 自动重试、空数据占位，体验一致。
+- **组件测试**：LoadState / ConfirmDialog / PortTable 单元测试（+12 用例，共 40 PASS）。
+
+### 优化
+- **进程列表渲染性能**：ProcessRow 抽为 `React.memo` + 稳定 callback，预计算 childrenParentSet（O(n) 替代每行 O(n²)），300+ 进程时不必要重渲染大幅减少。
+- **usePerf 错误处理**：补 setError，修复 perfStore.error 死字段。
+
+---
+
 ## [v1.0] — 2026-07-29
 
 ### 新增
