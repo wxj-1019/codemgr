@@ -1,0 +1,52 @@
+# electron-builder 配置（NSIS 安装包 + portable 选项见 targets）
+# 文档：https://www.electron.build/
+# 运行：pnpm --filter codemgr-app dist （需先 pnpm build 完整构建 native+renderer+electron）
+
+appId: com.wxj1019.codemgr
+productName: CodeMgr
+copyright: Copyright © 2026 wxj-1019
+
+# 构建产物输出目录（相对于 app/）
+directories:
+  output: ../release
+  buildResources: build
+
+# 禁用 asar：文件散装到 resources/app/ 而非 app.asar。
+# 原因：electron-builder 25 在注入 asar integrity（addWinAsarIntegrity）时，
+# 对 CodeMgr.exe 的 writeFile 在本环境报 UNKNOWN（resedit 解析后句柄/扫描锁）。
+# 禁用 asar 即跳过该步骤。代价是无 asar 防篡改——个人项目可接受；
+# 收益是 native addon 的 require 路径在散装模式下更可靠（无需 asar 解包）。
+asar: false
+
+# 打包进 resources/app/ 的文件。dist-electron（main+preload）+ dist-renderer（前端）+ package.json。
+# 排除源码、测试、配置文件，减小体积。
+files:
+  - dist-electron/**
+  - dist-renderer/**
+  - package.json
+  - "!**/*.map"
+
+# native addon 不进 asar（.node 在 asar 内 require 会有路径问题），作为 extraResources
+# 解压到 resources/ 下，main.ts 用 process.resourcesPath 定位（见 main.ts NATIVE_PATH）。
+extraResources:
+  - from: ../codemgr-native/build/Release/codemgr-native.node
+    to: codemgr-native.node
+    filter: ['**/*']
+
+# Windows 目标：NSIS 安装包（带安装向导/快捷方式/卸载）
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # 不签名（个人项目/无证书）。signAndEditExecutable=false 跳过 signtool 调用；
+  # 配合 dist 脚本的 CSC_IDENTITY_AUTO_DISCOVERY=false 跳过 winCodeSign 缓存解压
+  # （该缓存含 macOS dylib 软链，非管理员账户无建符号链接权限会失败）。
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false                    # 显示安装向导（非一键安装）
+  perMachine: false                  # 当前用户安装（无需管理员）
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CodeMgr

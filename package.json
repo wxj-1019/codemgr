@@ -10,6 +10,7 @@
     "start": "electron app",
     "build": "pnpm --filter codemgr-app build && pnpm --filter codemgr-native build:electron",
     "build:app": "pnpm --filter codemgr-app vite:build",
+    "dist": "pnpm build && pnpm --filter codemgr-app dist",
     "bench": "pnpm --filter codemgr-native bench",
     "test:native": "pnpm --filter codemgr-native test",
     "prepare": "git config core.hooksPath .githooks"

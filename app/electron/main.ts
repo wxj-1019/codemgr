@@ -1,17 +1,23 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog } from 'electron';
 import path from 'node:path';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { IPC, type LabelRulesPayload, type LabelRule } from './ipc-types';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const RENDERER_DIST = path.join(__dirname, '..', 'dist-renderer');
 
-// 加载 v0.1 已为 electron 编译的 native addon（Task 1 产物）
+// 加载 native 采集层 addon。
+// - 开发态：仓库内相对路径 ../../codemgr-native/build/Release/...
+// - 打包态：electron-builder 的 extraResources 把 .node 放到 resources/ 下
+//   （见 electron-builder.yml 的 extraResources），用 process.resourcesPath 定位
 // ABI 不匹配（未为 Electron 重编译）时给出对话框提示，避免无提示闪退
+const NATIVE_PATH = app.isPackaged
+  ? path.join(process.resourcesPath, 'codemgr-native.node')
+  : path.join(__dirname, '..', '..', 'codemgr-native', 'build', 'Release', 'codemgr-native.node');
 let native: any;
 try {
-  native = require(path.join(__dirname, '..', '..', 'codemgr-native', 'build', 'Release', 'codemgr-native.node'));
+  native = require(NATIVE_PATH);
 } catch (e) {
   dialog.showErrorBox(
     'CodeMgr 启动失败',
@@ -212,9 +218,12 @@ ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
 app.whenReady().then(() => {
   createWindow();
 
-  // 系统托盘
-  const iconPath = path.join(__dirname, '..', 'build', 'tray-icon.png');
-  const icon = nativeImage.createFromPath(iconPath);
+  // 系统托盘图标：开发态在 app/build/，打包态在 resources/（extraResources）。
+  // 图标文件缺失时降级为空图标，避免 createFromPath 返回空对象导致 Tray 崩。
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'tray-icon.png')
+    : path.join(__dirname, '..', 'build', 'tray-icon.png');
+  const icon = existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
   tray = new Tray(icon);
   tray.setToolTip('CodeMgr — 开发者工作流管理器');
   tray.on('click', () => {
