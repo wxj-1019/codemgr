@@ -357,7 +357,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   // ── 键盘导航（纯导航模型：焦点框与 selectedPids 分离）──
   // 焦点用 pid 锚定（非 index）：排序/折叠/过滤后行序会变，按 pid 定位才稳定。
   // 用 ref 持有最新 rows，让 onRowKeyDown 引用稳定（不击穿 memo）。
-  const [focusedPid, setFocusedPid] = useState<number | null>(null);
+  const [navFocusPid, setNavFocusPid] = useState<number | null>(null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const tableRef = useRef<HTMLTableElement | null>(null);
@@ -376,28 +376,28 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
 
   // 焦点变化时滚动：虚拟化用 virtualizer.scrollToIndex（焦点行可能未渲染，
   // scrollIntoView 找不到 DOM）；非虚拟化维持原 scrollIntoView。
-  // 只挂在 focusedPid 上——挂在 virtualItems 上会把用户滚动"拉回"焦点行。
+  // 只挂在 navFocusPid 上——挂在 virtualItems 上会把用户滚动"拉回"焦点行。
   useEffect(() => {
-    if (focusedPid == null) return;
+    if (navFocusPid == null) return;
     if (shouldVirtualize) {
-      const idx = rowsRef.current.findIndex((r) => r.proc.pid === focusedPid);
+      const idx = rowsRef.current.findIndex((r) => r.proc.pid === navFocusPid);
       if (idx !== -1) virtualizer.scrollToIndex(idx, { align: 'auto' });
     } else {
       const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
       // jsdom 无 scrollIntoView，加 typeof 防御（真实 Electron 环境有该方法）。
       if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
     }
-  }, [focusedPid, shouldVirtualize, virtualizer]);
+  }, [navFocusPid, shouldVirtualize, virtualizer]);
 
   // 焦点行 DOM 挂载后 focus（roving tabindex 的标准配套）。
   // 用 data 属性 + querySelector 定位，避免给 memo 的 ProcessRow 加 forwardRef。
   // 依赖 virtualItems：虚拟化下 scrollToIndex 后焦点行才渲染，渲染后本 effect 重跑补上 focus。
   // preventScroll：滚动由上面的 effect 负责，避免 focus 原生滚动与 virtualizer 互相打架。
   useEffect(() => {
-    if (focusedPid == null) return;
+    if (navFocusPid == null) return;
     const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
     el?.focus({ preventScroll: true });
-  }, [focusedPid, virtualItems]);
+  }, [navFocusPid, virtualItems]);
 
   const onRowKeyDown = useCallback((e: React.KeyboardEvent, proc: ProcessInfo) => {
     const cur = rowsRef.current;
@@ -406,19 +406,19 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     if (idx === -1) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (idx < cur.length - 1) setFocusedPid(cur[idx + 1].proc.pid);
+      if (idx < cur.length - 1) setNavFocusPid(cur[idx + 1].proc.pid);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (idx > 0) setFocusedPid(cur[idx - 1].proc.pid);
+      if (idx > 0) setNavFocusPid(cur[idx - 1].proc.pid);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       toggleSelect(proc.pid);
     } else if (e.key === 'Home') {
       e.preventDefault();
-      setFocusedPid(cur[0].proc.pid);
+      setNavFocusPid(cur[0].proc.pid);
     } else if (e.key === 'End') {
       e.preventDefault();
-      setFocusedPid(cur[cur.length - 1].proc.pid);
+      setNavFocusPid(cur[cur.length - 1].proc.pid);
     }
   }, [toggleSelect]);
 
@@ -448,7 +448,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       hasChildren={childrenParentSet.has(proc.pid)}
       isExpanded={expandedPids.has(proc.pid)}
       isSelected={selectedPids.has(proc.pid)}
-      isFocused={proc.pid === focusedPid}
+      isFocused={proc.pid === navFocusPid}
       onToggleExpand={onToggleExpand}
       onToggleSelect={onToggleSelect}
       onKill={onKillSingle}
