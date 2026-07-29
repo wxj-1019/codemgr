@@ -74,9 +74,9 @@ export interface PluginManifestEntry {
  * 插件 manifest 声明的 capabilities 只能在此集合内，未识别项被 main 剥离。
  * 新增能力 = 加 collector + addon 注册 + 加此白名单 + UtilityProcess 路由（主仓库 review）。
  *
- * 当前只含 demo-source（模拟数据源，验证 UtilityProcess + MessagePort 管道）。
+ * 当前含 demo-source（模拟）+ disk-volumes（真实：磁盘卷列表，GetLogicalDriveStringsW 等）。
  */
-export const ALLOWED_CAPABILITIES: ReadonlySet<string> = new Set(['demo-source']);
+export const ALLOWED_CAPABILITIES: ReadonlySet<string> = new Set(['demo-source', 'disk-volumes']);
 
 // 与 codemgr-native 的 NetConnection 一致（重新声明，避免渲染层直接依赖 native 包）
 export interface NetConnection {

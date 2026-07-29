@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  CodeMgr 示例：磁盘卷数据源插件（6c 第二步，真实 native 数据源）。
+
+  消费 UtilityProcess 经 disk-volumes capability 采集的真实磁盘数据
+  （GetLogicalDriveStringsW + GetDriveTypeW + GetDiskFreeSpaceExW）。
+  manifest 需声明 capabilities: ['disk-volumes']。
+-->
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <style>
+    body { margin: 0; font-family: system-ui; background: var(--bg-panel, #1a2028); color: var(--text-primary, #e2e8f0); }
+    .title { padding: 8px 12px; font-size: 11px; color: var(--text-muted, #64748b); border-bottom: 1px solid var(--border, #2f3947); }
+    .vol { padding: 8px 12px; border-bottom: 1px solid var(--border, #2f3947); }
+    .letter { font-size: 14px; font-weight: 600; }
+    .type { font-size: 10px; color: var(--text-muted, #64748b); margin-left: 6px; text-transform: uppercase; }
+    .bar { height: 6px; background: var(--bg-elevated, #242c38); border-radius: 3px; margin: 6px 0 2px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--accent, #2dd4bf); }
+    .meta { font-size: 11px; color: var(--text-muted, #64748b); display: flex; justify-content: space-between; }
+    .empty { padding: 24px; text-align: center; color: var(--text-muted, #64748b); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const { useState, useEffect } = React;
+
+    function fmt(bytes) {
+      const gb = bytes / 1073741824;
+      return gb >= 1024 ? (gb / 1024).toFixed(1) + ' TB' : gb.toFixed(1) + ' GB';
+    }
+
+    function DiskView() {
+      const [vols, setVols] = useState([]);
+      useEffect(() => {
+        window.addEventListener('message', (e) => {
+          const msg = e.data;
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'dataSource' && msg.capability === 'disk-volumes') {
+            setVols(msg.data || []);
+          } else if (msg.type === 'theme') {
+            for (const [k, v] of Object.entries(msg.vars)) document.documentElement.style.setProperty(k, v);
+          }
+        });
+      }, []);
+
+      return React.createElement('div', null,
+        React.createElement('div', { className: 'title' }, '磁盘卷（disk-volumes · UtilityProcess native）'),
+        vols.length === 0
+          ? React.createElement('div', { className: 'empty' }, '等待数据源…')
+          : vols.map((v) => {
+              const used = v.totalBytes > 0 ? (1 - v.freeBytes / v.totalBytes) * 100 : 0;
+              return React.createElement('div', { className: 'vol', key: v.letter },
+                React.createElement('div', null,
+                  React.createElement('span', { className: 'letter' }, v.letter),
+                  React.createElement('span', { className: 'type' }, v.type),
+                ),
+                React.createElement('div', { className: 'bar' },
+                  React.createElement('div', { className: 'bar-fill', style: { width: used + '%' } }),
+                ),
+                React.createElement('div', { className: 'meta' },
+                  React.createElement('span', null, fmt(v.totalBytes - v.freeBytes) + ' 已用'),
+                  React.createElement('span', null, used.toFixed(0) + '% · ' + fmt(v.freeBytes) + ' 可用'),
+                ),
+              );
+            }),
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(DiskView));
+  </script>
+</body>
+</html>

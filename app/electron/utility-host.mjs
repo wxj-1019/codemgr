@@ -39,6 +39,11 @@ function collect(capability) {
         { id: 'demo-1', name: '示例条目 A', value: 42 },
         { id: 'demo-2', name: '示例条目 B', value: 128 },
       ];
+    case 'disk-volumes':
+      // 真实数据源：磁盘卷列表（GetLogicalDriveStringsW + GetDriveTypeW + GetDiskFreeSpaceExW）
+      // native 已 require 到位（见文件顶部）；UtilityProcess 子进程复用同一 .node
+      if (!native) throw new Error('native addon 未加载，无法采集 disk-volumes');
+      return native.diskVolumes();
     default:
       throw new Error(`未知 capability: ${capability}`);
   }

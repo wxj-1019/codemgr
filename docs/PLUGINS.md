@@ -221,8 +221,9 @@ window.addEventListener('message', (e) => {
 | capability | 说明 | 状态 |
 |------------|------|------|
 | `demo-source` | 模拟数据（验证管道） | ✅ 可用（6c 第一步） |
+| `disk-volumes` | 磁盘卷列表（盘符/类型/空间，GetLogicalDriveStringsW 等） | ✅ 可用（6c 第二步） |
 
-> 新增真实数据源（如 Docker 容器列表）= 主仓库加 collector + addon 注册 + 加白名单 + UtilityProcess 路由（需 review）。
+> 新增真实数据源（如 Docker 容器列表）= 主仓库加 collector + addon 注册 + 加白名单 + UtilityProcess 路由（需 review）。参照 `disk-volumes` 的实现（`codemgr-native/src/disk_collector.cpp`）。
 
 ### manifest 声明
 

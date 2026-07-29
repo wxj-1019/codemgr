@@ -31,6 +31,15 @@ export interface CpuUsage {
   cpuPercent: number;      // 0-100，相对于单核
 }
 
+// 磁盘卷（6c 数据源：GetLogicalDriveStringsW + GetDriveTypeW + GetDiskFreeSpaceExW）
+export interface DiskVolume {
+  letter: string;          // 盘符路径，如 "C:\\"
+  type: 'fixed' | 'removable' | 'cdrom' | 'network' | 'ram' | 'unknown';
+  totalBytes: number;      // 总空间（字节）；不可达卷为 0
+  freeBytes: number;       // 空闲空间（字节）
+  availableBytes: number;  // 可用空间（字节，可能 < freeBytes，受配额影响）
+}
+
 // 系统性能计数器快照
 export interface PerfData {
   cpu: { totalPercent: number; perCore: number[] };
@@ -59,6 +68,7 @@ export interface NativeBindings {
   killTree(pid: number): number;
   readProcessEnv(pid: number): Record<string, string>;
   readProcessCwd(pid: number): string;
+  diskVolumes(): DiskVolume[];
 }
 
 // 加载编译产物（index.ts 位于包根，build/ 在同级）
