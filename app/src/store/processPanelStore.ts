@@ -28,6 +28,7 @@ interface ProcessPanelState {
   selectedPids: Set<number>;
   loading: boolean;
   error: string | null;
+  staleAt: number | null;        // 上次成功采样时间；null=数据新鲜或从未成功（A2）
   // 详情侧栏占容器宽度的比例（0-1），驱动 allotment 受控 sizes。持久化，刷新恢复。
   sidebarProportion: number;
   // 轮询间隔（ms），0 = 暂停。持久化，重启后保留。
@@ -48,6 +49,7 @@ interface ProcessPanelState {
   clearSelection: () => void;
   setLoading: (b: boolean) => void;
   setError: (e: string | null) => void;
+  setStaleAt: (ts: number | null) => void;
   setSidebarProportion: (p: number) => void;
   setPollMs: (ms: number) => void;
   setPreciseCwd: (pid: number, cwd: string) => void;
@@ -70,6 +72,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       selectedPids: new Set<number>(),
       loading: false,
       error: null,
+      staleAt: null,
       // 侧栏约占容器 30%；allotment 用比例驱动，窗口 resize 时侧栏按比例缩放
       sidebarProportion: 0.3,
       pollMs: 2000,  // 进程面板默认 2s（与原硬编码 POLL_MS 一致）
@@ -95,7 +98,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
           const n = Number(k);
           if (pidSet.has(n)) preciseCwdByPid[n] = s.preciseCwdByPid[n];
         }
-        return { processes: p, error: null, selectedPids, cpuMap, procHistory, preciseCwdByPid };
+        return { processes: p, error: null, staleAt: null, selectedPids, cpuMap, procHistory, preciseCwdByPid };
       }),
       setCpuMap: (c) => set((s) => {
         const m = { ...s.cpuMap };
@@ -142,6 +145,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       clearSelection: () => set({ selectedPids: new Set() }),
       setLoading: (b) => set({ loading: b }),
       setError: (e) => set({ error: e }),
+      setStaleAt: (ts) => set({ staleAt: ts }),
       // 钳制到 15%-60%：太窄曲线/命令行看不清，太宽挤掉进程表
       setSidebarProportion: (p) => set({ sidebarProportion: Math.min(0.6, Math.max(0.15, p)) }),
       setPollMs: (ms) => set({ pollMs: ms }),
@@ -149,7 +153,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       reset: () => set({
         processes: [], cpuMap: {}, procHistory: {}, preciseCwdByPid: {}, filter: '', sortKey: 'pid', sortAsc: true,
         viewMode: 'tree', expandedPids: new Set(), expandedGroups: new Set(),
-        selectedPids: new Set(), loading: false, error: null, sidebarProportion: 0.3,
+        selectedPids: new Set(), loading: false, error: null, staleAt: null, sidebarProportion: 0.3,
         pollMs: 2000,
       }),
     }),

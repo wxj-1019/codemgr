@@ -9,6 +9,7 @@ export function usePerf() {
   const setPerf = usePerfStore((s) => s.setPerf);
   const setLoading = usePerfStore((s) => s.setLoading);
   const setError = usePerfStore((s) => s.setError);
+  const setStaleAt = usePerfStore((s) => s.setStaleAt);
   const pollMs = usePerfStore((s) => s.pollMs);
   const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
@@ -25,13 +26,16 @@ export function usePerf() {
       const isFirst = firstRef.current;
       if (isFirst) setLoading(true);  // only first load shows loading
       try {
-        const p = await ipc.fetchPerf();
+        const result = await ipc.fetchPerf();
         if (stoppedRef.current) return;
-        if (p) {
-          setPerf(p);
+        if (result.ok) {
+          setPerf(result.data);
           firstRef.current = false;
         } else {
-          setError('perfCounters 返回空');
+          // 失败：不清空 perf，标陈旧 + 错误（A2）
+          setError(result.error.message);
+          setStaleAt(result.lastSuccessAt);
+          if (isFirst) firstRef.current = false;
         }
       } catch (e) {
         if (!stoppedRef.current) setError(String(e));
@@ -50,5 +54,5 @@ export function usePerf() {
       stoppedRef.current = true;
       clearInterval(timer);
     };
-  }, [setPerf, setLoading, setError, pollable, pollMs]);
+  }, [setPerf, setLoading, setError, setStaleAt, pollable, pollMs]);
 }

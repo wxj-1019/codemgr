@@ -196,5 +196,24 @@ describe('processPanelStore', () => {
     useProcessPanelStore.getState().toggleGroup('app');
     expect(useProcessPanelStore.getState().expandedGroups.has('app')).toBe(false);
   });
+
+  // ── A2: staleAt（采集失败语义）──
+
+  it('setProcesses clears staleAt (marks data fresh)', () => {
+    useProcessPanelStore.setState({ staleAt: 1000 });
+    useProcessPanelStore.getState().setProcesses([sampleProc({ pid: 1 })]);
+    expect(useProcessPanelStore.getState().staleAt).toBeNull();
+  });
+
+  it('setStaleAt sets the timestamp', () => {
+    useProcessPanelStore.getState().setStaleAt(9999);
+    expect(useProcessPanelStore.getState().staleAt).toBe(9999);
+  });
+
+  it('reset clears staleAt', () => {
+    useProcessPanelStore.setState({ staleAt: 1000 });
+    useProcessPanelStore.getState().reset();
+    expect(useProcessPanelStore.getState().staleAt).toBeNull();
+  });
 });
 

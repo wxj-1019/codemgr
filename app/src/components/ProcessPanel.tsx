@@ -5,6 +5,7 @@ import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
 import { mostCommonName } from '../lib/batchKill';
+import { formatRelativeTime } from '../lib/format';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
 import { ProcessDetailSidebar } from './ProcessDetailSidebar';
@@ -35,7 +36,7 @@ export function ProcessPanel() {
   const {
     processes, loading, error, selectedPids, filter, setFilter, clearSelection,
     viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
-    pollMs, setPollMs,
+    pollMs, setPollMs, staleAt,
   } = useProcessPanelStore();
 
   const [pendingKill, setPendingKill] = useState<{
@@ -187,6 +188,7 @@ export function ProcessPanel() {
             {processes.length} 个进程
             {loading ? ' · 刷新中…' : ''}
             {error && ' · 上次刷新出错'}
+            {staleAt !== null && ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）`}
             {selectedPids.size > 0 && ` · 已选 ${selectedPids.size} 个`}
           </p>
         </div>
@@ -197,11 +199,11 @@ export function ProcessPanel() {
             placeholder="搜索进程/命令行/PID…"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
+            className="w-56 rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
           />
           <button
             onClick={toggleViewMode}
-            className="rounded border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700"
+            className="rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700"
             title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
           >
             {viewMode === 'tree' ? '📁 按项目' : '🌲 树形'}
@@ -229,7 +231,7 @@ export function ProcessPanel() {
                 );
                 if (name) setBatchKillName(name);
               }}
-              className="rounded bg-red-600/80 px-3 py-1 text-xs text-white hover:bg-red-500"
+              className="btn-danger-quiet rounded-lg px-3 py-1 text-xs"
             >
               批量结束 ({selectedPids.size})
             </button>
@@ -238,13 +240,13 @@ export function ProcessPanel() {
       </header>
 
       {showErrorBanner && (
-        <div className="flex items-center justify-between gap-3 border-b border-red-700/40 bg-red-950/30 px-4 py-2">
-          <p className="truncate text-xs text-red-300">
+        <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
+          <p className="truncate text-xs text-danger">
             上次刷新失败：{error}
           </p>
           <button
             onClick={() => useProcessPanelStore.getState().setError(null)}
-            className="shrink-0 text-red-400 hover:text-red-200"
+            className="shrink-0 text-danger/80 hover:text-danger"
             aria-label="关闭错误提示"
             title="关闭"
           >

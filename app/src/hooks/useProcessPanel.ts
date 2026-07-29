@@ -11,6 +11,7 @@ export function useProcessPanel() {
   const appendHistory = useProcessPanelStore((s) => s.appendHistory);
   const setLoading = useProcessPanelStore((s) => s.setLoading);
   const setError = useProcessPanelStore((s) => s.setError);
+  const setStaleAt = useProcessPanelStore((s) => s.setStaleAt);
   const pollMs = useProcessPanelStore((s) => s.pollMs);
   const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
@@ -27,21 +28,29 @@ export function useProcessPanel() {
       const isFirst = firstRef.current;
       if (isFirst) setLoading(true);  // only first load shows loading
       try {
-        const procs = await ipc.fetchProcesses();
+        const result = await ipc.fetchProcesses();
         if (stoppedRef.current) return;
-        setProcesses(procs);
-        firstRef.current = false;
-        // CPU is best-effort enrichment: a failure here must NOT tear down the
-        // whole panel when we already have the process list. Log and move on.
-        try {
-          const cpus = await ipc.fetchCpu();
-          if (!stoppedRef.current) {
-            setCpuMap(cpus);
-            // 同一 tick 同时有 procs（含 mem）与 cpus（含 cpu），采一条历史点
-            appendHistory(procs, cpus, Date.now());
+        if (result.ok) {
+          const procs = result.data;
+          setProcesses(procs);
+          firstRef.current = false;
+          // CPU is best-effort enrichment: a failure here must NOT tear down the
+          // whole panel when we already have the process list. Log and move on.
+          try {
+            const cpus = await ipc.fetchCpu();
+            if (!stoppedRef.current) {
+              setCpuMap(cpus);
+              // 同一 tick 同时有 procs（含 mem）与 cpus（含 cpu），采一条历史点
+              appendHistory(procs, cpus, Date.now());
+            }
+          } catch (cpuErr) {
+            console.error('fetchCpu failed:', cpuErr);
           }
-        } catch (cpuErr) {
-          console.error('fetchCpu failed:', cpuErr);
+        } else {
+          // 失败：不清空 processes，标陈旧 + 错误（A2）
+          setError(result.error.message);
+          setStaleAt(result.lastSuccessAt);
+          if (isFirst) firstRef.current = false;
         }
       } catch (e) {
         if (!stoppedRef.current) setError(String(e));
@@ -61,5 +70,5 @@ export function useProcessPanel() {
       stoppedRef.current = true;
       clearInterval(timer);
     };
-  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError, pollable, pollMs]);
+  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError, setStaleAt, pollable, pollMs]);
 }

@@ -21,9 +21,9 @@ import { ConfirmDialog } from './ConfirmDialog';
  */
 
 const TABS = [
-  { id: 'added', label: '新增', color: 'text-red-400', dot: 'bg-red-500' },
-  { id: 'removed', label: '已退出', color: 'text-fg-muted', dot: 'bg-slate-500' },
-  { id: 'changed', label: '有变化', color: 'text-amber-400', dot: 'bg-amber-500' },
+  { id: 'added', label: '新增', color: 'text-danger', dot: 'bg-danger' },
+  { id: 'removed', label: '已退出', color: 'text-fg-muted', dot: 'bg-fg-muted' },
+  { id: 'changed', label: '有变化', color: 'text-warn', dot: 'bg-warn' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
@@ -94,8 +94,12 @@ export function SnapshotPanel() {
     setRefreshing(true);
     setCurrentFetchError(null);
     try {
-      const procs = await ipc.fetchProcesses();
-      setCurrentEntries(procs.map(toSnapshotEntry));
+      const result = await ipc.fetchProcesses();
+      if (result.ok) {
+        setCurrentEntries(result.data.map(toSnapshotEntry));
+      } else {
+        setCurrentFetchError(result.error.message);
+      }
     } catch (e) {
       setCurrentFetchError(String(e));
     } finally {
@@ -143,8 +147,12 @@ export function SnapshotPanel() {
     setCapturing(true);
     try {
       // 拍快照时刻取当前进程（独立于面板已缓存的 currentEntries，确保是「按下按钮这一刻」的快照）
-      const procs = await ipc.fetchProcesses();
-      const entries = procs.map(toSnapshotEntry);
+      const result = await ipc.fetchProcesses();
+      if (!result.ok) {
+        alert(`取当前进程失败：${result.error.message}`);
+        return;
+      }
+      const entries = result.data.map(toSnapshotEntry);
       const snap = await save(name, entries);
       if (snap) {
         setNameInput('');
@@ -222,7 +230,7 @@ export function SnapshotPanel() {
         <button
           onClick={refreshCurrent}
           disabled={refreshing}
-          className="rounded border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:opacity-50"
+          className="rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:opacity-50"
           title="重新读取当前进程列表（不轮询）"
         >
           {refreshing ? '刷新中…' : '↻ 刷新当前'}
@@ -230,7 +238,7 @@ export function SnapshotPanel() {
       </header>
 
       {(error || currentFetchError) && (
-        <div className="border-b border-red-700/40 bg-red-950/30 px-4 py-2 text-xs text-red-300">
+        <div className="border-b border-danger/40 bg-danger/10 px-4 py-2 text-xs text-danger">
           {error || currentFetchError}
         </div>
       )}
@@ -246,12 +254,12 @@ export function SnapshotPanel() {
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleCapture(); }}
-              className="mb-2 w-full rounded border border-base-600 bg-base-800 px-2 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
+              className="mb-2 w-full rounded-lg border border-base-600 bg-base-800 px-2 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
             />
             <button
               onClick={handleCapture}
               disabled={capturing}
-              className="w-full rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
+              className="w-full rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
             >
               {capturing ? '拍摄中…' : '📸 拍快照'}
             </button>
@@ -283,7 +291,7 @@ export function SnapshotPanel() {
                 <div className="px-3 pb-1 text-right">
                   <button
                     onClick={() => handleDelete(m.id)}
-                    className="text-[10px] text-red-400 hover:text-red-300"
+                    className="text-[10px] text-danger/80 hover:text-danger"
                   >
                     删除
                   </button>
@@ -403,7 +411,7 @@ function DiffView({
           {selectedPids.size > 0 && (
             <button
               onClick={onBatchKill}
-              className="ml-auto rounded bg-red-600/80 px-3 py-1 text-xs text-white hover:bg-red-500"
+              className="btn-danger-quiet ml-auto rounded-lg px-3 py-1 text-xs"
             >
               结束选中 ({selectedPids.size})
             </button>
@@ -451,7 +459,7 @@ function EntryGroupList({
   toggleSelect?: (pid: number) => void;
 }) {
   const groups = useMemo(() => groupSnapshotEntries(entries), [entries]);
-  const rowColor = mode === 'added' ? 'text-red-300' : 'text-fg-muted';
+  const rowColor = mode === 'added' ? 'text-danger' : 'text-fg-muted';
 
   return (
     <div className="py-1">
@@ -476,7 +484,7 @@ function EntryGroupList({
                             type="checkbox"
                             checked={sel}
                             onChange={() => toggleSelect(e.pid)}
-                            className="accent-red-500"
+                            className="accent-danger"
                           />
                         </td>
                       )}

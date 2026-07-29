@@ -16,11 +16,13 @@ interface PerfState {
   history: PerfHistoryPoint[]; // rolling window of 60
   loading: boolean;
   error: string | null;
+  staleAt: number | null;        // 上次成功采样时间；null=数据新鲜或从未成功（A2）
   // 轮询间隔（ms），0 = 暂停。持久化，重启后保留。
   pollMs: number;
   setPerf: (p: PerfData) => void;
   setLoading: (b: boolean) => void;
   setError: (e: string | null) => void;
+  setStaleAt: (ts: number | null) => void;
   setPollMs: (ms: number) => void;
   reset: () => void;
 }
@@ -32,6 +34,7 @@ export const usePerfStore = create<PerfState>()(
       history: [],
       loading: false,
       error: null,
+      staleAt: null,
       pollMs: 1000,  // 性能面板默认 1s（与原硬编码 POLL_MS 一致）
       setPerf: (p) =>
         set((s) => {
@@ -43,12 +46,13 @@ export const usePerfStore = create<PerfState>()(
           };
           const next = [...s.history, point];
           if (next.length > HISTORY_LEN) next.shift();
-          return { current: p, history: next, error: null };
+          return { current: p, history: next, error: null, staleAt: null };
         }),
       setLoading: (b) => set({ loading: b }),
       setError: (e) => set({ error: e }),
+      setStaleAt: (ts) => set({ staleAt: ts }),
       setPollMs: (ms) => set({ pollMs: ms }),
-      reset: () => set({ current: null, history: [], loading: false, error: null, pollMs: 1000 }),
+      reset: () => set({ current: null, history: [], loading: false, error: null, staleAt: null, pollMs: 1000 }),
     }),
     {
       name: 'codemgr:perf',

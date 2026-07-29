@@ -74,4 +74,12 @@ describe('portRadarStore', () => {
     // 只持久化刷新间隔偏好；connections/selectedPid 等运行时数据不存
     expect(persisted).toEqual({ pollMs: 3000 });
   });
+
+  // ── A2: staleAt（采集失败语义）──
+
+  it('setConnections clears staleAt', () => {
+    usePortRadarStore.setState({ staleAt: 1000 });
+    usePortRadarStore.getState().setConnections([]);
+    expect(usePortRadarStore.getState().staleAt).toBeNull();
+  });
 });

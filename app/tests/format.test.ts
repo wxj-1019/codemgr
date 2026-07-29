@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatBytesPerSec, formatDuration, formatCpuTime, formatBytes } from '../src/lib/format';
+import { formatBytesPerSec, formatDuration, formatCpuTime, formatBytes, formatRelativeTime } from '../src/lib/format';
 
 describe('formatBytesPerSec', () => {
   it('formats bytes', () => {
@@ -52,5 +52,24 @@ describe('formatBytes', () => {
   });
   it('formats GB', () => {
     expect(formatBytes(2 * 1073741824)).toBe('2.0 GB');
+  });
+});
+
+describe('formatRelativeTime', () => {
+  it('shows seconds ago for < 60s', () => {
+    const now = 100_000;
+    expect(formatRelativeTime(now - 5_000, now)).toBe('5 秒前');
+    expect(formatRelativeTime(now - 59_999, now)).toBe('59 秒前');
+  });
+  it('shows minutes for >= 60s', () => {
+    const now = 100_000;
+    expect(formatRelativeTime(now - 120_000, now)).toBe('2 分 0 秒');
+    expect(formatRelativeTime(now - 3_600_000, now)).toBe('60 分 0 秒');
+  });
+  it('defaults nowMs to Date.now when omitted', () => {
+    // 只验证不抛错且返回非空字符串（不依赖真实时钟断言具体值）
+    const s = formatRelativeTime(Date.now() - 10_000);
+    expect(typeof s).toBe('string');
+    expect(s.length).toBeGreaterThan(0);
   });
 });

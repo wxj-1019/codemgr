@@ -7,12 +7,13 @@ import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
+import { formatRelativeTime } from '../lib/format';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
   const {
     connections, loading, error, selectedPid, select, filter, setFilter,
-    pollMs, setPollMs,
+    pollMs, setPollMs, staleAt,
   } = usePortRadarStore();
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
@@ -51,6 +52,7 @@ export function PortRadar() {
           <p className="text-xs text-fg-muted">
             {listenCount} 个监听端口{loading ? ' · 刷新中…' : ''}
             {error && ' · 上次刷新出错'}
+            {staleAt !== null && ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -60,19 +62,19 @@ export function PortRadar() {
             placeholder="搜索端口/进程/PID/地址…"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
+            className="w-56 rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
           />
         </div>
       </header>
 
       {showErrorBanner && (
-        <div className="flex items-center justify-between gap-3 border-b border-red-700/40 bg-red-950/30 px-4 py-2">
-          <p className="truncate text-xs text-red-300">
+        <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
+          <p className="truncate text-xs text-danger">
             上次刷新失败：{error}
           </p>
           <button
             onClick={() => usePortRadarStore.getState().setError(null)}
-            className="shrink-0 text-red-400 hover:text-red-200"
+            className="shrink-0 text-danger/80 hover:text-danger"
             aria-label="关闭错误提示"
             title="关闭"
           >

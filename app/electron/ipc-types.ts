@@ -135,6 +135,18 @@ export interface NetConnection {
 }
 
 // ProcessInfo 匹配 codemgr-native processScan() 的返回元素形状
+/**
+ * 轮询采集的结构化结果（A2）。取代原先"失败返回空数组/null"的降级，
+ * 让渲染层区分"真无数据"与"采集器失败"。
+ *
+ * - ok:true  采集成功；data 可能为空数组（真无数据）。
+ * - ok:false 采集失败；error 描述原因，lastSuccessAt 为上次成功时间（null=从未成功）。
+ *   渲染层应保留上次成功 data（不清空）并标注陈旧。
+ */
+export type CollectResult<T> =
+  | { ok: true; data: T; sampledAt: number }
+  | { ok: false; error: { code: string; message: string }; lastSuccessAt: number | null };
+
 export interface ProcessInfo {
   pid: number;
   ppid: number;
@@ -187,7 +199,7 @@ export interface PerfData {
 
 // preload 暴露给 window 的 API 形状
 export interface ExposedApi {
-  fetchConnections(): Promise<NetConnection[]>;
+  fetchConnections(): Promise<CollectResult<NetConnection[]>>;
   killProcess(pid: number): Promise<boolean>;
   killByName(name: string): Promise<number>;
   killByPids(pids: number[]): Promise<number>;
@@ -196,9 +208,9 @@ export interface ExposedApi {
   fetchProcessEnv(pid: number): Promise<Record<string, string> | null>;
   // null = 同上；精确 cwd（PEB 直读），与 ProcessInfo.cwd 的启发式值区分
   fetchCwd(pid: number): Promise<string | null>;
-  fetchProcesses(): Promise<ProcessInfo[]>;
+  fetchProcesses(): Promise<CollectResult<ProcessInfo[]>>;
   fetchCpu(): Promise<CpuUsage[]>;
-  fetchPerf(): Promise<PerfData | null>;
+  fetchPerf(): Promise<CollectResult<PerfData>>;
   // 标签规则导入导出。文件路径由 main 的对话框决定，渲染层拿不到路径（红线）。
   // 导出返回是否成功（用户取消对话框也算 false）；导入返回载荷或 null（取消/损坏）。
   exportLabelRules(payload: LabelRulesPayload): Promise<boolean>;

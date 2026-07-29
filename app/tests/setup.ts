@@ -25,10 +25,10 @@ export function mockIpc(
   }> = {}
 ) {
   const base = {
-    fetchConnections: vi.fn(() => Promise.resolve([])),
-    fetchProcesses: vi.fn(() => Promise.resolve([])),
+    fetchConnections: vi.fn(() => Promise.resolve({ ok: true as const, data: [], sampledAt: Date.now() })),
+    fetchProcesses: vi.fn(() => Promise.resolve({ ok: true as const, data: [], sampledAt: Date.now() })),
     fetchCpu: vi.fn(() => Promise.resolve([])),
-    fetchPerf: vi.fn(() => Promise.resolve(null)),
+    fetchPerf: vi.fn(() => Promise.resolve({ ok: true as const, data: null, sampledAt: Date.now() })),
     killProcess: vi.fn(() => Promise.resolve(true)),
     killByName: vi.fn(() => Promise.resolve(1)),
     killByPids: vi.fn(() => Promise.resolve(0)),

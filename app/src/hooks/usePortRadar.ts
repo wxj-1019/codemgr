@@ -17,6 +17,7 @@ export function usePortRadar() {
   const setConnections = usePortRadarStore((s) => s.setConnections);
   const setLoading = usePortRadarStore((s) => s.setLoading);
   const setError = usePortRadarStore((s) => s.setError);
+  const setStaleAt = usePortRadarStore((s) => s.setStaleAt);
   const pollMs = usePortRadarStore((s) => s.pollMs);
   const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
@@ -33,10 +34,16 @@ export function usePortRadar() {
       const isFirst = firstRef.current;
       if (isFirst) setLoading(true);  // only first load shows loading
       try {
-        const conns = await ipc.fetchConnections();
-        if (!stoppedRef.current) {
-          setConnections(conns);
+        const result = await ipc.fetchConnections();
+        if (stoppedRef.current) return;
+        if (result.ok) {
+          setConnections(result.data);
           firstRef.current = false;
+        } else {
+          // 失败：不清空 connections，标陈旧 + 错误（A2）
+          setError(result.error.message);
+          setStaleAt(result.lastSuccessAt);
+          if (isFirst) firstRef.current = false;
         }
       } catch (e) {
         if (!stoppedRef.current) setError(String(e));
@@ -55,5 +62,5 @@ export function usePortRadar() {
       stoppedRef.current = true;
       clearInterval(timer);
     };
-  }, [setConnections, setLoading, setError, pollable, pollMs]);
+  }, [setConnections, setLoading, setError, setStaleAt, pollable, pollMs]);
 }

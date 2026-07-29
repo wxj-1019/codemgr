@@ -42,3 +42,14 @@ export function formatCpuTime(ms: number): string {
   const secs = Math.round(s % 60);
   return `${mins} 分 ${secs} 秒`;
 }
+
+// 将一个时间戳格式化为相对当前时间的"N 秒前/N 分 N 秒前"（A2 陈旧标注）。
+// nowMs 默认 Date.now()，便于测试注入固定时钟。
+export function formatRelativeTime(fromMs: number, nowMs: number = Date.now()): string {
+  const diff = Math.max(0, nowMs - fromMs);
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s} 秒前`;
+  const mins = Math.floor(s / 60);
+  const secs = s % 60;
+  return `${mins} 分 ${secs} 秒`;
+}

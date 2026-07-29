@@ -12,7 +12,7 @@ import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
-import { formatBytesPerSec } from '../lib/format';
+import { formatBytesPerSec, formatRelativeTime } from '../lib/format';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network' | 'gpu';
 
@@ -32,7 +32,7 @@ function fmtBytes(b: number): string {
 
 export function PerfPanel() {
   usePerf();
-  const { current, history, error, pollMs, setPollMs } = usePerfStore();
+  const { current, history, error, pollMs, setPollMs, staleAt } = usePerfStore();
   const [sub, setSub] = useState<SubTab>('cpu');
 
   if (!current) {
@@ -57,7 +57,12 @@ export function PerfPanel() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <h1 className="text-lg font-semibold text-fg-primary">性能</h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-lg font-semibold text-fg-primary">性能</h1>
+          {staleAt !== null && (
+            <span className="text-xs text-fg-muted">⚠ 数据陈旧（{formatRelativeTime(staleAt)}）</span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <PollIntervalSelect value={pollMs} onChange={setPollMs} />
           <div className="flex gap-1">
@@ -110,21 +115,23 @@ function CpuView({
             <AreaChart data={history}>
               <defs>
                 <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--accent-data)" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="var(--accent-data)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="t" tick={false} />
               <YAxis
                 domain={[0, 100]}
                 width={30}
-                tick={{ fill: '#64748b', fontSize: 11 }}
+                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
               />
               <Tooltip
                 contentStyle={{
-                  background: '#1a2028',
-                  border: '1px solid #2f3947',
-                  borderRadius: 6,
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
                 }}
                 labelFormatter={() => ''}
                 formatter={(v: number | string) => [
@@ -135,7 +142,7 @@ function CpuView({
               <Area
                 type="monotone"
                 dataKey="cpuTotal"
-                stroke="#2dd4bf"
+                stroke="var(--accent-data)"
                 strokeWidth={2}
                 fill="url(#cpuGrad)"
               />
@@ -194,21 +201,23 @@ function MemoryView({
             <AreaChart data={history}>
               <defs>
                 <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="t" tick={false} />
               <YAxis
                 domain={[0, 100]}
                 width={30}
-                tick={{ fill: '#64748b', fontSize: 11 }}
+                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
               />
               <Tooltip
                 contentStyle={{
-                  background: '#1a2028',
-                  border: '1px solid #2f3947',
-                  borderRadius: 6,
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
                 }}
                 labelFormatter={() => ''}
                 formatter={(v: number | string) => [
@@ -219,7 +228,7 @@ function MemoryView({
               <Area
                 type="monotone"
                 dataKey="memUsedPercent"
-                stroke="#a78bfa"
+                stroke="var(--accent)"
                 strokeWidth={2}
                 fill="url(#memGrad)"
               />
@@ -243,9 +252,9 @@ function DiskView({ current }: { current: PerfData }) {
               : 0;
           const color =
             usedPct > 90
-              ? 'bg-red-500'
+              ? 'bg-danger'
               : usedPct > 70
-                ? 'bg-amber-500'
+                ? 'bg-warn'
                 : 'bg-accent';
           return (
             <div key={i}>
@@ -298,7 +307,7 @@ function NetworkView({ current }: { current: PerfData }) {
                 <td className="py-1.5 text-right font-mono text-accent">
                   {fmtBytes(n.recvBytesPerSec)}/s
                 </td>
-                <td className="py-1.5 text-right font-mono text-amber-400">
+                <td className="py-1.5 text-right font-mono text-warn">
                   {fmtBytes(n.sendBytesPerSec)}/s
                 </td>
               </tr>
@@ -329,7 +338,7 @@ function GpuView({
   const vramPct = gpu.vramBudgetBytes > 0
     ? (gpu.vramUsedBytes / gpu.vramBudgetBytes) * 100
     : 0;
-  const vramColor = vramPct > 90 ? 'bg-red-500' : vramPct > 70 ? 'bg-amber-500' : 'bg-accent';
+  const vramColor = vramPct > 90 ? 'bg-danger' : vramPct > 70 ? 'bg-warn' : 'bg-accent';
   // perProcess Top 5 by gpuPercent
   const top5 = [...gpu.perProcess].sort((a, b) => b.gpuPercent - a.gpuPercent).slice(0, 5);
   return (
@@ -346,18 +355,24 @@ function GpuView({
             <AreaChart data={history}>
               <defs>
                 <linearGradient id="gpuGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--accent-data)" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="var(--accent-data)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="t" tick={false} />
-              <YAxis domain={[0, 100]} width={30} tick={{ fill: '#64748b', fontSize: 11 }} />
+              <YAxis domain={[0, 100]} width={30} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
               <Tooltip
-                contentStyle={{ background: '#1a2028', border: '1px solid #2f3947', borderRadius: 6 }}
+                contentStyle={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                }}
                 labelFormatter={() => ''}
                 formatter={(v: number | string) => [Number(v).toFixed(1) + '%', 'GPU']}
               />
-              <Area type="monotone" dataKey="gpuTotal" stroke="#60a5fa" strokeWidth={2} fill="url(#gpuGrad)" />
+              <Area type="monotone" dataKey="gpuTotal" stroke="var(--accent-data)" strokeWidth={2} fill="url(#gpuGrad)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -404,7 +419,7 @@ function GpuView({
           <div className="space-y-3">
             {gpu.adapters.map((a, i) => {
               const pct = a.vramBudgetBytes > 0 ? (a.vramUsedBytes / a.vramBudgetBytes) * 100 : 0;
-              const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-accent';
+              const color = pct > 90 ? 'bg-danger' : pct > 70 ? 'bg-warn' : 'bg-accent';
               return (
                 <div key={i}>
                   <div className="mb-1 flex justify-between text-sm">

@@ -32,6 +32,10 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 // 托盘"退出"菜单置位此标志，让 close 处理器不再拦截，app.quit() 才能真正生效
 let isQuitting = false;
+// 轮询采集的"上次成功时间"，失败时随 CollectResult 返回给渲染层标注陈旧（A2）。
+let lastProcessScanAt: number | null = null;
+let lastNetScanAt: number | null = null;
+let lastPerfAt: number | null = null;
 
 function createWindow() {
   // 恢复上次窗口状态（位置/大小/最大化）。bounds 跑出可见显示器外则回退默认。
@@ -77,10 +81,12 @@ function createWindow() {
 // 注册真实 native handler（调用 v0.1 codemgr-native addon）
 ipcMain.handle(IPC.FETCH_CONNECTIONS, async () => {
   try {
-    return native.netScan();
+    const data = native.netScan();
+    lastNetScanAt = Date.now();
+    return { ok: true as const, data, sampledAt: lastNetScanAt };
   } catch (e) {
     console.error('netScan failed:', e);
-    return [];
+    return { ok: false as const, error: { code: 'NET_SCAN_FAILED', message: String(e) }, lastSuccessAt: lastNetScanAt };
   }
 });
 
@@ -140,10 +146,12 @@ ipcMain.handle(IPC.FETCH_CWD, async (_evt, pid: number) => {
 
 ipcMain.handle(IPC.FETCH_PROCESSES, async () => {
   try {
-    return native.processScan();
+    const data = native.processScan();
+    lastProcessScanAt = Date.now();
+    return { ok: true as const, data, sampledAt: lastProcessScanAt };
   } catch (e) {
     console.error('processScan failed:', e);
-    return [];
+    return { ok: false as const, error: { code: 'PROCESS_SCAN_FAILED', message: String(e) }, lastSuccessAt: lastProcessScanAt };
   }
 });
 
@@ -158,10 +166,12 @@ ipcMain.handle(IPC.FETCH_CPU, async () => {
 
 ipcMain.handle(IPC.FETCH_PERF, async () => {
   try {
-    return native.perfCounters();
+    const data = native.perfCounters();
+    lastPerfAt = Date.now();
+    return { ok: true as const, data, sampledAt: lastPerfAt };
   } catch (e) {
     console.error('perfCounters failed:', e);
-    return null;
+    return { ok: false as const, error: { code: 'PERF_FAILED', message: String(e) }, lastSuccessAt: lastPerfAt };
   }
 });
 
