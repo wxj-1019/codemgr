@@ -14,6 +14,9 @@ export const ipc = {
   async killByPids(pids: number[]): Promise<number> {
     return window.codemgr.killByPids(pids);
   },
+  async killTree(pid: number): Promise<number> {
+    return window.codemgr.killTree(pid);
+  },
   async fetchProcesses(): Promise<ProcessInfo[]> {
     return window.codemgr.fetchProcesses();
   },

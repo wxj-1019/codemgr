@@ -96,6 +96,15 @@ ipcMain.handle(IPC.KILL_BY_PIDS, async (_evt, pids: number[]) => {
   }
 });
 
+ipcMain.handle(IPC.KILL_TREE, async (_evt, pid: number) => {
+  try {
+    return native.killTree(pid);
+  } catch (e) {
+    console.error('killTree failed:', e);
+    return 0;
+  }
+});
+
 ipcMain.handle(IPC.FETCH_PROCESSES, async () => {
   try {
     return native.processScan();

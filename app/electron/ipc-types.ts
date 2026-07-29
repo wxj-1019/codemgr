@@ -4,6 +4,7 @@ export const IPC = {
   KILL_PROCESS: 'proc:killProcess',
   KILL_BY_NAME: 'proc:killByName',
   KILL_BY_PIDS: 'proc:killByPids',
+  KILL_TREE: 'proc:killTree',
   FETCH_PROCESSES: 'proc:fetchProcesses',
   FETCH_CPU: 'proc:fetchCpu',
   FETCH_PERF: 'perf:fetch',
@@ -64,6 +65,7 @@ export interface ExposedApi {
   killProcess(pid: number): Promise<boolean>;
   killByName(name: string): Promise<number>;
   killByPids(pids: number[]): Promise<number>;
+  killTree(pid: number): Promise<number>;
   fetchProcesses(): Promise<ProcessInfo[]>;
   fetchCpu(): Promise<CpuUsage[]>;
   fetchPerf(): Promise<PerfData | null>;

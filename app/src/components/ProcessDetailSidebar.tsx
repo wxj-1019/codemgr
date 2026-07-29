@@ -4,7 +4,13 @@ import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
 // 320px 右侧详情栏：展示当前唯一选中进程的"已采集但表格未展示"字段。
 // 未选 / 多选 / 进程已退出时显示对应提示。kill 走与表格一致的 onKill 回调
 // （由父组件 ProcessPanel 统一弹出 ConfirmDialog），故此组件不直接调 ipc。
-export function ProcessDetailSidebar({ onKill }: { onKill: (pid: number, name: string) => void }) {
+export function ProcessDetailSidebar({
+  onKill,
+  onKillTree,
+}: {
+  onKill: (pid: number, name: string) => void;
+  onKillTree: (pid: number, name: string) => void;
+}) {
   const { processes, selectedPids } = useProcessPanelStore();
 
   if (selectedPids.size === 0) {
@@ -71,6 +77,12 @@ export function ProcessDetailSidebar({ onKill }: { onKill: (pid: number, name: s
           className="w-full rounded bg-red-600/80 px-3 py-1.5 text-sm text-white hover:bg-red-500"
         >
           结束进程
+        </button>
+        <button
+          onClick={() => onKillTree(proc.pid, proc.name)}
+          className="mt-2 w-full rounded bg-orange-600/80 px-3 py-1.5 text-sm text-white hover:bg-orange-500"
+        >
+          结束进程树
         </button>
       </div>
     </aside>
