@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { ipc } from '../lib/ipc';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { useVisibilityStore, selectPollable } from '../store/visibilityStore';
 
 const POLL_MS = 2000;  // process panel refresh interval (spec 5.1)
+const PANEL: 'process' = 'process';
 
 export function useProcessPanel() {
   const setProcesses = useProcessPanelStore((s) => s.setProcesses);
@@ -10,6 +12,7 @@ export function useProcessPanel() {
   const appendHistory = useProcessPanelStore((s) => s.appendHistory);
   const setLoading = useProcessPanelStore((s) => s.setLoading);
   const setError = useProcessPanelStore((s) => s.setError);
+  const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
   const busyRef = useRef(false);
   const firstRef = useRef(true);
@@ -17,7 +20,6 @@ export function useProcessPanel() {
   useEffect(() => {
     stoppedRef.current = false;
     busyRef.current = false;
-    firstRef.current = true;
 
     async function poll() {
       if (busyRef.current) return;          // in-flight guard
@@ -51,8 +53,12 @@ export function useProcessPanel() {
       }
     }
 
+    if (!pollable) return;  // 不可见：不启动轮询
     poll();
     const timer = setInterval(poll, POLL_MS);
-    return () => { stoppedRef.current = true; clearInterval(timer); };
-  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError]);
+    return () => {
+      stoppedRef.current = true;
+      clearInterval(timer);
+    };
+  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError, pollable]);
 }

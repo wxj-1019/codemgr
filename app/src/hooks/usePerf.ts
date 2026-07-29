@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { ipc } from '../lib/ipc';
 import { usePerfStore } from '../store/perfStore';
+import { useVisibilityStore, selectPollable } from '../store/visibilityStore';
 
 const POLL_MS = 1000; // performance panel refresh interval (1s)
+const PANEL: 'perf' = 'perf';
 
 export function usePerf() {
   const setPerf = usePerfStore((s) => s.setPerf);
   const setLoading = usePerfStore((s) => s.setLoading);
   const setError = usePerfStore((s) => s.setError);
+  const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
   const busyRef = useRef(false);
   const firstRef = useRef(true);
@@ -15,7 +18,6 @@ export function usePerf() {
   useEffect(() => {
     stoppedRef.current = false;
     busyRef.current = false;
-    firstRef.current = true;
 
     async function poll() {
       if (busyRef.current) return;          // in-flight guard
@@ -40,11 +42,12 @@ export function usePerf() {
       }
     }
 
+    if (!pollable) return;  // 不可见：不启动轮询
     poll();
     const timer = setInterval(poll, POLL_MS);
     return () => {
       stoppedRef.current = true;
       clearInterval(timer);
     };
-  }, [setPerf, setLoading, setError]);
+  }, [setPerf, setLoading, setError, pollable]);
 }
