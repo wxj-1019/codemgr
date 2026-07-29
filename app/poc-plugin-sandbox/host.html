@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <title>CodeMgr 插件沙箱 PoC</title>
+  <style>
+    body { margin: 0; font-family: system-ui; background: #0f1419; color: #e2e8f0; padding: 12px; }
+    h1 { font-size: 14px; margin: 0 0 8px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    button { padding: 4px 10px; background: #242c38; color: #e2e8f0; border: 1px solid #2f3947; border-radius: 4px; cursor: pointer; }
+    #log { font-size: 11px; color: #94a3b8; white-space: pre-wrap; margin-bottom: 8px; min-height: 60px; }
+    iframe { width: 100%; height: 320px; border: 1px solid #2f3947; border-radius: 4px; background: #fff; }
+    #status { font-weight: bold; }
+    .ok { color: #2dd4bf; } .fail { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1>插件沙箱 PoC — iframe sandbox=&quot;allow-scripts&quot;</h1>
+  <div id="status"></div>
+  <div id="log"></div>
+  <div class="row">
+    <button id="btn-snapshot">推送快照</button>
+    <button id="btn-theme">推送主题</button>
+    <button id="btn-crash">触发插件崩溃</button>
+  </div>
+  <!-- 关键：sandbox="allow-scripts" 但不给 allow-same-origin —— 安全组合 -->
+  <iframe id="plugin" sandbox="allow-scripts" src="plugin.html"></iframe>
+
+  <script>
+    const iframe = document.getElementById('plugin');
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const log = (s) => { logEl.textContent += s + '\n'; };
+    const setStatus = (text, ok) => {
+      statusEl.textContent = text;
+      statusEl.className = ok ? 'ok' : 'fail';
+    };
+
+    // 收集 iframe 上报（PoC ② 访问检测 + ready + PoC ①③ 渲染/主题结果）
+    window.addEventListener('message', (e) => {
+      const msg = e.data;
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'access-report') {
+        window.__accessReport = msg;  // playwright 读取
+        log('[访问检测] require=' + msg.require + ' codemgr=' + msg.codemgr +
+            ' process=' + msg.process + ' nodeGlobals=' + msg.nodeGlobals);
+      } else if (msg.type === 'ready') {
+        window.__pluginReady = true;
+        log('[插件] ready');
+      } else if (msg.type === 'render-report') {
+        window.__renderReport = msg;
+        log('[渲染] ' + msg.cards + ' 张卡片：' + msg.names.join(', '));
+      } else if (msg.type === 'theme-report') {
+        window.__themeReport = msg;
+        log('[主题] 应用成功 --bg-panel=' + msg.bgVar);
+      }
+    });
+
+    const send = (msg) => iframe.contentWindow.postMessage(msg, '*');
+
+    document.getElementById('btn-snapshot').onclick = () => {
+      send({ type: 'snapshot', processes: [
+        { pid: 1234, name: 'node.exe' },
+        { pid: 5678, name: 'vite.exe' },
+      ]});
+      log('[主框架] 推送快照（2 进程）');
+    };
+    document.getElementById('btn-theme').onclick = () => {
+      send({ type: 'theme', vars: {
+        '--bg-panel': '#1a2028', '--text-primary': '#e2e8f0',
+        '--border': '#2f3947', '--text-muted': '#64748b', '--accent': '#2dd4bf',
+      }});
+      log('[主框架] 推送主题 CSS 变量');
+    };
+    document.getElementById('btn-crash').onclick = () => {
+      send({ type: 'crash' });
+      log('[主框架] 发送崩溃指令');
+      // 崩溃后 1.5s 检查主框架是否还活着
+      setTimeout(() => {
+        window.__hostAliveAfterCrash = true;
+        setStatus('主框架存活（崩溃隔离 OK）', true);
+        log('[主框架] 插件崩溃后仍存活');
+      }, 1500);
+    };
+
+    setStatus('等待插件就绪…', null);
+  </script>
+</body>
+</html>

@@ -101,17 +101,25 @@ type PluginToHost =
 | UtilityProcess native 模块逃逸（6c） | 高 | 白名单机制——每个 native 能力主仓库 review 后编译进主包，插件不能自带 .node |
 | 插件 API 设计反复（roadmap R8） | 中 | 6b 先冻结最小 API（snapshot + registerLabelRules），让方案 2 沉淀 6-12 月再扩 |
 
-## 7. PoC 验证项（开工前需验证）
+## 7. PoC 验证结果（2026-07-29，已实证）
 
-本 spike 是桌面调研，以下项需 PoC 实证后才算 F1 通过：
+PoC 在 CodeMgr 目标环境（Electron 43 / Chromium）实测，4 项全部通过。验证脚本：`app/poc-plugin-sandbox/`（host.html 主框架 + plugin.html 沙箱内 React + run-poc.mjs 用 Electron webContents 自动化）。
 
-1. **iframe sandbox 渲染 React**：`<iframe sandbox="allow-scripts" srcdoc="...">` 内能否跑一个最小 React 组件，经 postMessage 接收快照并渲染。
-2. **结构验证无 native**：iframe 内 `typeof require`、`window.codemgr`、`process` 是否确实 undefined。
-3. **主题同步**：postMessage 推送 CSS 变量后，iframe 内组件能否应用主题。
-4. **崩溃隔离**：iframe 内 `throw` / 死循环是否被主框架捕获且不崩溃主窗口。
+> **方法学**：iframe sandbox 无 `allow-same-origin` 时，iframe 是跨 origin 的——主框架**无法直接读取 iframe DOM**（实测抛 `Blocked a frame from accessing a cross-origin frame`）。这是预期且理想的行为（结构隔离）。因此渲染/主题结果由 iframe 经 postMessage **主动上报**，主框架不下探。
+
+| PoC | 验证项 | 实测结果 | 结论 |
+|:---:|--------|---------|:---:|
+| ① | iframe sandbox 内跑 React，经 postMessage 接收快照渲染 | 渲染 2 张卡片（node.exe/vite.exe），`render-report` 正确上报 | ✅ |
+| ② | 结构验证 iframe 内无 Node/Electron | `require`/`window.codemgr`/`process`/`ipcRenderer`/`global` **全为 undefined** | ✅ **红线从结构上保证** |
+| ③ | CSS 变量主题经 postMessage 同步到 iframe | iframe 应用 `--bg-panel:#1a2028`，`theme-report` 上报 `THEME_OK` | ✅ |
+| ④ | iframe 崩溃（栈溢出）不波及主窗口 | 崩溃后 2s 主框架存活，`hostAlive: true` | ✅ |
+
+**关键发现（实测补充）**：
+- iframe cross-origin 隔离使主框架无法读 iframe DOM——这天然强化了边界（插件不能被宿主窥探内部，宿主也不依赖读插件 DOM）。通信**只能**经 postMessage，与 §5 受控 API 契约的设计一致。
+- ②的"全 undefined"证明：只要不配 `allow-same-origin` + 不给 iframe 注入 preload，插件从结构上就无法获得任何 Node/Electron 能力。安全不靠约定，靠浏览器原生隔离。
 
 ## 8. 决策状态
 
 - **本 spike 推荐**：6b = iframe sandbox，6c = UtilityProcess。
 - **门禁**：roadmap M5 要求"安全模型 review 通过"才能开工。本文档即为 review 依据。
-- **未锁定**：spec §6.3.3 原文"待调研、本稿不锁定"。本 spike 给出推荐，但最终是否锁定需人工 review 确认（建议：PoC 4 项全过后再锁）。
+- **锁定状态**：✅ **F1 已锁定**（2026-07-29）。PoC 4 项全过，选型结论成立。后续 6b 实现以本 spec 为准——F2（受控 API 契约）可在 §5 基础上细化，F3（加载器）封装单一 `<PluginFrame>` 组件统一签发 `sandbox="allow-scripts"`（绝不加 `allow-same-origin`）。

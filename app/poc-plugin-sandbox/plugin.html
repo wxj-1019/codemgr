@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <!-- 模拟第三方插件：自带 React via CDN，渲染独立 UI。
+       iframe sandbox 下这是插件唯一能跑 JS 的方式（无 Node，无 require）。 -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <style>
+    /* 插件用主框架经 postMessage 推送的 CSS 变量，不硬编码色值 */
+    body { margin: 0; font-family: system-ui; background: var(--bg-panel, #1a2028); color: var(--text-primary, #e2e8f0); }
+    .card { padding: 8px 12px; border-bottom: 1px solid var(--border, #2f3947); }
+    .pid { color: var(--text-muted, #64748b); font-size: 11px; }
+    #poc-access { color: var(--accent, #2dd4bf); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div id="poc-access"></div>
+  <div id="root"></div>
+  <script>
+    // PoC ②：结构验证——sandbox 内 require / window.codemgr / process 是否存在。
+    // 这段结果发回主框架由 playwright 读取（iframe 自己无法直接上报到测试断言）。
+    const accessReport = {
+      type: 'access-report',
+      require: typeof require,
+      codemgr: typeof window.codemgr,
+      process: typeof process,
+      ipcRenderer: typeof (window.codemgr && window.codemgr.ipcRenderer),
+      nodeGlobals: typeof global,
+    };
+
+    const { useState, useEffect } = React;
+
+    function Plugin() {
+      const [procs, setProcs] = useState([]);
+      const [themeApplied, setThemeApplied] = useState(false);
+
+      useEffect(() => {
+        window.addEventListener('message', (e) => {
+          const msg = e.data;
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'snapshot') {
+            setProcs(msg.processes);
+            // PoC ①：渲染后上报卡片数量（主框架无法直接读跨 origin iframe 的 DOM）
+            setTimeout(() => {
+              const cards = document.querySelectorAll('.card').length;
+              window.parent.postMessage({ type: 'render-report', cards, names: msg.processes.map(p=>p.name) }, '*');
+            }, 200);
+          } else if (msg.type === 'theme') {
+            // PoC ③：应用主框架推送的 CSS 变量
+            const root = document.documentElement;
+            for (const [k, v] of Object.entries(msg.vars)) root.style.setProperty(k, v);
+            setThemeApplied(true);
+            // 上报主题应用结果
+            setTimeout(() => {
+              const bg = getComputedStyle(root).getPropertyValue('--bg-panel').trim();
+              window.parent.postMessage({ type: 'theme-report', bgVar: bg, flag: 'THEME_OK' }, '*');
+            }, 100);
+          } else if (msg.type === 'crash') {
+            // PoC ④：模拟插件崩溃——无限递归（栈溢出）。崩溃应被限制在 iframe 内。
+            setTimeout(() => { function f(){ f(); } f(); }, 50);
+          }
+        });
+        // 上报访问检测结果
+        window.parent.postMessage(accessReport, '*');
+        window.parent.postMessage({ type: 'ready' }, '*');
+      }, []);
+
+      return React.createElement('div', null,
+        React.createElement('div', { id: 'theme-flag' }, themeApplied ? 'THEME_OK' : 'THEME_WAIT'),
+        ...procs.map((p) =>
+          React.createElement('div', { className: 'card', key: p.pid },
+            React.createElement('div', null, p.name),
+            React.createElement('div', { className: 'pid' }, 'pid=' + p.pid),
+          ),
+        ),
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Plugin));
+  </script>
+</body>
+</html>
