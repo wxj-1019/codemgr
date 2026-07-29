@@ -69,6 +69,29 @@ describe('killByName guard list', () => {
   });
 });
 
+describe('killProcess guard list', () => {
+  // 保护名单（与 killByPids 的 PROTECTED 一致）
+  const PROTECTED = [
+    'System', 'Registry', 'smss.exe', 'csrss.exe', 'wininit.exe', 'winlogon.exe',
+    'services.exe', 'lsass.exe', 'svchost.exe', 'electron.exe', 'Idle',
+  ];
+
+  it('refuses to kill a protected pid (svchost/services) — returns false', () => {
+    const procs = native.processScan();
+    const lower = new Set(PROTECTED.map((n) => n.toLowerCase()));
+    const protectedPid = procs.find((p) => lower.has(p.name.toLowerCase()))?.pid;
+    // 任何 Windows 都至少有一个 svchost.exe / services.exe
+    expect(protectedPid).toBeDefined();
+    // 单进程 kill 必须复用保护名单（原先绕过了守卫）
+    const ok = native.killProcess(protectedPid!);
+    expect(ok).toBe(false);
+  });
+
+  it('refuses to kill pid 0 (Idle)', () => {
+    expect(native.killProcess(0)).toBe(false);
+  });
+});
+
 describe('killTree', () => {
   it('kills a spawned parent together with its child', async () => {
     // 父进程：spawn 一个 node 孙进程后挂起

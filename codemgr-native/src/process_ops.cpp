@@ -62,6 +62,24 @@ Napi::Value KillProcess(const Napi::CallbackInfo& info) {
   }
   DWORD pid = (DWORD)info[0].As<Napi::Number>().Int32Value();
 
+  // 与 killByPids / killByName / killTree 对齐：永不杀自身 + 保护名单。
+  // 单进程 kill 是端口雷达/进程表的高频入口，原先绕过了守卫。
+  if (pid == 0 || pid == GetCurrentProcessId()) {
+    return Napi::Boolean::New(env, false);
+  }
+  {
+    std::vector<ProcessInfoRaw> procs;
+    std::string err;
+    if (CollectAllProcesses(procs, err)) {
+      for (const auto& p : procs) {
+        if (p.pid == pid) {
+          if (IsProtected(p.name)) return Napi::Boolean::New(env, false);
+          break;
+        }
+      }
+    }
+  }
+
   HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
   if (!h) {
     return Napi::Boolean::New(env, false);  // 失败：权限不足或进程已退出

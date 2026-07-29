@@ -11,14 +11,23 @@ export function PortRadar() {
   usePortRadar();  // 启动轮询
   const { connections, loading, error, selectedPid, select, filter, setFilter } = usePortRadarStore();
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
+  const [killBusy, setKillBusy] = useState(false);
 
   async function doKill() {
-    if (!pendingKill) return;
-    const ok = await ipc.killProcess(pendingKill.pid);
-    if (!ok) {
-      alert(`结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：可能需要管理员权限，或进程已退出。`);
+    if (!pendingKill || killBusy) return;
+    setKillBusy(true);
+    try {
+      const ok = await ipc.killProcess(pendingKill.pid);
+      if (!ok) {
+        alert(`结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：受保护进程、权限不足或进程已退出。`);
+      }
+      setPendingKill(null);
+    } catch (e) {
+      setPendingKill(null);
+      alert(`结束失败：${String(e)}`);
+    } finally {
+      setKillBusy(false);
     }
-    setPendingKill(null);
   }
 
   const visible = filterConnections(connections, filter);
@@ -89,8 +98,9 @@ export function PortRadar() {
         title="结束进程"
         message={`确定结束 ${pendingKill?.name}（PID ${pendingKill?.pid}）吗？该进程的所有子操作将被中断。`}
         confirmLabel="结束进程"
+        busy={killBusy}
         onConfirm={doKill}
-        onCancel={() => setPendingKill(null)}
+        onCancel={() => { if (!killBusy) setPendingKill(null); }}
       />
     </div>
   );

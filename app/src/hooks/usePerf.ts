@@ -20,7 +20,8 @@ export function usePerf() {
     async function poll() {
       if (busyRef.current) return;          // in-flight guard
       busyRef.current = true;
-      if (firstRef.current) setLoading(true);  // only first load shows loading
+      const isFirst = firstRef.current;
+      if (isFirst) setLoading(true);  // only first load shows loading
       try {
         const p = await ipc.fetchPerf();
         if (stoppedRef.current) return;
@@ -34,7 +35,8 @@ export function usePerf() {
         if (!stoppedRef.current) setError(String(e));
       } finally {
         busyRef.current = false;
-        if (firstRef.current && !stoppedRef.current) setLoading(false);
+        // 成功路径也会把 firstRef 置 false；用 isFirst 快照保证 loading 一定复位
+        if (isFirst && !stoppedRef.current) setLoading(false);
       }
     }
 

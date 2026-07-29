@@ -61,4 +61,43 @@ describe('ConfirmDialog', () => {
     fireEvent.click(screen.getByText('返回'));
     expect(onCancel).toHaveBeenCalledOnce();
   });
+
+  it('disables actions and shows busy label when busy', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    render(
+      <ConfirmDialog
+        open={true}
+        title="t"
+        message="m"
+        confirmLabel="执行"
+        busy
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    );
+    const confirmBtn = screen.getByText('处理中…');
+    const cancelBtn = screen.getByText('取消');
+    expect(confirmBtn).toBeDisabled();
+    expect(cancelBtn).toBeDisabled();
+    fireEvent.click(confirmBtn);
+    fireEvent.click(cancelBtn);
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('closes on Escape when not busy', () => {
+    const onCancel = vi.fn();
+    render(
+      <ConfirmDialog
+        open={true}
+        title="t"
+        message="m"
+        onConfirm={() => {}}
+        onCancel={onCancel}
+      />
+    );
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
 });

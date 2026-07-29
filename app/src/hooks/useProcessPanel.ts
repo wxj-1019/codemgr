@@ -22,7 +22,8 @@ export function useProcessPanel() {
     async function poll() {
       if (busyRef.current) return;          // in-flight guard
       busyRef.current = true;
-      if (firstRef.current) setLoading(true);  // only first load shows loading
+      const isFirst = firstRef.current;
+      if (isFirst) setLoading(true);  // only first load shows loading
       try {
         const procs = await ipc.fetchProcesses();
         if (stoppedRef.current) return;
@@ -44,7 +45,9 @@ export function useProcessPanel() {
         if (!stoppedRef.current) setError(String(e));
       } finally {
         busyRef.current = false;
-        if (firstRef.current && !stoppedRef.current) setLoading(false);
+        // 成功或失败都必须清掉首载 loading；原先在成功路径里先把 firstRef
+        // 置 false，导致 finally 里 setLoading(false) 永远不跑，头部常驻「刷新中…」。
+        if (isFirst && !stoppedRef.current) setLoading(false);
       }
     }
 

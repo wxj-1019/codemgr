@@ -43,44 +43,106 @@ export function ProcessPanel() {
     name: string;
   } | null>(null);
 
+  // 任一 kill 路径进行中时禁用确认按钮，防止连点重复 TerminateProcess。
+  const [killBusy, setKillBusy] = useState(false);
+
   async function doKillSingle() {
-    if (!pendingKill) return;
-    const ok = await ipc.killProcess(pendingKill.pid);
-    setPendingKill(null);
-    if (!ok) {
-      alert('结束失败：权限不足或进程已退出');
+    if (!pendingKill || killBusy) return;
+    setKillBusy(true);
+    try {
+      const ok = await ipc.killProcess(pendingKill.pid);
+      setPendingKill(null);
+      if (!ok) {
+        alert('结束失败：受保护进程、权限不足或进程已退出');
+      }
+    } catch (e) {
+      setPendingKill(null);
+      alert(`结束失败：${String(e)}`);
+    } finally {
+      setKillBusy(false);
     }
   }
 
   async function doBatchKill() {
-    if (!batchKillName) return;
-    const killed = await ipc.killByPids([...selectedPids]);
-    setBatchKillName(null);
-    clearSelection();
-    alert(`已结束 ${killed} 个进程`);
+    if (!batchKillName || killBusy) return;
+    setKillBusy(true);
+    try {
+      const targets = [...selectedPids];
+      const killed = await ipc.killByPids(targets);
+      setBatchKillName(null);
+      clearSelection();
+      if (killed === 0) {
+        alert('未结束任何进程：可能均为受保护进程、权限不足或已退出');
+      } else if (killed < targets.length) {
+        alert(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+      } else {
+        alert(`已结束 ${killed} 个进程`);
+      }
+    } catch (e) {
+      setBatchKillName(null);
+      alert(`批量结束失败：${String(e)}`);
+    } finally {
+      setKillBusy(false);
+    }
   }
 
   async function doKillAllNode() {
-    const killed = await ipc.killByName('node.exe');
-    setConfirmKillAllNode(false);
-    clearSelection();
-    alert(`已结束 ${killed} 个 node.exe 进程`);
+    if (killBusy) return;
+    setKillBusy(true);
+    try {
+      const killed = await ipc.killByName('node.exe');
+      setConfirmKillAllNode(false);
+      clearSelection();
+      alert(killed === 0
+        ? '未结束任何 node.exe：可能权限不足或进程已退出'
+        : `已结束 ${killed} 个 node.exe 进程`);
+    } catch (e) {
+      setConfirmKillAllNode(false);
+      alert(`结束 node.exe 失败：${String(e)}`);
+    } finally {
+      setKillBusy(false);
+    }
   }
 
   async function doKillGroup() {
-    if (!groupKill) return;
-    const killed = await ipc.killByPids(groupKill.pids);
-    const name = groupKill.name;
-    setGroupKill(null);
-    alert(`已结束 ${name} 组内 ${killed} 个进程`);
+    if (!groupKill || killBusy) return;
+    setKillBusy(true);
+    try {
+      const targets = groupKill.pids;
+      const name = groupKill.name;
+      const killed = await ipc.killByPids(targets);
+      setGroupKill(null);
+      if (killed === 0) {
+        alert(`「${name}」组内未结束任何进程：可能受保护/无权限/已退出`);
+      } else if (killed < targets.length) {
+        alert(`已结束「${name}」组内 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+      } else {
+        alert(`已结束「${name}」组内 ${killed} 个进程`);
+      }
+    } catch (e) {
+      setGroupKill(null);
+      alert(`结束本组失败：${String(e)}`);
+    } finally {
+      setKillBusy(false);
+    }
   }
 
   async function doKillTree() {
-    if (!pendingKillTree) return;
-    const killed = await ipc.killTree(pendingKillTree.pid);
-    setPendingKillTree(null);
-    clearSelection();
-    alert(`已结束进程树，共 ${killed} 个进程`);
+    if (!pendingKillTree || killBusy) return;
+    setKillBusy(true);
+    try {
+      const killed = await ipc.killTree(pendingKillTree.pid);
+      setPendingKillTree(null);
+      clearSelection();
+      alert(killed === 0
+        ? '未结束任何进程：根进程可能受保护、权限不足或已退出'
+        : `已结束进程树，共 ${killed} 个进程`);
+    } catch (e) {
+      setPendingKillTree(null);
+      alert(`结束进程树失败：${String(e)}`);
+    } finally {
+      setKillBusy(false);
+    }
   }
 
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留进程表，仅在表头下挂一条
@@ -206,18 +268,22 @@ export function ProcessPanel() {
         title="结束进程"
         message={`确定结束 ${pendingKill?.name}（PID ${pendingKill?.pid}）吗？`}
         confirmLabel="结束进程"
+        busy={killBusy}
         onConfirm={doKillSingle}
-        onCancel={() => setPendingKill(null)}
+        onCancel={() => { if (!killBusy) setPendingKill(null); }}
       />
 
       {/* Batch-kill confirmation — targets explicit selected PIDs */}
       <ConfirmDialog
         open={batchKillName !== null}
         title="批量结束进程"
-        message={`确定结束选中的 ${selectedPids.size} 个进程（均为 ${batchKillName}）吗？`}
+        message={`确定结束选中的 ${selectedPids.size} 个进程吗？${
+          batchKillName ? `（主要进程名：${batchKillName}）` : ''
+        }`}
         confirmLabel="批量结束"
+        busy={killBusy}
         onConfirm={doBatchKill}
-        onCancel={() => setBatchKillName(null)}
+        onCancel={() => { if (!killBusy) setBatchKillName(null); }}
       />
 
       {/* Kill-all-node confirmation — system-wide, guarded by native protection list */}
@@ -226,8 +292,9 @@ export function ProcessPanel() {
         title="结束所有 node.exe"
         message="将结束系统中所有 node.exe 进程（受保护进程如 CodeMgr/electron 会被自动排除）。确定继续吗？"
         confirmLabel="全部结束"
+        busy={killBusy}
         onConfirm={doKillAllNode}
-        onCancel={() => setConfirmKillAllNode(false)}
+        onCancel={() => { if (!killBusy) setConfirmKillAllNode(false); }}
       />
 
       {/* Group-kill confirmation (project view) — targets the explicit pids in the group */}
@@ -240,8 +307,9 @@ export function ProcessPanel() {
             : ''
         }
         confirmLabel="结束本组"
+        busy={killBusy}
         onConfirm={doKillGroup}
-        onCancel={() => setGroupKill(null)}
+        onCancel={() => { if (!killBusy) setGroupKill(null); }}
       />
 
       {/* Kill-tree confirmation — native collects all descendants via ppid chain */}
@@ -250,8 +318,9 @@ export function ProcessPanel() {
         title="结束进程树"
         message={`确定结束 ${pendingKillTree?.name}（PID ${pendingKillTree?.pid}）及其所有子进程吗？`}
         confirmLabel="结束进程树"
+        busy={killBusy}
         onConfirm={doKillTree}
-        onCancel={() => setPendingKillTree(null)}
+        onCancel={() => { if (!killBusy) setPendingKillTree(null); }}
       />
     </div>
   );
