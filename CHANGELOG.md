@@ -17,6 +17,7 @@
 ### 已知限制
 - 虚拟化行高用固定 estimate（29px），不做逐行测量。
 - 2000 进程实机滚动流畅度留人工验收；`pnpm dist` 安装包构建留人工（需关第三方杀软实时防护，§9）。
+- bench 的 processScan Go/No-Go（p99<20ms）在本机当前负载下未过（p50≈17ms，整机偏慢）；已核实 v1.8 未改 processScan 代码路径（`git diff v1.7..HEAD` 仅 net_collector.cpp），基线二进制同条件复测同样 FAIL，判定为环境性。netScan（p99 7.86ms < 30ms）与 60s 泄漏（RSS -8.18MB）均 PASS。
 
 ### 测试
 - app 130→160（+8 刷新间隔 store / +4 虚拟化 / +7 ContextMenu 键盘 / +5 焦点陷阱 / +6 进程表键盘），native 32→33（+1 IPv6），共 193 PASS。
