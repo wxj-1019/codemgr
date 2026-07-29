@@ -138,19 +138,70 @@ C:\Users\<你>\AppData\Roaming\codemgr\plugins\deno.html
 - ❌ 插件**不能**访问 `window.codemgr` 或 `ipcRenderer`（沙箱隔离）。
 - ❌ 插件**不能**读写文件系统或网络（sandbox 限制）。
 - ❌ 插件**不能**自带 `.node` 原生模块（6c 的 native 数据源需主仓库 review 加入白名单，未实现）。
-- ✅ 插件**只能**经 `postMessage` 注册标签规则（受控能力）。
+- ✅ 插件**只能**经 `postMessage` 注册标签规则 + 渲染只读视图（受控能力）。
+
+---
+
+## 视图插件（6b 第二步）
+
+插件除注册标签规则外，还可贡献**可视面板**嵌入 CodeMgr 的 mosaic 布局。
+
+### 工作方式
+
+- 同一插件 HTML 既注册规则又渲染视图——CodeMgr 启动时加载隐形 iframe（注册规则），用户点「➕ 添加插件面板」后再加载一份可见 iframe 作为 mosaic tile。
+- 可见时，宿主**主动推送**只读快照（进程/端口，脱敏子集）+ 主题 CSS 变量。插件用这些数据渲染 UI。
+- 不可见（被折叠/最小化）时停推快照（节流）。
+
+### 推送的消息（宿主 → 插件）
+
+| 消息 | 时机 | 载荷 |
+|------|------|------|
+| `{ type: 'snapshot', processes, ports }` | 每 2s（可见时） | `processes: {pid, name, workingSetBytes}[]`，`ports: {protocol, localPort, state, pid, processName}[]`（脱敏子集，无 cwd/cmdline） |
+| `{ type: 'theme', vars }` | 快照时一并推送 | CSS 变量键值对（`--bg-panel`/`--text-primary` 等） |
+
+> 插件**不能**主动拉取数据——宿主按节奏推送。这是受控 API 的安全设计。
+
+### 视图插件示例
+
+见 `app/poc-plugin-sandbox/examples/view-plugin.html`：用 React 渲染内存占用前 20 的进程列表，消费 snapshot + theme 消息。
+
+```js
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (msg.type === 'snapshot') {
+    // msg.processes: [{pid, name, workingSetBytes}, ...]
+    // msg.ports: [{protocol, localPort, state, pid, processName}, ...]
+    renderYourUI(msg.processes);
+  } else if (msg.type === 'theme') {
+    // 应用 CSS 变量（用变量而非硬编码色值，适配亮/暗主题）
+    for (const [k, v] of Object.entries(msg.vars)) {
+      document.documentElement.style.setProperty(k, v);
+    }
+  }
+});
+```
+
+### 嵌入布局
+
+1. 在 `plugins.json` 登记插件（同标签规则插件）。
+2. 启动 CodeMgr → 工具栏出现「➕」按钮（仅当 manifest 有插件时）。
+3. 点「➕」→ 选插件 → 该插件作为 tile 插入布局右侧。
+4. tile 可拖拽/拆分/关闭，与内置面板同等地位。
+
+### 悬空清理
+
+若插件从 manifest 移除但布局树仍引用它，启动时 CodeMgr 自动清理该悬空叶子（不显示空白 tile）。
 
 ---
 
 ## 调试
 
-- 插件 iframe 是 `display:none` 的（本次无可视 UI）。
+- 标签规则插件 iframe 是隐形的（`display:none`）；视图插件 iframe 在 mosaic tile 内可见。
 - 规则是否生效：在「进程」面板查看对应进程是否被打上你的标签。
+- 视图是否生效：添加面板后看 tile 是否渲染。
 - manifest 不存在或损坏：CodeMgr 静默忽略（不报错），等价于无插件。
 - 单个插件崩溃：不影响其它插件和主窗口（崩溃隔离已验证）。
 
-## 后续（6b 第二步 / 6c）
+## 后续（6c）
 
-- **视图嵌入**（6b 第二步）：插件贡献可视面板，嵌入 mosaic 布局。
-- **只读快照**：宿主向插件推送进程/端口快照（视图插件的数据源）。
-- **自定义数据源**（6c）：经 UtilityProcess + 白名单 native 能力。
+- **自定义数据源**（6c）：经 UtilityProcess + 白名单 native 能力（如读 Docker 容器列表）。未实现，v2.0+ 探索项。

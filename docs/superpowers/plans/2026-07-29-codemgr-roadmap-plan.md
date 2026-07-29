@@ -174,7 +174,7 @@ v1.1（已完成，当前 main）
 | F3 | 插件加载器（`<PluginFrame>` + `<PluginHost>`）+ 生命周期 + 崩溃熔断 | loader + 卸载清理 | ✅ 完成（v2.0，6b 第一步） |
 | F4 | 文档：插件开发指南 | `docs/PLUGINS.md` + 可运行示例 | ✅ 完成（v2.0） |
 
-> **6b 第二步（视图嵌入 mosaic）未做**：需改 PanelId 闭合类型 + 4 耦合点（renderTile/createNode/PANEL_TITLES/visibilityStore），单独立项。本次 F2-F4 聚焦标签规则注册（价值最高、风险最低），不动 mosaic。
+> **6b 第二步（视图嵌入 mosaic）已完成（v2.0）**：`PanelId` 扩展为 `BuiltInPanelId | \`plugin:${string}\``（模板字面量 + 类型守卫）；renderTile 动态分派内置/插件；工具栏「➕」添加面板入口；PluginPanel 可视 tile iframe + 只读快照推送（脱敏子集，可见时节流）；`prunePluginLeaves` 启动清理悬空叶子；pluginRegistryStore 共享 manifest 数据源。视图插件与隐形规则注册 iframe 并存。6b 全部完成。
 
 **门禁**：F1 的安全选型必须先过 review——这是 v2.0 最大的不确定性，不允许边做边定。
 

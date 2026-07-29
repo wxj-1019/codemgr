@@ -1,6 +1,23 @@
 import type { LabelRule } from './labelRules';
 
 /**
+ * 只读快照类型（脱敏子集）：推送给视图插件的进程/端口数据。
+ * 刻意省略 cwd/cmdline 等可能含敏感信息的字段——插件视图拿到的最小必要信息。
+ */
+export interface ReadonlyProcessInfo {
+  pid: number;
+  name: string;
+  workingSetBytes: number;
+}
+export interface ReadonlyConnection {
+  protocol: 'tcp' | 'udp';
+  localPort: number;
+  state: string;
+  pid: number;
+  processName: string;
+}
+
+/**
  * 插件 ↔ 宿主的 postMessage 协议（受控 API 契约，F2）。
  *
  * 安全约束（F1 PoC 已验证）：插件在 iframe sandbox（allow-scripts，无 allow-same-origin）
@@ -8,13 +25,16 @@ import type { LabelRule } from './labelRules';
  *
  * 宿主 → 插件（host-to-plugin）：
  *  - 'ready'：宿主就绪，插件可开始注册能力。
- *  - （6b 第二步会加 'snapshot'/'theme'，本次无视图不需要）
+ *  - 'snapshot'：只读快照（进程/端口，脱敏子集）。视图插件的数据源，主框架主动推送。
+ *  - 'theme'：CSS 变量（v1.7 主题体系），插件用变量而非硬编码色值。
  *
  * 插件 → 宿主（plugin-to-host）：
- *  - 'registerLabelRules'：注册标签规则（本次唯一受控能力）。
+ *  - 'registerLabelRules'：注册标签规则。
  */
 export type HostToPluginMsg =
-  | { type: 'ready' };
+  | { type: 'ready' }
+  | { type: 'snapshot'; processes: ReadonlyProcessInfo[]; ports: ReadonlyConnection[] }
+  | { type: 'theme'; vars: Record<string, string> };
 
 export type PluginToHostMsg =
   | { type: 'registerLabelRules'; rules: unknown[] };
