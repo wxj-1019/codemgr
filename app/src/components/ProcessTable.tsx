@@ -220,7 +220,7 @@ const ProcessRow = memo(function ProcessRow({
               e.stopPropagation();
               onKillTree(proc.pid, proc.name);
             }}
-            className="ml-1 rounded bg-orange-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-orange-500"
+            className="btn-danger-quiet ml-1 rounded px-1.5 py-0.5 text-[10px]"
             title="结束该进程及其所有子进程"
           >
             树

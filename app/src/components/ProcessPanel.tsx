@@ -211,7 +211,7 @@ export function ProcessPanel() {
           {hasNode && (
             <button
               onClick={() => setConfirmKillAllNode(true)}
-              className="rounded bg-orange-600/80 px-3 py-1 text-xs text-white hover:bg-orange-500"
+              className="btn-danger-quiet rounded px-3 py-1 text-xs"
               title="结束系统中所有 node.exe 进程（受保护名单排除）"
             >
               结束所有 node.exe

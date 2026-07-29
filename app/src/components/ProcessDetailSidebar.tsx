@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { GitIdentity } from '../../electron/ipc-types';
+import type { GitIdentity, ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { usePortRadarStore } from '../store/portRadarStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
 import { MiniChart } from './MiniChart';
 import { ipc } from '../lib/ipc';
+import { buildDiagnostic } from '../lib/diagnostic';
+import { DiagnosticPreview } from './DiagnosticPreview';
 
 // 320px 右侧详情栏：展示当前唯一选中进程的"已采集但表格未展示"字段。
 // 未选 / 多选 / 进程已退出时显示对应提示。kill 走与表格一致的 onKill 回调
@@ -15,8 +18,9 @@ export function ProcessDetailSidebar({
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
 }) {
-  const { processes, selectedPids, procHistory, preciseCwdByPid, setPreciseCwd: setStoreCwd,
+  const { processes, selectedPids, procHistory, cpuMap, preciseCwdByPid, setPreciseCwd: setStoreCwd,
     gitIdentityByPid, setGitIdentity } = useProcessPanelStore();
+  const connections = usePortRadarStore((s) => s.connections);
   // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
   const pid = selectedPids.size === 1 ? [...selectedPids][0] : null;
 
@@ -31,6 +35,9 @@ export function ProcessDetailSidebar({
   // undefined=未解析，null=已解析非 git，GitIdentity=已解析。
   const [gitIdentity, setGitIdentityLocal] = useState<GitIdentity | null | undefined>(undefined);
   const [gitState, setGitState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
+  // 诊断上下文（D，按需聚合 + 脱敏 + 预览复制）
+  const [diagState, setDiagState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [diagText, setDiagText] = useState<string | null>(null);
   useEffect(() => {
     setEnvVars(null);
     setEnvState('idle');
@@ -135,6 +142,62 @@ export function ProcessDetailSidebar({
     } catch {
       if (pidRef.current !== pid) return;
       setGitState('error');
+    }
+  }
+
+  // 诊断上下文（D）：按需补齐缺失项，聚合脱敏 Markdown，弹预览窗。
+  async function copyDiagnostic() {
+    if (pid == null) return;
+    setDiagState('loading');
+    try {
+      const p = processes.find((x) => x.pid === pid)!;
+      // 按需补齐：精确 cwd
+      let cwd: string | null = preciseCwdByPid[pid] ?? null;
+      if (!cwd) {
+        const precise = await ipc.fetchCwd(pid);
+        if (pidRef.current !== pid) return;
+        cwd = precise;
+        if (cwd) setStoreCwd(pid, cwd);
+      }
+      // Git 身份
+      let git = gitIdentityByPid[pid];
+      if (git === undefined && cwd) {
+        git = await ipc.fetchGitIdentity(cwd);
+        if (pidRef.current !== pid) return;
+        setGitIdentity(pid, git);
+      }
+      // 环境变量
+      let env = envVars;
+      if (env === null) {
+        env = await ipc.fetchProcessEnv(pid);
+        if (pidRef.current !== pid) return;
+      }
+      // 父进程链（3 层）
+      const chain: ProcessInfo[] = [];
+      let curPpid = p.ppid;
+      for (let i = 0; i < 3 && curPpid > 0; i++) {
+        const parent = processes.find((x) => x.pid === curPpid);
+        if (!parent) break;
+        chain.push(parent);
+        curPpid = parent.ppid;
+      }
+      const text = buildDiagnostic({
+        proc: p,
+        cpuPercent: cpuMap[pid] || 0,
+        preciseCwd: cwd,
+        gitIdentity: git,
+        envVars: env,
+        connections,
+        parentChain: chain,
+        staleAt: null,
+        codeMgrVersion: '',
+      });
+      if (pidRef.current !== pid) return;
+      setDiagText(text);
+      setDiagState('idle');
+    } catch {
+      if (pidRef.current !== pid) return;
+      setDiagState('error');
     }
   }
 
@@ -295,6 +358,16 @@ export function ProcessDetailSidebar({
       </div>
       <div className="border-t border-base-600 p-3">
         <button
+          onClick={copyDiagnostic}
+          disabled={diagState === 'loading'}
+          className="mb-2 w-full rounded border border-base-600 px-3 py-1.5 text-sm text-fg-secondary hover:bg-base-700 disabled:opacity-50"
+        >
+          {diagState === 'loading' ? '生成中…' : '复制诊断上下文'}
+        </button>
+        {diagState === 'error' && (
+          <p className="mb-2 text-xs text-red-400">生成失败</p>
+        )}
+        <button
           onClick={() => onKill(proc.pid, proc.name)}
           className="btn-danger-quiet w-full rounded-lg px-3 py-1.5 text-sm"
         >
@@ -303,12 +376,13 @@ export function ProcessDetailSidebar({
         {proc.pid > 4 && (
           <button
             onClick={() => onKillTree(proc.pid, proc.name)}
-            className="mt-2 w-full rounded bg-orange-600/80 px-3 py-1.5 text-sm text-white hover:bg-orange-500"
+            className="btn-danger-quiet mt-2 w-full rounded px-3 py-1.5 text-sm"
           >
             结束进程树
           </button>
         )}
       </div>
+      {diagText && <DiagnosticPreview text={diagText} onClose={() => setDiagText(null)} />}
     </aside>
   );
 }

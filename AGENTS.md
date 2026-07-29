@@ -146,6 +146,7 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
+- **v2.3**（未发版）：Aurora UI 视觉重设计（spec `docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md` v1.2 "Linear 纪律 × Apple 毛玻璃"：明度阶梯中性黑 + 玻璃浮层 + 安静危险按钮 + Siri 辉光聚焦描边 + mosaic 白底渗入修复 + 控制按钮 CSS 图标）。
 - **v2.2**（tag `v2.2`）：进程快照对比（受控文件 IO `userData/snapshots/` + diff 引擎 identity=pid:createTimeMs + SnapshotPanel 挂 mosaic，完成 spec D6/D7）。
 - **v2.1**（tag `v2.1`）：AI 开发工具默认标签（Claude/Kimi/Aider/Codex/Cursor/Ollama/LM Studio，新 kind `ai`/`ai-ide`）+ 开机自启开关（setLoginItemSettings，nav toggle）+ GPU/显存监控（PDH English GPU Engine counters + DXGI 显存 + perf GPU 子标签 + 进程 GPU% 列，完成 spec D5，无 GPU 降级；GPU 采集经预热 + 三层优化）。
 - **v2.0**（tag `v2.0`）：插件系统 6b 第一步——iframe 沙箱插件注册标签规则（`userData/plugins.json` manifest，postMessage 受控 API，pluginRules 独立层末位优先级，崩溃隔离）；6b 第二步——插件视图嵌入 mosaic（PanelId 模板字面量扩展、添加面板入口、只读快照推送、悬空叶子清理）；6c 第一步——插件数据源管道（UtilityProcess + MessagePort 多跳链路 + 白名单机制，模拟数据源验证架构）；6c 第二步——真实 native 数据源（disk-volumes：磁盘卷列表 collector，验证 UtilityProcess → native 真实采集链路）。F1 沙箱选型 + PoC 已实证锁定。完成 roadmap 方案 6b 全部 + 6c 管道与首个真实数据源。
@@ -160,7 +161,7 @@ scope:  native | app | ci | docs（可选）
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99<30ms 判据 PASS（v1.8 IPv6 合并枚举后实测 4.7~7.9ms，随负载波动）、60s 无泄漏。注意：bench 对机器负载敏感（软 gate），processScan 的 20ms 判据在高负载机器上会环境性 FAIL，判读时先做基线对照。
-- 测试：app 252/252 + native 47/47，共 299 PASS。
+- 测试：app 256/256 + native 47/47，共 303 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
 
 ## 9. 打包与 CI 注意事项（v1.5 新增）

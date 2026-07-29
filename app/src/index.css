@@ -173,33 +173,38 @@ body {
 }
 
 /* ── react-mosaic 主题适配 ──
-   mosaic 默认工具栏/正文背景是白色、分割条 hover 是黑色，与深色主题冲突。
-   不用默认的 mosaic-blueprint-theme（避免 blueprint 深色按钮样式），改用
-   自定义 .mosaic-theme 命名空间，把硬编码颜色覆盖成语义 CSS 变量，
-   让亮/暗主题都正确。参照 allotment 覆盖层的同一思路。 */
+   mosaic 默认把 toolbar/body/actions-bar 都写成白色实底。v1.7 时 Panel 是实色
+   背景所以盖得住；Aurora UI 玻璃面板是半透明的，白底会渗上来（灰雾感）。
+   这里把 mosaic 所有实底全部改透明/语义变量，并用 .mosaic-theme .mosaic-window
+   三层选择器压过库默认（0,3,0 > 库的 0,2,0），不依赖 CSS 加载顺序。 */
 .mosaic-theme.mosaic,
+.mosaic-theme .mosaic-root,
 .mosaic-theme .mosaic-window,
 .mosaic-theme .mosaic-preview {
+  background: transparent;
   box-shadow: none;              /* 去掉默认的白色投影残影 */
 }
-/* 工具栏：面板色背景 + 主文字色 */
-.mosaic-theme .mosaic-window-toolbar {
+/* 工具栏：浮层玻璃 + 主文字色 */
+.mosaic-theme .mosaic-window .mosaic-window-toolbar {
   background: var(--bg-elevated);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
   box-shadow: none;
   border-bottom: 1px solid var(--border);
 }
-.mosaic-theme .mosaic-window-title {
+.mosaic-theme .mosaic-window .mosaic-window-title {
   color: var(--text-primary);
   font-size: 12px;
 }
 /* 控制按钮分隔线 */
-.mosaic-theme .mosaic-window-controls .separator {
+.mosaic-theme .mosaic-window .mosaic-window-controls .separator {
   border-left-color: var(--border);
 }
-/* 正文：面板色（Panel 组件已自带 bg-base-800，这里兜底） */
-.mosaic-theme .mosaic-window-body,
-.mosaic-theme .mosaic-window-additional-actions-bar {
-  background: var(--bg-panel);
+/* 正文/附加操作栏：透明，让 Panel 的玻璃成为唯一表面 */
+.mosaic-theme .mosaic-window .mosaic-window-body,
+.mosaic-theme .mosaic-window .mosaic-window-additional-actions-bar,
+.mosaic-theme .mosaic-window .mosaic-window-body-overlay {
+  background: transparent;
 }
 /* 分割条 hover：默认黑色，改为 muted 色 + 半透明（与 allotment sash 一致） */
 .mosaic-theme .mosaic-split:hover {
@@ -214,3 +219,43 @@ body {
   background: color-mix(in srgb, var(--accent) 25%, transparent);
   border-color: var(--accent);
 }
+/* 窗口控制按钮：库依赖 Blueprint 图标字体（未引入），缺字体会把
+   Replace/Split/Expand/Close 标题文字挤成一串。改成 CSS 绘制的极简图标。 */
+.mosaic-theme .mosaic-window .mosaic-window-controls button {
+  font-size: 0;
+  width: 26px;
+  height: 26px;
+  position: relative;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mosaic-theme .mosaic-window .mosaic-window-controls button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.mosaic-theme .mosaic-window .mosaic-window-controls button::before,
+.mosaic-theme .mosaic-window .mosaic-window-controls button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border: 1.5px solid var(--text-secondary);
+}
+.mosaic-theme .mosaic-window .mosaic-window-controls button:hover::before,
+.mosaic-theme .mosaic-window .mosaic-window-controls button:hover::after {
+  border-color: var(--text-primary);
+  background-color: transparent;
+}
+/* replace：两个交叠方框 */
+.mosaic-theme .mosaic-window .replace-button::before { width: 8px; height: 8px; transform: translate(-2px, -2px); }
+.mosaic-theme .mosaic-window .replace-button::after { width: 8px; height: 8px; transform: translate(2px, 2px); background: var(--bg-elevated); }
+/* split：对半分矩形 */
+.mosaic-theme .mosaic-window .split-button::before { width: 12px; height: 9px; }
+.mosaic-theme .mosaic-window .split-button::after { width: 1.5px; height: 9px; border: none; background: var(--text-secondary); }
+/* expand：最大化（粗顶边方框） */
+.mosaic-theme .mosaic-window .expand-button::before { width: 11px; height: 9px; border-top-width: 3px; }
+.mosaic-theme .mosaic-window .expand-button::after { display: none; }
+/* close：X */
+.mosaic-theme .mosaic-window .close-button::before { width: 12px; height: 1.5px; border: none; background: var(--text-secondary); transform: rotate(45deg); }
+.mosaic-theme .mosaic-window .close-button::after { width: 12px; height: 1.5px; border: none; background: var(--text-secondary); transform: rotate(-45deg); }

@@ -24,6 +24,27 @@
 
 ---
 
+## [v2.3] — 2026-07-30
+
+### 新增
+- **Aurora UI 视觉重设计**（spec：`docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md` v1.2，"Linear 纪律 × Apple 毛玻璃"）：
+  - **token 层（P1）**：明度阶梯中性黑（`#08090C` 底 → 玻璃面板 → 浮层）、Linear 三级灰文字、1px hairline、品牌柔紫 `#8B93E8`（全场一处）+ 图表专用柔青、8px 细滚动条、aurora 环境光 mesh（呼吸感底光）。
+  - **组件换肤（P2）**：全部浮层（Dialog/ContextMenu/下拉）上 `backdrop-blur(20px)` 毛玻璃；危险按钮 Linear 式"安静危险"（透明细边，hover 填实）；徽章降饱和（14%）；图表色全走 CSS 变量；tooltip 玻璃化。修复 Tailwind v3 对 `var()` 颜色不生成透明度修饰类的隐患（改 channel 写法）。
+  - **Siri 辉光（P3）**：点击面板即成为活跃面板，边缘流转 aurora 描边（conic-gradient mask 2px 环 + 静态柔光外晕，16s，`prefers-reduced-motion` 下静止）。
+- **mosaic 窗口控制按钮图标**：库依赖的 Blueprint 图标字体从未引入，按钮文字（ReplaceSplitExpandClose）自 v1.7 起挤成一串；改为 CSS 绘制的极简图标（replace/split/expand/close）。
+
+### 修复
+- **mosaic 白底渗入玻璃面板**：库 CSS 给 toolbar/body 写死 `background:white`，v1.7 时被实色 Panel 盖住；玻璃面板半透明后白底渗上成灰雾。改三层选择器（0,3,0）压过库默认并把 mosaic 实底全改透明。
+
+### 已知限制
+- 亮主题为 frosted white glass 变体（spec §1.4 工程权衡），人工验收项。
+- 选中行 2px accent 光条未实现（`<tr>` inset box-shadow 在 border-collapse 下不渲染，需改结构，留后续评估）。
+
+### 测试
+- app 252→256（+4 activePanelStore：聚焦唯一性/替换/重置）。
+
+---
+
 ## [v2.2] — 2026-07-30
 
 ### 新增
