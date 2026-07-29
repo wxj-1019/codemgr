@@ -22,21 +22,24 @@ export function filterConnections(conns: NetConnection[], query: string): NetCon
 }
 
 // 检测端口冲突：同一端口被两个及以上不同 PID 监听（SO_REUSEADDR 场景）。
-// 返回冲突端口号集合，供表格高亮。只统计监听态连接；同一进程绑定多个地址不算冲突。
-export function conflictPorts(conns: NetConnection[]): Set<number> {
-  const owners = new Map<number, Set<number>>();
+// TCP 与 UDP 是独立命名空间，按 `协议:端口` 键聚合判定，避免 DNS/mDNS 等
+// 双协议端口误报。返回冲突键集合（如 "tcp:8080"），供表格高亮。
+// 只统计监听态连接；同一进程绑定多个地址不算冲突。
+export function conflictPorts(conns: NetConnection[]): Set<string> {
+  const owners = new Map<string, Set<number>>();
   for (const c of conns) {
     if (!isListenLike(c)) continue;
-    let pids = owners.get(c.localPort);
+    const key = `${c.protocol}:${c.localPort}`;
+    let pids = owners.get(key);
     if (!pids) {
       pids = new Set<number>();
-      owners.set(c.localPort, pids);
+      owners.set(key, pids);
     }
     pids.add(c.pid);
   }
-  const conflicts = new Set<number>();
-  for (const [port, pids] of owners) {
-    if (pids.size > 1) conflicts.add(port);
+  const conflicts = new Set<string>();
+  for (const [key, pids] of owners) {
+    if (pids.size > 1) conflicts.add(key);
   }
   return conflicts;
 }

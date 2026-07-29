@@ -61,8 +61,8 @@ describe('conflictPorts', () => {
       conn({ localPort: 3000, pid: 100 }),
     ];
     const conflicts = conflictPorts(list);
-    expect(conflicts.has(8080)).toBe(true);
-    expect(conflicts.has(3000)).toBe(false);
+    expect(conflicts.has('tcp:8080')).toBe(true);
+    expect(conflicts.has('tcp:3000')).toBe(false);
   });
 
   it('same pid bound to multiple addresses is NOT a conflict', () => {
@@ -77,6 +77,14 @@ describe('conflictPorts', () => {
     const list = [
       conn({ localPort: 8080, pid: 100, state: 'ESTABLISHED' }),
       conn({ localPort: 8080, pid: 200 }),
+    ];
+    expect(conflictPorts(list).size).toBe(0);
+  });
+
+  it('same port on different protocols is NOT a conflict', () => {
+    const list = [
+      conn({ localPort: 53, pid: 100, protocol: 'tcp', state: 'LISTENING' }),
+      conn({ localPort: 53, pid: 200, protocol: 'udp' }),
     ];
     expect(conflictPorts(list).size).toBe(0);
   });

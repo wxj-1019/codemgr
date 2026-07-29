@@ -32,6 +32,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
           {rows.map((c, i) => {
             const label = labelForPort(c.localPort);
             const selected = c.pid === selectedPid;
+            const conflict = conflicts.has(`${c.protocol}:${c.localPort}`);
             return (
               <tr
                 key={`${c.pid}-${c.localPort}-${i}`}
@@ -42,11 +43,11 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
               >
                 <td
                   className={`px-3 py-2 font-mono ${
-                    conflicts.has(c.localPort) ? 'text-red-400' : 'text-accent'
+                    conflict ? 'text-red-400' : 'text-accent'
                   }`}
-                  title={conflicts.has(c.localPort) ? '端口冲突：多个进程监听同一端口' : undefined}
+                  title={conflict ? '端口冲突：多个进程监听同一端口' : undefined}
                 >
-                  {conflicts.has(c.localPort) && <span aria-label="端口冲突">⚠ </span>}
+                  {conflict && <span aria-label="端口冲突">⚠ </span>}
                   {c.localPort}
                 </td>
                 <td className="px-3 py-2 uppercase text-fg-secondary">{c.protocol}</td>
