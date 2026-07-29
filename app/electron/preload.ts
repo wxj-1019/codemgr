@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, type ExposedApi, type LabelRulesPayload } from './ipc-types';
+import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry } from './ipc-types';
 
 // 安全红线：只暴露封装后的方法，绝不暴露 ipcRenderer 本身
 const api: ExposedApi = {
@@ -29,6 +29,12 @@ const api: ExposedApi = {
   // 开机自启：读当前状态 / 设置后返回实际状态
   getAutoLaunch: () => ipcRenderer.invoke(IPC.GET_AUTO_LAUNCH),
   setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke(IPC.SET_AUTO_LAUNCH, enabled),
+  // 进程快照对比（v2.2）：文件 IO 封在 main（userData/snapshots/），渲染层只收发数据，拿不到路径。
+  // save 不传 id（main 内部生成），load/delete 按给定 id（main 校验 uuid 防穿越）。
+  listSnapshots: () => ipcRenderer.invoke(IPC.SNAPSHOT_LIST),
+  saveSnapshot: (name: string, entries: SnapshotEntry[]) => ipcRenderer.invoke(IPC.SNAPSHOT_SAVE, name, entries),
+  deleteSnapshot: (id: string) => ipcRenderer.invoke(IPC.SNAPSHOT_DELETE, id),
+  loadSnapshot: (id: string) => ipcRenderer.invoke(IPC.SNAPSHOT_LOAD, id),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);

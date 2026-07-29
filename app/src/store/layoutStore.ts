@@ -12,8 +12,8 @@ import type { MosaicNode } from 'react-mosaic-component';
  * 设计依据：spec D1（react-mosaic-component，二叉树与持久化天然吻合）。
  */
 
-/** 内置三大面板的 id。 */
-export type BuiltInPanelId = 'port' | 'process' | 'perf';
+/** 内置面板的 id（v2.2 新增 'snapshot'：进程快照对比面板）。 */
+export type BuiltInPanelId = 'port' | 'process' | 'perf' | 'snapshot';
 
 /**
  * mosaic 二叉树的叶子类型。内置面板是固定字面量；插件视图是 `plugin:<id>` 模板字面量
@@ -24,7 +24,7 @@ export type PanelId = BuiltInPanelId | `plugin:${string}`;
 
 /** 类型守卫：是否为内置面板 id。 */
 export function isBuiltInPanel(id: string): id is BuiltInPanelId {
-  return id === 'port' || id === 'process' || id === 'perf';
+  return id === 'port' || id === 'process' || id === 'perf' || id === 'snapshot';
 }
 
 /** 类型守卫：是否为插件视图面板 id（`plugin:<id>` 形式）。 */

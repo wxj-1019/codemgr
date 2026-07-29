@@ -9,13 +9,31 @@
 ### 新增
 - **AI 开发工具默认标签**：进程面板自动识别 AI 工具——Claude Code / Kimi Code / Aider / Codex CLI（kind `ai`，品红紫）与 Cursor（kind `ai-ide`，紫罗兰）。短词规则（如 kimi）带分隔符边界防误伤用户名路径。新增 `defaultRules.test.ts` 11 用例。
 - **开机自启开关**：nav 工具栏新增「自启」toggle（`app.setLoginItemSettings`），乐观更新 + 失败回滚。开发模式下作用于 electron.exe（Electron 已知行为），打包后对 CodeMgr.exe 生效。
+- **GPU/显存监控**（spec D5）：性能面板新增 GPU 子标签（总使用率 60s 曲线 + 显存条 + per-process Top5）；进程面板新增 GPU% 列（可排序，数据来自 perfStore 轮询）。
+  - **采集**：PDH English counters（`PdhAddEnglishCounterW`，`\GPU Engine(*)\Utilization Percentage` + `\GPU Engine(*)\Dedicated Usage`，免本地化）+ DXGI `IDXGIAdapter3::QueryVideoMemoryInfo` 显存总量。实例名宽松解析（只认 `pid_` 前缀，R1 对策）。每 5 周期重展开 PDH 实例集。
+  - **降级**：无 GPU 环境（虚拟机/远程桌面）→ `available=false`，UI 显示"不可用"，不报错。
+  - **不进 processScan 热路径**：并入 perfCounters（1s 节奏），20ms 红线不动。
+  - CMakeLists WIN_LIBS 加 `dxgi`；native 测试 +9（结构断言：available/totalPercent 范围/perProcess 形状）。
 
 ### 工程化
 - `AGENTS.md` 新增 §10 常见任务食谱：新增 native 函数六处接线 / 新增面板 / 标签规则 / 发版流程 checklist，降低 AI 上手成本。
 - 规划文档：GPU 监控 + 进程快照对比 spec（`docs/superpowers/specs/2026-07-30-codemgr-ai-dev-features.md`，决策 D5-D7 锁定）与 v2.1/v2.2 实现计划。
 
 ### 测试
-- app 181→197（+11 defaultRules AI 标签 / +5 AutoLaunchToggle）。
+- app 197→225（+11 defaultRules AI 标签 +5 AutoLaunch +9 native gpu 结构断言[计入 native] +28 快照 diff/store）；native 38→47（+9 gpu.test.ts）。
+
+---
+
+## [v2.2] — 2026-07-30
+
+### 新增
+- **进程快照对比**（spec D6/D7）：一键拍命名快照，任意时刻对比"快照 vs 当前"，三组 diff（新增红/已退出灰/有变化琥珀），新增组支持多选批量结束（复用 killByPids + ConfirmDialog）。命中场景："AI agent 跑一天后清理残留进程"。
+  - **存储**：受控文件 IO 通道（`userData/snapshots/<uuid>.json`，照 v1.4 标签规则文件 IO 模式）。4 通道（list/save/delete/load）。路径穿越防护：id 校验 uuid 正则 + save 时 main 用 `crypto.randomUUID()` 生成 id。上限 20 个。
+  - **diff 引擎**：`snapshotDiff.ts` 纯函数（TDD 15 用例）。identity = `pid:createTimeMs`（PID 复用防护）；pid 同 createTime 不同 → added+removed（非 unchanged）。
+  - **UI**：`SnapshotPanel`（挂 mosaic，第 4 内置面板）。拍快照调 `fetchProcesses` 映射为 SnapshotEntry[]；手动刷新重取当前进程，**不加轮询 interval**（避免第 4 个轮询器）。added/removed 复用 projectGroup 分组折叠。
+
+### 测试
+- app 225/225（+15 snapshotDiff + 13 snapshotStore）；native 47/47 不变。
 
 ---
 

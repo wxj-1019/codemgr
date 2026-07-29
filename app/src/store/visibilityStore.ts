@@ -23,7 +23,9 @@ interface VisibilityState {
 }
 
 export const useVisibilityStore = create<VisibilityState>((set) => ({
-  visible: { port: true, process: true, perf: true },
+  // v2.2 加 'snapshot'：快照面板本身不轮询（spec §2.4 明确不加 interval），但保持
+  // visible map 一致——后续若加按需刷新节流也走同一可见性入口。
+  visible: { port: true, process: true, perf: true, snapshot: true },
   setVisible: (id, v) =>
     set((s) => (s.visible[id] === v ? s : { visible: { ...s.visible, [id]: v } })),
   windowVisible: true,

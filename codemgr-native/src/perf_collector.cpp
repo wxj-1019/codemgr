@@ -22,6 +22,7 @@
 #include <iphlpapi.h>
 
 #include "perf_collector.h"
+#include "gpu_collector.h"
 #include <windows.h>
 #include <pdh.h>
 #include <pdhmsg.h>
@@ -444,6 +445,7 @@ Napi::Value PerfCounters(const Napi::CallbackInfo& info) {
   CollectCpuPerCore(raw);  // 可能用每核平均兜底 total
   CollectDisks(raw);
   CollectNetworks(raw);
+  gpu_collector::CollectGpu(raw.gpu);  // v2.1 GPU/显存（无 GPU 时 available=false）
 
   // ---- 组装 JS 对象 ----
   Napi::Object result = Napi::Object::New(env);
@@ -487,6 +489,24 @@ Napi::Value PerfCounters(const Napi::CallbackInfo& info) {
     networks[(uint32_t)i] = obj;
   }
   result.Set("networks", networks);
+
+  // ---- GPU/显存（v2.1）----
+  Napi::Object gpu = Napi::Object::New(env);
+  gpu.Set("available", Napi::Boolean::New(env, raw.gpu.available));
+  gpu.Set("totalPercent", Napi::Number::New(env, raw.gpu.totalPercent));
+  gpu.Set("vramUsedBytes", Napi::Number::New(env, (double)raw.gpu.vramUsedBytes));
+  gpu.Set("vramBudgetBytes", Napi::Number::New(env, (double)raw.gpu.vramBudgetBytes));
+  Napi::Array perProcess = Napi::Array::New(env, raw.gpu.perProcess.size());
+  for (size_t i = 0; i < raw.gpu.perProcess.size(); ++i) {
+    const auto& p = raw.gpu.perProcess[i];
+    Napi::Object obj = Napi::Object::New(env);
+    obj.Set("pid", Napi::Number::New(env, (double)p.pid));
+    obj.Set("gpuPercent", Napi::Number::New(env, p.gpuPercent));
+    obj.Set("vramBytes", Napi::Number::New(env, (double)p.vramBytes));
+    perProcess[(uint32_t)i] = obj;
+  }
+  gpu.Set("perProcess", perProcess);
+  result.Set("gpu", gpu);
 
   result.Set("timestamp", Napi::Number::New(env, (double)raw.timestampMs));
 

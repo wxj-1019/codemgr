@@ -1,4 +1,4 @@
-import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry } from '../../electron/ipc-types';
+import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electron/ipc-types';
 
 // 渲染层统一通过此封装访问 native（绝不直接 require）
 export const ipc = {
@@ -59,5 +59,18 @@ export const ipc = {
   },
   async setAutoLaunch(enabled: boolean): Promise<boolean> {
     return window.codemgr.setAutoLaunch(enabled);
+  },
+  // 进程快照对比（v2.2）：文件 IO 封在 main，渲染层只收发数据，拿不到路径（守红线）。
+  async listSnapshots(): Promise<SnapshotMeta[]> {
+    return window.codemgr.listSnapshots();
+  },
+  async saveSnapshot(name: string, entries: SnapshotEntry[]): Promise<ProcessSnapshot | null> {
+    return window.codemgr.saveSnapshot(name, entries);
+  },
+  async deleteSnapshot(id: string): Promise<boolean> {
+    return window.codemgr.deleteSnapshot(id);
+  },
+  async loadSnapshot(id: string): Promise<ProcessSnapshot | null> {
+    return window.codemgr.loadSnapshot(id);
   },
 };

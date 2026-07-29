@@ -14,12 +14,13 @@ import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatBytesPerSec } from '../lib/format';
 
-type SubTab = 'cpu' | 'memory' | 'disk' | 'network';
+type SubTab = 'cpu' | 'memory' | 'disk' | 'network' | 'gpu';
 
 interface PerfHistoryPoint {
   t: number;
   cpuTotal: number;
   memUsedPercent: number;
+  gpuTotal: number;
 }
 
 function fmtBytes(b: number): string {
@@ -50,6 +51,7 @@ export function PerfPanel() {
     { id: 'memory', label: '内存' },
     { id: 'disk', label: '磁盘' },
     { id: 'network', label: '网络' },
+    { id: 'gpu', label: 'GPU' },
   ];
 
   return (
@@ -81,6 +83,7 @@ export function PerfPanel() {
         {sub === 'memory' && <MemoryView current={current} history={history} />}
         {sub === 'disk' && <DiskView current={current} />}
         {sub === 'network' && <NetworkView current={current} />}
+        {sub === 'gpu' && <GpuView current={current} history={history} />}
       </main>
     </div>
   );
@@ -302,6 +305,97 @@ function NetworkView({ current }: { current: PerfData }) {
             ))}
           </tbody>
         </table>
+      )}
+    </div>
+  );
+}
+
+function GpuView({
+  current,
+  history,
+}: {
+  current: PerfData;
+  history: PerfHistoryPoint[];
+}) {
+  const gpu = current.gpu;
+  // 降级：无 GPU 计数器（虚拟机/远程桌面）
+  if (!gpu.available) {
+    return (
+      <div className="rounded-lg border border-base-700 bg-base-800 p-8 text-center">
+        <div className="text-sm text-fg-muted">此环境不支持 GPU 计数器（虚拟机/远程桌面/无 GPU）</div>
+      </div>
+    );
+  }
+  const vramPct = gpu.vramBudgetBytes > 0
+    ? (gpu.vramUsedBytes / gpu.vramBudgetBytes) * 100
+    : 0;
+  const vramColor = vramPct > 90 ? 'bg-red-500' : vramPct > 70 ? 'bg-amber-500' : 'bg-accent';
+  // perProcess Top 5 by gpuPercent
+  const top5 = [...gpu.perProcess].sort((a, b) => b.gpuPercent - a.gpuPercent).slice(0, 5);
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-fg-secondary">GPU 使用率</span>
+          <span className="font-mono text-3xl font-bold text-accent">
+            {gpu.totalPercent.toFixed(1)}%
+          </span>
+        </div>
+        <div className="mt-3 h-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={history}>
+              <defs>
+                <linearGradient id="gpuGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="t" tick={false} />
+              <YAxis domain={[0, 100]} width={30} tick={{ fill: '#64748b', fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ background: '#1a2028', border: '1px solid #2f3947', borderRadius: 6 }}
+                labelFormatter={() => ''}
+                formatter={(v: number | string) => [Number(v).toFixed(1) + '%', 'GPU']}
+              />
+              <Area type="monotone" dataKey="gpuTotal" stroke="#60a5fa" strokeWidth={2} fill="url(#gpuGrad)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+        <div className="mb-1 flex justify-between text-sm">
+          <span className="text-fg-secondary">显存</span>
+          <span className="text-fg-muted">
+            {fmtBytes(gpu.vramUsedBytes)}
+            {gpu.vramBudgetBytes > 0 ? ' / ' + fmtBytes(gpu.vramBudgetBytes) : '（总量未知）'}
+          </span>
+        </div>
+        <div className="h-2 overflow-hidden rounded bg-base-700">
+          <div className={`h-full ${vramColor}`} style={{ width: `${Math.min(100, vramPct)}%` }} />
+        </div>
+      </div>
+      {top5.length > 0 && (
+        <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+          <div className="mb-2 text-sm text-fg-secondary">GPU 占用 Top 5（数据来自性能面板轮询）</div>
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase text-fg-muted">
+              <tr>
+                <th className="py-1 text-left">PID</th>
+                <th className="py-1 text-right">GPU%</th>
+                <th className="py-1 text-right">显存</th>
+              </tr>
+            </thead>
+            <tbody>
+              {top5.map((p) => (
+                <tr key={p.pid} className="border-t border-base-700/30">
+                  <td className="py-1.5 font-mono text-fg-primary">{p.pid}</td>
+                  <td className="py-1.5 text-right font-mono text-accent">{p.gpuPercent.toFixed(1)}%</td>
+                  <td className="py-1.5 text-right font-mono text-fg-secondary">{fmtBytes(p.vramBytes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

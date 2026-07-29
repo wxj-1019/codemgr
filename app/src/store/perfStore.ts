@@ -8,6 +8,7 @@ interface PerfHistoryPoint {
   t: number; // timestamp
   cpuTotal: number;
   memUsedPercent: number;
+  gpuTotal: number; // GPU 总使用率（available=false 时为 0，仍采点以保持窗口连续）
 }
 
 interface PerfState {
@@ -38,6 +39,7 @@ export const usePerfStore = create<PerfState>()(
             t: p.timestamp,
             cpuTotal: p.cpu.totalPercent,
             memUsedPercent: p.memory.usedPercent,
+            gpuTotal: p.gpu.available ? p.gpu.totalPercent : 0,
           };
           const next = [...s.history, point];
           if (next.length > HISTORY_LEN) next.shift();

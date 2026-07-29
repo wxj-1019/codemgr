@@ -3,8 +3,9 @@
 #include <windows.h>
 #include <string>
 #include <vector>
+#include "gpu_collector.h"
 
-// perfCounters() —— 系统级 CPU/内存/磁盘/网络 指标采集
+// perfCounters() —— 系统级 CPU/内存/磁盘/网络/GPU 指标采集
 // 所有“速率”字段（readBytesPerSec、recvBytesPerSec 等）依赖双快照差分，
 // 首次调用返回 0 并建立基线，之后调用才有意义。
 
@@ -31,6 +32,7 @@ struct PerfDataRaw {
   double memUsedPercent;              // 0-100
   std::vector<DiskPerf> disks;
   std::vector<NetPerf> networks;
+  gpu_collector::GpuRaw gpu;          // v2.1 GPU/显存（available=false 时降级）
   long long timestampMs;
 };
 
