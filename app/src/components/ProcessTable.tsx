@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { usePerfStore } from '../store/perfStore';
 import { labelForProcess } from '../lib/processLabels';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
@@ -89,6 +90,7 @@ interface ProcessRowProps {
   proc: ProcessInfo;
   depth: number;
   cpu: number;
+  gpu?: { gpuPercent: number; vramBytes: number };  // v2.1 GPU 列（来自 perfStore，可能无）
   hasChildren: boolean;
   isExpanded: boolean;
   isSelected: boolean;
@@ -104,13 +106,14 @@ interface ProcessRowProps {
 }
 
 const ProcessRow = memo(function ProcessRow({
-  proc, depth, cpu, hasChildren, isExpanded, isSelected, isFocused,
+  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, isFocused,
   onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow, onRowKeyDown,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
   const memMB = proc.workingSetBytes / 1048576;
   const memHighlight = memMB > 500;
   const cpuHighlight = cpu > 50;
+  const gpuHighlight = (gpu?.gpuPercent ?? 0) > 50;
 
   return (
     <tr
@@ -175,6 +178,14 @@ const ProcessRow = memo(function ProcessRow({
       >
         {cpu.toFixed(1)}
       </td>
+      {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
+      <td
+        className={`px-2 py-1 text-right font-mono ${
+          gpuHighlight ? 'text-red-400' : 'text-fg-primary'
+        }`}
+      >
+        {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
+      </td>
       <td
         className={`px-2 py-1 text-right font-mono ${
           memHighlight ? 'text-amber-400' : 'text-fg-primary'
@@ -235,6 +246,14 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     selectAll,
     clearSelection,
   } = useProcessPanelStore();
+  // v2.1 GPU 数据来自 perfStore（独立于 processPanelStore；perf 面板不可见时不更新）
+  const gpuPerProcess = usePerfStore((s) => s.current?.gpu.perProcess);
+  const gpuAvailable = usePerfStore((s) => s.current?.gpu.available ?? false);
+  const gpuMap = useMemo(() => {
+    const m = new Map<number, { gpuPercent: number; vramBytes: number }>();
+    if (gpuPerProcess) for (const p of gpuPerProcess) m.set(p.pid, { gpuPercent: p.gpuPercent, vramBytes: p.vramBytes });
+    return m;
+  }, [gpuPerProcess]);
 
   // Stable callbacks so memoized rows don't re-render on every parent render.
   const onToggleExpand = useCallback((pid: number) => toggleExpand(pid), [toggleExpand]);
@@ -265,6 +284,8 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
         switch (sortKey) {
           case 'cpu':
             return cpuMap[p.pid] || 0;
+          case 'gpu':
+            return gpuMap.get(p.pid)?.gpuPercent ?? 0;
           case 'memory':
             return p.workingSetBytes;
           case 'pid':
@@ -276,7 +297,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       );
     }
     return arr;
-  }, [filtered, sortKey, sortAsc, cpuMap]);
+  }, [filtered, sortKey, sortAsc, cpuMap, gpuMap]);
 
   // ---- Build display tree from sorted flat list ----
   const rows = useMemo(
@@ -424,6 +445,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       proc={proc}
       depth={depth}
       cpu={cpuMap[proc.pid] || 0}
+      gpu={gpuAvailable ? gpuMap.get(proc.pid) : undefined}
       hasChildren={childrenParentSet.has(proc.pid)}
       isExpanded={expandedPids.has(proc.pid)}
       isSelected={selectedPids.has(proc.pid)}
@@ -474,6 +496,18 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
               onKeyDown={(e) => onSortKeyDown(e, 'cpu')}
             >
               CPU% {sortKey === 'cpu' ? (sortAsc ? '↑' : '↓') : ''}
+            </th>
+            {/* v2.1 GPU% 列头（无 GPU 环境仍显示，数据为 —） */}
+            <th
+              tabIndex={0}
+              role="button"
+              aria-sort={sortKey === 'gpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              onClick={() => onSort('gpu')}
+              onKeyDown={(e) => onSortKeyDown(e, 'gpu')}
+              title="数据来自性能面板轮询"
+            >
+              GPU% {sortKey === 'gpu' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
               tabIndex={0}

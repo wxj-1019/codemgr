@@ -4,6 +4,7 @@ import 'react-mosaic-component/react-mosaic-component.css';
 import { PortRadar } from './components/PortRadar';
 import { ProcessPanel } from './components/ProcessPanel';
 import { PerfPanel } from './components/PerfPanel';
+import { SnapshotPanel } from './components/SnapshotPanel';
 import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
 import { PluginHost } from './components/PluginHost';
@@ -26,9 +27,10 @@ const BUILTIN_TITLES: Record<BuiltInPanelId, string> = {
   port: '端口雷达',
   process: '进程',
   perf: '性能',
+  snapshot: '快照',
 };
 
-const ALL_BUILTIN: BuiltInPanelId[] = ['port', 'process', 'perf'];
+const ALL_BUILTIN: BuiltInPanelId[] = ['port', 'process', 'perf', 'snapshot'];
 
 const PRESETS: { id: PresetId; label: string }[] = [
   { id: 'classic', label: '经典' },
@@ -173,6 +175,7 @@ export function App() {
                 {id === 'port' && <PortRadar />}
                 {id === 'process' && <ProcessPanel />}
                 {id === 'perf' && <PerfPanel />}
+                {id === 'snapshot' && <SnapshotPanel />}
                 {id.startsWith('plugin:') && <PluginPanel id={id} />}
               </Panel>
             </MosaicWindow>

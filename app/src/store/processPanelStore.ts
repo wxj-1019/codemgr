@@ -20,7 +20,7 @@ interface ProcessPanelState {
   // 影响（防分组抖动）；进程退出随 pidSet 清理一并失效（见 setProcesses prune）。
   preciseCwdByPid: Record<number, string>;
   filter: string;
-  sortKey: 'pid' | 'name' | 'cpu' | 'memory';
+  sortKey: 'pid' | 'name' | 'cpu' | 'memory' | 'gpu';
   sortAsc: boolean;
   viewMode: 'tree' | 'project';     // 树形 / 按项目
   expandedPids: Set<number>;

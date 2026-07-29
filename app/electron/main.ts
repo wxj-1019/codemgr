@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog, utilityProcess, MessageChannelMain } from 'electron';
 import path from 'node:path';
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES } from './ipc-types';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 
 // 开发时加载 vite dev server，生产时加载打包产物
@@ -269,6 +270,143 @@ ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_evt, enabled: boolean) => {
   }
   // 无论成败都返回实际状态，渲染层据此回滚 UI
   return app.getLoginItemSettings().openAtLogin;
+});
+
+// ── 进程快照对比（v2.2，spec §2.2）──
+// 受控文件 IO：userData/snapshots/<id>.json，一快照一文件。
+// 渲染层不指定 id（save 时 main 用 crypto.randomUUID() 生成），id 必须匹配
+// uuid 正则（防 `../../` 逃逸 userData 的路径穿越攻击，红线 D7）。
+const SNAPSHOT_MAX = 20;                          // 上限 20，防无限增长
+const SNAPSHOT_DIR = () => path.join(app.getPath('userData'), 'snapshots');
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// 路径穿越防护：id 必须严格匹配 uuid 形式，任何含路径分隔符/点的值都被拒。
+function isValidSnapshotId(id: string): boolean {
+  return typeof id === 'string' && UUID_RE.test(id);
+}
+
+// 校验单条 SnapshotEntry 结构（防坏文件让 store 崩）。失败抛错，由上层 catch 转为 null。
+function validateSnapshotEntry(x: unknown): SnapshotEntry {
+  if (typeof x !== 'object' || x === null) throw new Error('entry not object');
+  const e = x as Record<string, unknown>;
+  if (typeof e.pid !== 'number' || !Number.isFinite(e.pid)) throw new Error('pid');
+  if (typeof e.createTimeMs !== 'number' || !Number.isFinite(e.createTimeMs)) throw new Error('createTimeMs');
+  if (typeof e.name !== 'string') throw new Error('name');
+  if (typeof e.cmdline !== 'string') throw new Error('cmdline');
+  if (typeof e.cwd !== 'string') throw new Error('cwd');
+  if (typeof e.workingSetBytes !== 'number' || !Number.isFinite(e.workingSetBytes)) throw new Error('workingSetBytes');
+  return e as unknown as SnapshotEntry;
+}
+
+// 校验完整 ProcessSnapshot 结构（load 时用）。坏 schema 抛错 → 上层 catch 返 null。
+function validateProcessSnapshot(x: unknown): ProcessSnapshot {
+  if (typeof x !== 'object' || x === null) throw new Error('snapshot not object');
+  const o = x as Record<string, unknown>;
+  if (!isValidSnapshotId(o.id as string)) throw new Error('id');
+  if (typeof o.name !== 'string') throw new Error('name');
+  if (typeof o.createdAt !== 'number' || !Number.isFinite(o.createdAt)) throw new Error('createdAt');
+  if (!Array.isArray(o.entries)) throw new Error('entries');
+  for (const e of o.entries) validateSnapshotEntry(e);
+  return o as unknown as ProcessSnapshot;
+}
+
+// list：读目录所有 .json，只返元信息（id/name/createdAt/count）。坏文件跳过、整体不崩。
+ipcMain.handle(IPC.SNAPSHOT_LIST, (): SnapshotMeta[] => {
+  try {
+    const dir = SNAPSHOT_DIR();
+    if (!existsSync(dir)) return [];
+    const metas: SnapshotMeta[] = [];
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const parsed = JSON.parse(readFileSync(path.join(dir, file), 'utf8'));
+        const snap = validateProcessSnapshot(parsed);
+        metas.push({ id: snap.id, name: snap.name, createdAt: snap.createdAt, count: snap.entries.length });
+      } catch {
+        // 单个坏文件跳过，不影响其余快照列出（spec §2.6 风险对策）
+      }
+    }
+    // 按 createdAt 倒序：最新的快照排在最前，与 UI 直觉一致。
+    metas.sort((a, b) => b.createdAt - a.createdAt);
+    return metas;
+  } catch (e) {
+    console.error('snapshot:list failed:', e);
+    return [];
+  }
+});
+
+// save：main 生成 id，校验 schema + 上限 20，写 <id>.json。失败返 null。
+ipcMain.handle(IPC.SNAPSHOT_SAVE, (_evt, name: string, entries: SnapshotEntry[]): ProcessSnapshot | null => {
+  try {
+    if (typeof name !== 'string' || name.trim() === '') {
+      console.error('snapshot:save rejected: empty name');
+      return null;
+    }
+    if (!Array.isArray(entries)) {
+      console.error('snapshot:save rejected: entries not array');
+      return null;
+    }
+    // 逐条校验，任一非法即拒（防脏数据污染磁盘存储）
+    for (const e of entries) validateSnapshotEntry(e);
+
+    const dir = SNAPSHOT_DIR();
+    // 上限检查：count 现有 .json 数；超出提示删旧（spec §2.2 上限 20）。
+    if (existsSync(dir)) {
+      const existing = readdirSync(dir).filter((f) => f.endsWith('.json')).length;
+      if (existing >= SNAPSHOT_MAX) {
+        console.error(`snapshot:save rejected: 上限 ${SNAPSHOT_MAX} 已满`);
+        return null;
+      }
+    } else {
+      mkdirSync(dir, { recursive: true });
+    }
+
+    const id = randomUUID();                  // main 生成 id，渲染层不指定（消除穿越面）
+    const snap: ProcessSnapshot = {
+      id,
+      name: name.trim(),
+      createdAt: Date.now(),
+      entries,
+    };
+    writeFileSync(path.join(dir, `${id}.json`), JSON.stringify(snap, null, 2), 'utf8');
+    return snap;
+  } catch (e) {
+    console.error('snapshot:save failed:', e);
+    return null;
+  }
+});
+
+// load：按 id 读全量。id 非 uuid / 文件不存在 / 损坏 → null。
+ipcMain.handle(IPC.SNAPSHOT_LOAD, (_evt, id: string): ProcessSnapshot | null => {
+  try {
+    if (!isValidSnapshotId(id)) {
+      console.error('snapshot:load rejected: invalid id (path traversal guard)');
+      return null;
+    }
+    const file = path.join(SNAPSHOT_DIR(), `${id}.json`);
+    if (!existsSync(file)) return null;
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    return validateProcessSnapshot(parsed);     // schema 不符 → throw → null
+  } catch (e) {
+    console.error('snapshot:load failed:', e);
+    return null;
+  }
+});
+
+// delete：按 id 删文件，返是否成功。
+ipcMain.handle(IPC.SNAPSHOT_DELETE, (_evt, id: string): boolean => {
+  try {
+    if (!isValidSnapshotId(id)) {
+      console.error('snapshot:delete rejected: invalid id (path traversal guard)');
+      return false;
+    }
+    const file = path.join(SNAPSHOT_DIR(), `${id}.json`);
+    if (!existsSync(file)) return false;        // 文件不存在视为失败（id 错误或已被删）
+    unlinkSync(file);
+    return true;
+  } catch (e) {
+    console.error('snapshot:delete failed:', e);
+    return false;
+  }
 });
 
 // ── 插件数据源 UtilityProcess（6c）──

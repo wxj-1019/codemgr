@@ -24,6 +24,14 @@ export const IPC = {
   // 开机自启：读/写 login item 设置（经 app.getLoginItemSettings / setLoginItemSettings）
   GET_AUTO_LAUNCH: 'app:getAutoLaunch',
   SET_AUTO_LAUNCH: 'app:setAutoLaunch',
+  // 进程快照对比（v2.2）：文件 IO 封在 main（userData/snapshots/<id>.json），
+  // 渲染层只收发数据，拿不到路径（与 EXPORT_LABEL_RULES / LIST_PLUGINS 同红线）。
+  // - list 只返元信息（id/name/createdAt/count）；load 才返完整 entries。
+  // - save 由 main 用 crypto.randomUUID() 生成 id，渲染层不指定 id（消除穿越面）。
+  SNAPSHOT_LIST: 'snapshot:list',
+  SNAPSHOT_SAVE: 'snapshot:save',
+  SNAPSHOT_DELETE: 'snapshot:delete',
+  SNAPSHOT_LOAD: 'snapshot:load',
 } as const;
 
 /**
@@ -78,6 +86,42 @@ export interface PluginManifestEntry {
  */
 export const ALLOWED_CAPABILITIES: ReadonlySet<string> = new Set(['demo-source', 'disk-volumes']);
 
+// ── 进程快照对比（v2.2，spec §2.2） ──
+
+/**
+ * 快照条目 = ProcessInfo 的子集 + 必要元信息。只保留 diff/分组/展示所需的字段，
+ * 比存全量 ProcessInfo 小很多（每进程约 5 字段 vs 10+）。字段类型与 ProcessInfo 对齐，
+ * 以便 diff 引擎与 groupByProject 复用同一套分组代码。
+ */
+export interface SnapshotEntry {
+  pid: number;
+  /** 进程创建时间（identity 的一部分：PID 会被系统复用，单 pid 不够防误判）。 */
+  createTimeMs: number;
+  name: string;
+  cmdline: string;
+  cwd: string;
+  workingSetBytes: number;
+}
+
+/** 完整快照（save 时构造、load 时返回）。id 由 main 用 crypto.randomUUID() 生成。 */
+export interface ProcessSnapshot {
+  id: string;            // uuid
+  name: string;          // 用户命名
+  createdAt: number;     // Date.now()（main 写入时刻）
+  entries: SnapshotEntry[];
+}
+
+/**
+ * 快照列表项（仅元信息，不含 entries）。list 通道返回此类型，避免一次性拉全量
+ * 历史快照导致内存膨胀（20 个快照 × 每个数百 entries 会显著拖慢首屏）。
+ */
+export interface SnapshotMeta {
+  id: string;
+  name: string;
+  createdAt: number;
+  count: number;         // entries.length，仅用于 UI 显示进程数
+}
+
 // 与 codemgr-native 的 NetConnection 一致（重新声明，避免渲染层直接依赖 native 包）
 export interface NetConnection {
   protocol: 'tcp' | 'udp';
@@ -124,6 +168,13 @@ export interface PerfData {
     activePercent: number;
   }>;
   networks: Array<{ name: string; recvBytesPerSec: number; sendBytesPerSec: number }>;
+  gpu: {
+    available: boolean;
+    totalPercent: number;
+    vramUsedBytes: number;
+    vramBudgetBytes: number;
+    perProcess: Array<{ pid: number; gpuPercent: number; vramBytes: number }>;
+  };
   timestamp: number;
 }
 
@@ -157,4 +208,14 @@ export interface ExposedApi {
   getAutoLaunch(): Promise<boolean>;
   // 开机自启：设置后返回实际生效状态（UI 以此为准，失败时调用方回滚）
   setAutoLaunch(enabled: boolean): Promise<boolean>;
+  // 进程快照对比（v2.2）。文件 IO 封在 main（userData/snapshots/），渲染层只收发数据。
+  // - listSnapshots：只返元信息（不含 entries），UI 列表展示用。
+  // - saveSnapshot：main 生成 id + 校验 + 写文件。返完整快照（含生成的 id），
+  //   null = 校验失败/超 20 上限/写盘失败（UI 据此报错）。
+  // - deleteSnapshot：按 id 删，返是否成功。
+  // - loadSnapshot：按 id 读全量 entries；null = 文件不存在/损坏/schema 不符。
+  listSnapshots(): Promise<SnapshotMeta[]>;
+  saveSnapshot(name: string, entries: SnapshotEntry[]): Promise<ProcessSnapshot | null>;
+  deleteSnapshot(id: string): Promise<boolean>;
+  loadSnapshot(id: string): Promise<ProcessSnapshot | null>;
 }

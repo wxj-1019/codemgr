@@ -17,7 +17,8 @@ if(WIN32)
     iphlpapi     # GetExtendedTcpTable
     ws2_32       # 网络辅助
     user32
-    pdh          # PDH 磁盘 IO 速率计数器
+    pdh          # PDH 磁盘 IO + GPU Engine 计数器
+    dxgi         # IDXGIAdapter3::QueryVideoMemoryInfo（GPU 显存总量，v2.1）
   )
 endif()
 
@@ -29,6 +30,7 @@ add_library(${PROJECT_NAME} SHARED
   src/cpu_tracker.cpp
   src/process_ops.cpp
   src/perf_collector.cpp
+  src/gpu_collector.cpp
   src/env_collector.cpp
   src/cwd_collector.cpp
   src/disk_collector.cpp

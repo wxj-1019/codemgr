@@ -53,6 +53,13 @@ export interface PerfData {
     activePercent: number;
   }>;
   networks: Array<{ name: string; recvBytesPerSec: number; sendBytesPerSec: number }>;
+  gpu: {
+    available: boolean;          // false 时 UI 显示"不可用"（虚拟机/远程桌面）
+    totalPercent: number;        // 0-100
+    vramUsedBytes: number;       // DXGI Local CurrentUsage
+    vramBudgetBytes: number;     // DXGI Local Budget（0 = 未知，DXGI 失败时）
+    perProcess: Array<{ pid: number; gpuPercent: number; vramBytes: number }>;
+  };
   timestamp: number;
 }
 

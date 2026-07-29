@@ -17,6 +17,11 @@ export function mockIpc(
     fetchPerf: () => Promise<any>;
     killProcess: () => Promise<boolean>;
     killByName: () => Promise<number>;
+    killByPids: () => Promise<number>;
+    listSnapshots: () => Promise<any[]>;
+    saveSnapshot: () => Promise<any>;
+    deleteSnapshot: () => Promise<boolean>;
+    loadSnapshot: () => Promise<any>;
   }> = {}
 ) {
   const base = {
@@ -26,6 +31,12 @@ export function mockIpc(
     fetchPerf: vi.fn(() => Promise.resolve(null)),
     killProcess: vi.fn(() => Promise.resolve(true)),
     killByName: vi.fn(() => Promise.resolve(1)),
+    killByPids: vi.fn(() => Promise.resolve(0)),
+    // 进程快照对比（v2.2）：默认空列表 / save 返 null（store 测试按用例 override）
+    listSnapshots: vi.fn(() => Promise.resolve([])),
+    saveSnapshot: vi.fn(() => Promise.resolve(null)),
+    deleteSnapshot: vi.fn(() => Promise.resolve(true)),
+    loadSnapshot: vi.fn(() => Promise.resolve(null)),
     ...overrides,
   };
   Object.defineProperty(window, 'codemgr', {
