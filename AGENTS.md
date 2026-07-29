@@ -171,3 +171,45 @@ scope:  native | app | ci | docs（可选）
 14. **native addon 路径**：main.ts 用 `app.isPackaged` 分流——开发 `../../codemgr-native/build/Release/...`，打包 `process.resourcesPath/codemgr-native.node`（extraResources 带入）。改 native 后打包前必须 `pnpm build:electron`（Electron ABI）。
 15. **图标资产**：`app/build/icon.ico`（多尺寸 256/128/64/48/32/16，electron-builder 按约定自动采用）、`icon.png`（256）、`tray-icon.png`（32，透明底）。由 `app/build/gen_icon.py` 生成（`py app/build/gen_icon.py`，依赖 Pillow），改设计改脚本重跑即可，勿手改位图。
 16. **CI bench**：continue-on-error 软 gate（runner 负载波动大，硬 gate 会误杀）。
+
+---
+
+## 10. 常见任务食谱（AI 上手捷径）
+
+高频任务的"要碰哪些文件"清单，省去每次重新摸索链路。改完一律遵守 §5（测试/提交规范）与 §7（避坑）。
+
+### 10.1 新增一个 native 函数（6 处接线，缺一不可）
+
+| # | 文件 | 改什么 |
+|---|------|--------|
+| 1 | `codemgr-native/src/<collector>.cpp/.h` | 实现（单 collector 单职责） |
+| 2 | `codemgr-native/src/addon.cpp` | `exports.Set("fnName", ...)` 注册 |
+| 3 | `codemgr-native/index.ts` | `NativeBindings` 加类型声明 |
+| 4 | `app/electron/ipc-types.ts` | `IPC` 通道常量 + `ExposedApi` 方法签名 |
+| 5 | `app/electron/preload.ts` + `app/electron/main.ts` | invoke 封装 + ipcMain.handle（catch 后返回降级值） |
+| 6 | `app/src/lib/ipc.ts` | 渲染层薄封装 |
+
+- 测试：native 侧 `codemgr-native/tests/` 加用例（读自身进程必有数据）。
+- **必跑**：`pnpm build`（Node 目标，供测试）→ `pnpm vitest run` → `pnpm build:electron`（Electron ABI）→ 动了热路径再 `pnpm bench`。
+
+### 10.2 新增一个面板
+
+1. `app/src/store/<panel>Store.ts`（persist + partialize 白名单，照 portRadarStore 范式，TDD）。
+2. `app/src/hooks/use<Panel>.ts`（轮询：busyRef 防重入 + stoppedRef 卸载清理 + visibilityStore 可见性订阅 + 从 store 读 pollMs）。
+3. `app/src/components/<Panel>.tsx`（渲染，不直接调 IPC，走 `lib/ipc.ts`）。
+4. 挂进 mosaic：`App.tsx` 的 PANELS 映射 + `layoutStore` 预设（如需）。
+5. 加载/错误/空三态用 `LoadState` 组件（错误在有数据时降级为 banner，不整屏替换）。
+
+### 10.3 新增/修改标签规则
+
+- 只改 `app/src/lib/defaultRules.ts`（默认规则，TDD：`app/tests/defaultRules.test.ts`）。
+- 规则模型：`groups`（OR）× 组内 `include`（AND 子串）+ `exclude`（NOT）；`field: name/cmdline/both`。**无正则**。
+- 防误伤：短词（如 kimi）必须带分隔符/扩展名（`kimi.exe`、`\kimi\`），用户名目录是经典误伤面。
+- 新 kind 要补 `KIND_COLORS`（目前在 `ProcessTable.tsx`/`ProjectGroupView.tsx`/`LabelRuleEditor.tsx` 三处重复定义——改动要同步三处）。
+
+### 10.4 发版流程
+
+1. 全量回归：`pnpm test:native && cd app && pnpm vitest run && pnpm typecheck`。
+2. 性能敏感改动：`pnpm bench`（注意负载敏感，先做基线对照，§8 有判读说明）。
+3. 更新 `CHANGELOG.md`（新版本节）+ `AGENTS.md` §8（版本/测试数/基线）。
+4. `pnpm build` 验证 → 打 tag（如 `v1.9`）→ `pnpm dist` 留人工（需关杀软）。
