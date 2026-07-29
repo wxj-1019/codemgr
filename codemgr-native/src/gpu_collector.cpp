@@ -163,11 +163,17 @@ static bool CollectVramViaDxgi(unsigned long long& used, unsigned long long& bud
   return ok;
 }
 
+// 模块加载时预热 PDH/DXGI：冷启动（ExpandWildCardPath + AddEnglishCounter ×N +
+// CreateDXGIFactory）约数百 ms，放在 addon 加载时（Electron 启动，用户无感），
+// 而非首次 perfCounters——避免 perfCounters p99 尖刺（spec 判据 <10ms）。
+// 失败静默（InitGpuPdh 内部已处理：无 GPU 计数器 → available=false）。
+static bool g_gpuPreheated = ([]() { InitGpuPdh(); return g_gpuPdh.initialized; })();
+
 // ---------------------------------------------------------------------------
 // 采集入口：聚合 PDH + DXGI，写入 raw
 // ---------------------------------------------------------------------------
 void CollectGpu(GpuRaw& raw) {
-  InitGpuPdh();
+  InitGpuPdh();  // 幂等：已初始化则立即返回（预热后此处为 no-op）
   // 无 GPU 计数器 → 降级
   if (!g_gpuPdh.query || g_gpuPdh.utilCounters.empty()) {
     raw.available = false;
