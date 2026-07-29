@@ -206,8 +206,8 @@ export function ProcessDetailSidebar({
 
   if (selectedPids.size === 0) {
     return (
-      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:block">
-        <p className="text-sm text-fg-muted">选中一个进程查看详情</p>
+      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:flex lg:items-center lg:justify-center">
+        <p className="text-xs text-fg-muted/70">选中一个进程查看详情</p>
       </aside>
     );
   }

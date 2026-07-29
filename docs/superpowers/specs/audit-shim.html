@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeMgr · UI 审计样机</title>
+  <!--
+    审计样机模板：构建后用脚本把 __APP_JS__/__APP_CSS__ 替换为 dist-renderer/index.html 的实际 hash 引用，
+    输出为 dist-renderer/audit.html（被 emptyOutDir 清理，需每次重建后重新生成）。
+    用途：无 Electron 环境下用样例数据渲染真实 UI，供 impeccable 视觉审计截图。
+  -->
+  <script>
+    // 审计用 mock：window.codemgr 的薄桩，返回固定样例数据（非生产代码）
+    const procs = [
+      { pid: 9012, ppid: 4000, name: 'node', cmdline: 'node vite --port 5173', cwd: 'E:/A_Project/codemgr', kernelTimeMs: 1200, userTimeMs: 3400, workingSetBytes: 197132288, createTimeMs: Date.now() - 3600000, threadCount: 18, handleCount: 412 },
+      { pid: 14420, ppid: 1210, name: 'claude', cmdline: 'claude --resume', cwd: 'E:/A_Project/codemgr', kernelTimeMs: 9000, userTimeMs: 88000, workingSetBytes: 746586112, createTimeMs: Date.now() - 7200000, threadCount: 24, handleCount: 688 },
+      { pid: 6108, ppid: 1, name: 'ollama', cmdline: 'ollama serve', cwd: '', kernelTimeMs: 40000, userTimeMs: 310000, workingSetBytes: 4939212390, createTimeMs: Date.now() - 86400000, threadCount: 32, handleCount: 900 },
+      { pid: 3456, ppid: 1, name: 'mysqld', cmdline: 'mysqld --datadir=/var/lib/mysql', cwd: '', kernelTimeMs: 8000, userTimeMs: 60000, workingSetBytes: 421527552, createTimeMs: Date.now() - 90000000, threadCount: 40, handleCount: 1200 },
+      { pid: 2701, ppid: 1, name: 'postgres', cmdline: 'postgres -D pgdata', cwd: '', kernelTimeMs: 5000, userTimeMs: 30000, workingSetBytes: 301989888, createTimeMs: Date.now() - 90000000, threadCount: 12, handleCount: 500 },
+      { pid: 11200, ppid: 9012, name: 'node', cmdline: 'node node_modules/.bin/vitest run', cwd: 'E:/A_Project/codemgr', kernelTimeMs: 3000, userTimeMs: 21000, workingSetBytes: 260046848, createTimeMs: Date.now() - 600000, threadCount: 14, handleCount: 350 },
+      { pid: 4, ppid: 0, name: 'System', cmdline: '', cwd: '', kernelTimeMs: 900000, userTimeMs: 0, workingSetBytes: 262144, createTimeMs: Date.now() - 99999999, threadCount: 160, handleCount: 5000 },
+      { pid: 7820, ppid: 1210, name: 'Code', cmdline: 'Code.exe', cwd: '', kernelTimeMs: 20000, userTimeMs: 90000, workingSetBytes: 880803840, createTimeMs: Date.now() - 40000000, threadCount: 40, handleCount: 2100 },
+    ];
+    const cpu = procs.map((p, i) => ({ pid: p.pid, cpuPercent: [2.1, 54.7, 31.2, 0.8, 0.3, 12.4, 0.0, 6.6][i] }));
+    const conns = [
+      { protocol: 'tcp', localAddr: '127.0.0.1', localPort: 5173, remoteAddr: '*', remotePort: 0, state: 'LISTENING', pid: 9012, processName: 'node' },
+      { protocol: 'tcp', localAddr: '::', localPort: 3000, remoteAddr: '*', remotePort: 0, state: 'LISTENING', pid: 9012, processName: 'node' },
+      { protocol: 'tcp', localAddr: '0.0.0.0', localPort: 3306, remoteAddr: '*', remotePort: 0, state: 'LISTENING', pid: 3456, processName: 'mysqld' },
+      { protocol: 'tcp', localAddr: '0.0.0.0', localPort: 5432, remoteAddr: '*', remotePort: 0, state: 'LISTENING', pid: 2701, processName: 'postgres' },
+      { protocol: 'tcp', localAddr: '127.0.0.1', localPort: 11434, remoteAddr: '*', remotePort: 0, state: 'LISTENING', pid: 6108, processName: 'ollama' },
+      { protocol: 'udp', localAddr: '0.0.0.0', localPort: 5353, remoteAddr: '*', remotePort: 0, state: '-', pid: 4, processName: 'System' },
+    ];
+    const perf = {
+      cpu: { totalPercent: 37, perCore: [22, 41, 18, 55, 30, 47, 26, 39] },
+      memory: { totalBytes: 34359738368, availableBytes: 12884901888, usedPercent: 62.5 },
+      disks: [{ name: 'C:', totalBytes: 512110190592, freeBytes: 180388626432, readBytesPerSec: 12582912, writeBytesPerSec: 4718592, activePercent: 8 }],
+      networks: [{ name: 'WLAN', recvBytesPerSec: 2097152, sendBytesPerSec: 524288 }],
+      gpu: { available: true, totalPercent: 41, vramUsedBytes: 4831838208, vramBudgetBytes: 7810449408, perProcess: [{ pid: 6108, gpuPercent: 78.9, vramBytes: 4160749568 }, { pid: 7820, gpuPercent: 6.2, vramBytes: 327155712 }, { pid: 14420, gpuPercent: 1.2, vramBytes: 90177536 }] },
+      timestamp: Date.now(),
+    };
+    const ok = (data) => ({ ok: true, data, sampledAt: Date.now() });
+    window.codemgr = {
+      fetchProcesses: async () => ok(procs),
+      fetchCpu: async () => cpu,
+      fetchConnections: async () => ok(conns),
+      fetchPerf: async () => ok(perf),
+      killProcess: async () => true,
+      killByPids: async (ids) => ids.length,
+      killByName: async () => 0,
+      killTree: async () => 1,
+      fetchProcessEnv: async () => ({ PATH: 'C:\\Windows;C:\\nodejs', NODE_ENV: 'development', PORT: '5173' }),
+      fetchCwd: async () => 'E:/A_Project/codemgr',
+      getAppVersion: async () => '2.2.0',
+      getAutoLaunch: async () => false,
+      setAutoLaunch: async (v) => v,
+      listSnapshots: async () => [],
+      saveSnapshot: async () => null,
+      deleteSnapshot: async () => true,
+      loadSnapshot: async () => null,
+      exportLabelRules: async () => true,
+      importLabelRules: async () => null,
+      listPlugins: async () => [],
+      requestDataSource: async () => {},
+      onDataSourceResult: () => () => {},
+      fetchGitIdentity: async () => null,
+    };
+  </script>
+  <script type="module" crossorigin src="__APP_JS__"></script>
+  <link rel="stylesheet" crossorigin href="__APP_CSS__">
+</head>
+<body class="bg-slate-900">
+  <div id="root"></div>
+</body>
+</html>

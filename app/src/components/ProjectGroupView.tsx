@@ -3,6 +3,7 @@ import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
 import { groupByProject } from '../lib/projectGroup';
+import { FolderIcon, PackageIcon } from './icons';
 import { ipc } from '../lib/ipc';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
@@ -74,7 +75,7 @@ const GroupRow = memo(function GroupRow({
             <span className="w-4 text-xs text-fg-muted">
               {pids.length > 0 ? (isExpanded ? '▾' : '▸') : ''}
             </span>
-            <span>{dir ? '📁' : '📦'}</span>
+            <span className="text-fg-muted">{dir ? <FolderIcon /> : <PackageIcon />}</span>
             <span className="truncate max-w-[260px]">{name}</span>
             <span className="ml-1 text-xs font-normal text-fg-muted">
               ({pids.length} 进程 · 合计 {formatMem(totalMemory)})

@@ -5,6 +5,7 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePerfStore } from '../store/perfStore';
 import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
+import { formatBytes } from '../lib/format';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
 interface ProcessTableProps {
@@ -62,10 +63,9 @@ function buildTree(procs: ProcessInfo[], expandedPids: Set<number>): TreeRow[] {
   return result;
 }
 
-/** Format working-set bytes as a human-readable MB string. */
+/** Format working-set bytes as a human-readable string (GB/MB 带单位). */
 function formatMem(bytes: number): string {
-  const mb = bytes / 1048576;
-  return mb >= 1000 ? mb.toFixed(0) : mb.toFixed(1);
+  return formatBytes(bytes);
 }
 
 // 虚拟列表：可见行数超过阈值才启用（设计文档 §3.2：>100 进程启用虚拟滚动）。
@@ -189,7 +189,7 @@ const ProcessRow = memo(function ProcessRow({
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
       <td
-        className={`px-2 py-1 text-right font-mono ${
+        className={`whitespace-nowrap px-2 py-1 text-right font-mono ${
           memHighlight ? 'text-warn' : 'text-fg-primary'
         }`}
       >
@@ -488,7 +488,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   return (
     <div ref={scrollRef} className="overflow-auto flex-1">
       <table ref={tableRef} role="grid" className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs text-fg-muted">
           <tr>
             <th className="w-8 px-1 py-2">
               <input
@@ -539,11 +539,11 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'memory' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-20 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              className="w-24 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('memory')}
               onKeyDown={(e) => onSortKeyDown(e, 'memory')}
             >
-              内存/MB {sortKey === 'memory' ? (sortAsc ? '↑' : '↓') : ''}
+              内存 {sortKey === 'memory' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
               tabIndex={0}

@@ -133,6 +133,16 @@ body {
   .panel-active::before { animation: none; }
 }
 
+/* 单面板（classic 预设）时隐藏 mosaic 窗口工具栏——与面板自身 header 标题重复，纯属噪音 */
+.single-leaf .mosaic-window .mosaic-window-toolbar {
+  display: none;
+}
+
+/* ── 表单控件统一 ── */
+input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
 /* ── 滚动条：8px 细轨（Linear 纪律）── */
 ::-webkit-scrollbar {
   width: 8px;

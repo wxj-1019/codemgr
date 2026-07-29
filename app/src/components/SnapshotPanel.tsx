@@ -3,6 +3,7 @@ import type { SnapshotEntry, ProcessSnapshot } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
+import { FolderIcon, PackageIcon } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -467,7 +468,7 @@ function EntryGroupList({
       {groups.map((g) => (
         <div key={g.name + (g.dir ?? '')} className="border-b border-base-700/40">
           <div className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-fg-secondary">
-            <span>{g.dir ? '📁' : '📦'}</span>
+            <span className="text-fg-muted">{g.dir ? <FolderIcon /> : <PackageIcon />}</span>
             <span className="truncate">{g.name}</span>
             <span className="text-fg-muted">({g.pids.length} · {formatMem(g.totalMemory)})</span>
           </div>

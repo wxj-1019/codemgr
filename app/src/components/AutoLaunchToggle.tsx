@@ -41,7 +41,7 @@ export function AutoLaunchToggle() {
       aria-label="开机自启"
       title={enabled ? '开机自启：已开启' : '开机自启：已关闭'}
     >
-      {enabled ? '🚀 自启' : '自启'}
+      {enabled ? '自启 · 开' : '自启'}
     </button>
   );
 }

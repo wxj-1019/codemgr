@@ -206,7 +206,7 @@ export function ProcessPanel() {
             className="rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700"
             title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
           >
-            {viewMode === 'tree' ? '📁 按项目' : '🌲 树形'}
+            {viewMode === 'tree' ? '按项目' : '树形'}
           </button>
           {hasNode && (
             <button
