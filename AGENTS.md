@@ -146,8 +146,8 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
-- **v2.2**（未发版）：进程快照对比（受控文件 IO `userData/snapshots/` + diff 引擎 identity=pid:createTimeMs + SnapshotPanel 挂 mosaic，完成 spec D6/D7）。
-- **v2.1**（未发版）：AI 开发工具默认标签（Claude/Kimi/Aider/Codex/Cursor/Ollama/LM Studio，新 kind `ai`/`ai-ide`）+ 开机自启开关（setLoginItemSettings，nav toggle）+ GPU/显存监控（PDH English GPU Engine counters + DXGI 显存 + perf GPU 子标签 + 进程 GPU% 列，完成 spec D5，无 GPU 降级）。
+- **v2.2**（tag `v2.2`）：进程快照对比（受控文件 IO `userData/snapshots/` + diff 引擎 identity=pid:createTimeMs + SnapshotPanel 挂 mosaic，完成 spec D6/D7）。
+- **v2.1**（tag `v2.1`）：AI 开发工具默认标签（Claude/Kimi/Aider/Codex/Cursor/Ollama/LM Studio，新 kind `ai`/`ai-ide`）+ 开机自启开关（setLoginItemSettings，nav toggle）+ GPU/显存监控（PDH English GPU Engine counters + DXGI 显存 + perf GPU 子标签 + 进程 GPU% 列，完成 spec D5，无 GPU 降级；GPU 采集经预热 + 三层优化）。
 - **v2.0**（tag `v2.0`）：插件系统 6b 第一步——iframe 沙箱插件注册标签规则（`userData/plugins.json` manifest，postMessage 受控 API，pluginRules 独立层末位优先级，崩溃隔离）；6b 第二步——插件视图嵌入 mosaic（PanelId 模板字面量扩展、添加面板入口、只读快照推送、悬空叶子清理）；6c 第一步——插件数据源管道（UtilityProcess + MessagePort 多跳链路 + 白名单机制，模拟数据源验证架构）；6c 第二步——真实 native 数据源（disk-volumes：磁盘卷列表 collector，验证 UtilityProcess → native 真实采集链路）。F1 沙箱选型 + PoC 已实证锁定。完成 roadmap 方案 6b 全部 + 6c 管道与首个真实数据源。
 - **v1.9**（tag `v1.9`）：精确 cwd 接入项目分组（旁路缓存 `preciseCwdByPid`，展开未分组组时按需拉取修正 dev server 误归组；缓存冻结防抖动；侧栏复用缓存）。完成 roadmap 方案 5 余项。
 - **v1.8**（tag `v1.8`）：IPv6 连接枚举（端口雷达不再漏绑 `::` 的 dev server）+ 三面板可调刷新间隔（1s/2s/5s/暂停，持久化）+ 进程表虚拟列表（>100 行启用，与键盘导航共存）+ ContextMenu 键盘导航 + LabelRuleEditor 焦点陷阱。

@@ -19,6 +19,15 @@ struct GpuRaw {
   unsigned long long vramBudgetBytes = 0;
   struct ProcGpu { DWORD pid; double gpuPercent; unsigned long long vramBytes; };
   std::vector<ProcGpu> perProcess;
+  // v2.x 多适配器明细（核显+独显分卡）。为空时回退单卡视图。
+  struct AdapterRaw {
+    std::wstring name;           // DXGI Description，如 "NVIDIA GeForce GTX 1650 Ti"
+    double totalPercent = 0;
+    unsigned long long vramUsedBytes = 0;
+    unsigned long long vramBudgetBytes = 0;
+    std::vector<ProcGpu> perProcess;
+  };
+  std::vector<AdapterRaw> adapters;
 };
 // 采集一次 GPU 数据，写入 raw。无 GPU 计数器时 available=false（不抛错）。
 void CollectGpu(GpuRaw& raw);

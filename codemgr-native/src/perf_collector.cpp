@@ -506,6 +506,28 @@ Napi::Value PerfCounters(const Napi::CallbackInfo& info) {
     perProcess[(uint32_t)i] = obj;
   }
   gpu.Set("perProcess", perProcess);
+  // v2.x 多适配器明细
+  Napi::Array adapters = Napi::Array::New(env, raw.gpu.adapters.size());
+  for (size_t i = 0; i < raw.gpu.adapters.size(); ++i) {
+    const auto& a = raw.gpu.adapters[i];
+    Napi::Object obj = Napi::Object::New(env);
+    obj.Set("name", Napi::String::New(env, (const char16_t*)a.name.c_str(), a.name.size()));
+    obj.Set("totalPercent", Napi::Number::New(env, a.totalPercent));
+    obj.Set("vramUsedBytes", Napi::Number::New(env, (double)a.vramUsedBytes));
+    obj.Set("vramBudgetBytes", Napi::Number::New(env, (double)a.vramBudgetBytes));
+    Napi::Array aProcs = Napi::Array::New(env, a.perProcess.size());
+    for (size_t j = 0; j < a.perProcess.size(); ++j) {
+      const auto& p = a.perProcess[j];
+      Napi::Object po = Napi::Object::New(env);
+      po.Set("pid", Napi::Number::New(env, (double)p.pid));
+      po.Set("gpuPercent", Napi::Number::New(env, p.gpuPercent));
+      po.Set("vramBytes", Napi::Number::New(env, (double)p.vramBytes));
+      aProcs[(uint32_t)j] = po;
+    }
+    obj.Set("perProcess", aProcs);
+    adapters[(uint32_t)i] = obj;
+  }
+  gpu.Set("adapters", adapters);
   result.Set("gpu", gpu);
 
   result.Set("timestamp", Napi::Number::New(env, (double)raw.timestampMs));

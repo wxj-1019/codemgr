@@ -59,6 +59,13 @@ export interface PerfData {
     vramUsedBytes: number;       // DXGI Local CurrentUsage
     vramBudgetBytes: number;     // DXGI Local Budget（0 = 未知，DXGI 失败时）
     perProcess: Array<{ pid: number; gpuPercent: number; vramBytes: number }>;
+    adapters: Array<{            // v2.x 多适配器明细（核显+独显分卡）
+      name: string;
+      totalPercent: number;
+      vramUsedBytes: number;
+      vramBudgetBytes: number;
+      perProcess: Array<{ pid: number; gpuPercent: number; vramBytes: number }>;
+    }>;
   };
   timestamp: number;
 }
