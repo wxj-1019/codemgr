@@ -19,7 +19,7 @@ export function LoadState({
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
           <div className="mb-2 text-2xl">⚠️</div>
-          <p className="text-sm text-red-400">加载失败</p>
+          <p className="text-sm text-danger">加载失败</p>
           <p className="mt-1 max-w-md text-xs text-fg-muted">{error}</p>
           <p className="mt-2 text-xs text-fg-muted">将在下次轮询时自动重试</p>
         </div>

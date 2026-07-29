@@ -29,10 +29,17 @@ export function MiniChart<D>({ data, dataKey, color, domain, formatValue, idSuff
           <YAxis
             domain={domain ?? ['auto', 'auto']}
             width={32}
-            tick={{ fill: '#64748b', fontSize: 10 }}
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
           />
           <Tooltip
-            contentStyle={{ background: '#1a2028', border: '1px solid #2f3947', borderRadius: 6, fontSize: 11 }}
+            contentStyle={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              fontSize: 11,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+            }}
             labelFormatter={() => ''}
             formatter={(v: number | string) => [formatValue ? formatValue(Number(v)) : String(v), '']}
           />

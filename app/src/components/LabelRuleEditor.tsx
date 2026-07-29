@@ -10,20 +10,21 @@ import { labelForProcess } from '../lib/processLabels';
 import { ipc } from '../lib/ipc';
 import { useLabelRulesStore, newRuleId, type LabelRulesSnapshot } from '../store/labelRulesStore';
 
+// Aurora v1.2：底色降到 14% 透明度，字色不变
 const KIND_COLORS: Record<string, string> = {
-  dev: 'bg-accent/20 text-accent',
-  test: 'bg-green-500/20 text-green-400',
-  build: 'bg-purple-500/20 text-purple-400',
-  container: 'bg-blue-500/20 text-blue-400',
-  db: 'bg-amber-500/20 text-amber-400',
-  system: 'bg-slate-600/30 text-fg-secondary',
-  ai: 'bg-fuchsia-500/20 text-fuchsia-400',
-  'ai-ide': 'bg-violet-500/20 text-violet-400',
+  dev: 'bg-accent/[0.14] text-accent',
+  test: 'bg-green-500/[0.14] text-green-400',
+  build: 'bg-purple-500/[0.14] text-purple-400',
+  container: 'bg-blue-500/[0.14] text-blue-400',
+  db: 'bg-amber-500/[0.14] text-amber-400',
+  system: 'bg-slate-600/[0.14] text-fg-secondary',
+  ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
+  'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
 };
 
 function badge(kind: string, label: string) {
   return (
-    <span className={`rounded px-1 text-[10px] ${KIND_COLORS[kind] || 'bg-slate-600/30 text-fg-secondary'}`}>
+    <span className={`rounded px-1 text-[10px] ${KIND_COLORS[kind] || 'bg-slate-600/[0.14] text-fg-secondary'}`}>
       {label}
     </span>
   );
@@ -168,7 +169,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="标签规则"
-        className="flex max-h-[85vh] w-[640px] flex-col rounded-lg border border-base-600 bg-base-800 shadow-2xl"
+        className="glass-elevated flex max-h-[85vh] w-[640px] flex-col rounded-[14px] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-base-700 px-5 py-3">
@@ -178,7 +179,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
               onClick={handleExport}
               disabled={ioBusy}
               title="导出规则到 JSON 文件（含自定义规则 + 默认开关/覆盖）"
-              className="rounded px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               导出
             </button>
@@ -186,7 +187,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
               onClick={handleImport}
               disabled={ioBusy}
               title="从 JSON 文件导入规则（替换现有规则）"
-              className="rounded px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               导入
             </button>
@@ -229,7 +230,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
                       {u.field} · {u.groups.map((g) => g.include.join('+')).join(' | ')}
                     </span>
                     <button onClick={() => removeUserRule(u.id)}
-                      className="ml-auto shrink-0 text-fg-muted hover:text-red-400" aria-label="删除">✕</button>
+                      className="ml-auto shrink-0 text-fg-muted hover:text-danger" aria-label="删除">✕</button>
                   </div>
                 ))}
               </div>
@@ -241,22 +242,22 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
           <div className="space-y-2 rounded border border-base-700 bg-base-900 p-3">
             <div className="flex gap-2">
               <input value={dLabel} onChange={(e) => setDLabel(e.target.value)} placeholder="标签文本 (如 my-tool)"
-                className="w-40 rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="w-40 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
               <input value={dKind} onChange={(e) => setDKind(e.target.value)} placeholder="类别 (如 dev)"
-                className="w-24 rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="w-24 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
               <select value={dField} onChange={(e) => setDField(e.target.value as MatchField)}
-                className="rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent">
+                className="rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent">
                 <option value="both">both</option>
                 <option value="name">name</option>
                 <option value="cmdline">cmdline</option>
               </select>
             </div>
             <input value={dInclude} onChange={(e) => setDInclude(e.target.value)} placeholder="匹配关键字 (逗号分隔, 全部命中=AND)"
-              className="w-full rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+              className="w-full rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
             <input value={dExclude} onChange={(e) => setDExclude(e.target.value)} placeholder="排除关键字 (逗号分隔, 任一命中则不匹配)"
-              className="w-full rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+              className="w-full rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
             <button onClick={handleAdd} disabled={!canAdd}
-              className="rounded bg-accent px-3 py-1 text-sm font-medium text-base-900 disabled:opacity-40">
+              className="rounded-lg bg-accent px-3 py-1 text-sm font-medium text-base-900 disabled:opacity-40">
               添加
             </button>
           </div>
@@ -266,9 +267,9 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
           <div className="space-y-2 rounded border border-base-700 bg-base-900 p-3">
             <div className="flex gap-2">
               <input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="进程名"
-                className="w-40 rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="w-40 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
               <input value={pCmd} onChange={(e) => setPCmd(e.target.value)} placeholder="命令行"
-                className="flex-1 rounded border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="flex-1 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
             </div>
             <div className="text-xs text-fg-secondary">
               <span className="text-fg-muted">新规则命中：</span>{draftHit ? badge(draftHit.kind, draftHit.label) : <span className="text-fg-muted">无</span>}

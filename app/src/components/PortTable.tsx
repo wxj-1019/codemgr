@@ -79,13 +79,13 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                 aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
                 onKeyDown={(e) => onRowKeyDown(e, i)}
-                className={`cursor-pointer border-b border-base-700/50 hover:bg-base-700/40 ${
+                className={`cursor-pointer border-b border-base-700/50 hover:bg-base-700 ${
                   selected ? 'bg-base-700/60' : ''
                 } ${focused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''}`}
               >
                 <td
                   className={`px-3 py-2 font-mono ${
-                    conflict ? 'text-red-400' : 'text-accent'
+                    conflict ? 'text-danger' : 'text-accent'
                   }`}
                   title={conflict ? '端口冲突：多个进程监听同一端口' : undefined}
                 >
@@ -101,10 +101,10 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                     <span
                       className={`rounded px-1.5 py-0.5 text-xs ${
                         isDevPort(c.localPort)
-                          ? 'bg-accent/20 text-accent'
+                          ? 'bg-accent/[0.14] text-accent'
                           : isDbPort(c.localPort)
-                          ? 'bg-amber-500/20 text-amber-400'
-                          : 'bg-slate-600/30 text-fg-secondary'
+                          ? 'bg-amber-500/[0.14] text-amber-400'
+                          : 'bg-slate-600/[0.14] text-fg-secondary'
                       }`}
                     >
                       {label}
@@ -114,7 +114,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                 <td className="px-3 py-2 text-right">
                   <button
                     onClick={(e) => { e.stopPropagation(); onKill(c.pid, c.processName || `PID ${c.pid}`); }}
-                    className="rounded bg-red-600/80 px-2 py-1 text-xs text-white hover:bg-red-500"
+                    className="btn-danger-quiet rounded-lg px-2 py-1 text-xs"
                   >
                     结束
                   </button>

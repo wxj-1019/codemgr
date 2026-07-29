@@ -535,13 +535,13 @@ function ChangedList({ changed }: { changed: SnapshotDiff['changed'] }) {
             return diffs.map((d, i) => (
               <tr key={`${c.after.pid}-${d.field}-${i}`} className="border-t border-base-700/20 hover:bg-base-800/40">
                 {i === 0 ? (
-                  <td className="px-3 py-1 align-top font-mono text-xs text-amber-300" rowSpan={diffs.length}>
+                  <td className="px-3 py-1 align-top font-mono text-xs text-warn" rowSpan={diffs.length}>
                     {c.after.pid}
                   </td>
                 ) : null}
-                <td className="px-3 py-1 text-xs text-amber-400">{d.field}</td>
+                <td className="px-3 py-1 text-xs text-warn">{d.field}</td>
                 <td className="px-3 py-1 font-mono text-xs text-fg-muted">{d.before}</td>
-                <td className="px-3 py-1 font-mono text-xs text-amber-200">{d.after}</td>
+                <td className="px-3 py-1 font-mono text-xs text-warn">{d.after}</td>
               </tr>
             ));
           })}

@@ -25,16 +25,16 @@ function formatMem(bytes: number): string {
   return mb >= 1000 ? mb.toFixed(0) : mb.toFixed(1);
 }
 
-/** Color classes for each process-label kind (mirrors ProcessTable). */
+/** Color classes for each process-label kind（Aurora v1.2：底色降到 14% 透明度，字色不变）。 */
 const KIND_COLORS: Record<string, string> = {
-  dev: 'bg-accent/20 text-accent',
-  test: 'bg-green-500/20 text-green-400',
-  build: 'bg-purple-500/20 text-purple-400',
-  container: 'bg-blue-500/20 text-blue-400',
-  db: 'bg-amber-500/20 text-amber-400',
-  system: 'bg-slate-600/30 text-fg-secondary',
-  ai: 'bg-fuchsia-500/20 text-fuchsia-400',
-  'ai-ide': 'bg-violet-500/20 text-violet-400',
+  dev: 'bg-accent/[0.14] text-accent',
+  test: 'bg-green-500/[0.14] text-green-400',
+  build: 'bg-purple-500/[0.14] text-purple-400',
+  container: 'bg-blue-500/[0.14] text-blue-400',
+  db: 'bg-amber-500/[0.14] text-amber-400',
+  system: 'bg-slate-600/[0.14] text-fg-secondary',
+  ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
+  'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
 };
 
 const GroupRow = memo(function GroupRow({
@@ -64,7 +64,7 @@ const GroupRow = memo(function GroupRow({
 }) {
   return (
     <>
-      <tr className="border-b border-base-700 bg-base-800/60 hover:bg-base-700/40">
+      <tr className="border-b border-base-700 bg-base-800/60 hover:bg-base-700">
         <td className="px-2 py-2">
           <button
             onClick={onToggle}
@@ -92,7 +92,7 @@ const GroupRow = memo(function GroupRow({
         <td className="px-2 py-2 text-right">
           <button
             onClick={onKillGroup}
-            className="rounded bg-red-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-red-500"
+            className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
             title={`结束本组全部 ${pids.length} 个进程`}
           >
             结束本组
@@ -106,7 +106,7 @@ const GroupRow = memo(function GroupRow({
           return (
             <tr
               key={proc.pid}
-              className="border-b border-base-700/30 hover:bg-base-700/30"
+              className="border-b border-base-700/30 hover:bg-base-700"
               onContextMenu={(e) => onContextMenuRow(e, proc)}
             >
               <td className="px-2 py-1" />
@@ -118,7 +118,7 @@ const GroupRow = memo(function GroupRow({
                   {label && (
                     <span
                       className={`ml-1 rounded px-1 text-[10px] ${
-                        KIND_COLORS[label.kind] || 'bg-slate-600/30 text-fg-secondary'
+                        KIND_COLORS[label.kind] || 'bg-slate-600/[0.14] text-fg-secondary'
                       }`}
                     >
                       {label.label}
@@ -147,7 +147,7 @@ const GroupRow = memo(function GroupRow({
               <td className="px-2 py-1 text-right">
                 <button
                   onClick={() => onKillSingle(proc.pid, proc.name)}
-                  className="rounded bg-red-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-red-500"
+                  className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
                 >
                   结束
                 </button>

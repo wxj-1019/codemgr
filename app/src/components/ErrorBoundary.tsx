@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex h-full items-center justify-center p-8">
           <div className="max-w-md text-center">
             <div className="mb-2 text-2xl">⚠️</div>
-            <p className="text-sm text-red-400">界面渲染出错</p>
+            <p className="text-sm text-danger">界面渲染出错</p>
             <p className="mt-2 break-all font-mono text-xs text-fg-muted">
               {this.state.error.message}
             </p>
@@ -48,14 +48,14 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.reset}
-                className="rounded bg-accent px-3 py-1.5 text-sm text-base-900 hover:opacity-90"
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-base-900 hover:opacity-90"
               >
                 重试
               </button>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="rounded border border-base-600 px-3 py-1.5 text-sm text-fg-primary hover:bg-base-700"
+                className="rounded-lg border border-base-600 px-3 py-1.5 text-sm text-fg-primary hover:bg-base-700"
               >
                 刷新页面
               </button>

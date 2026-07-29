@@ -48,7 +48,7 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="w-96 rounded-lg border border-base-600 bg-base-800 p-5 shadow-2xl"
+        className="glass-elevated w-96 rounded-[14px] p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 id={titleId} className="text-base font-semibold text-fg-primary">{title}</h3>
@@ -59,7 +59,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded px-3 py-1.5 text-sm text-fg-primary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg px-3 py-1.5 text-sm text-fg-primary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {cancelLabel}
           </button>
@@ -67,7 +67,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-danger-quiet rounded-lg px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? '处理中…' : confirmLabel}
           </button>

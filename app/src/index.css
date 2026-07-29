@@ -71,6 +71,29 @@ body {
   border: 1px solid var(--border);
 }
 
+/* 浮层材质（Dialog/ContextMenu/下拉）：明度阶梯第二格 --bg-elevated，
+   比面板更实，浮在玻璃面板上仍保证可读性。 */
+.glass-elevated {
+  background: var(--bg-elevated);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border: 1px solid var(--border);
+}
+
+/* ── Linear 式安静危险按钮：透明底 + --danger 细边与文字，
+   hover 才填实 + 柔光。用于结束进程/批量结束等 kill 操作。 ── */
+.btn-danger-quiet {
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger);
+  background: transparent;
+  transition: background-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.btn-danger-quiet:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(251, 113, 133, 0.3);
+}
+
 /* ── Siri 辉光（differentiator）：聚焦面板的流转描边。
    关键：conic 渐变必须用 mask 裁成 2px 描边环，否则整张渐变会透过玻璃渗入内容区。 ── */
 .panel-active {

@@ -4,7 +4,7 @@ export interface ContextMenuItem {
   label: string;
   onSelect: () => void;
   disabled?: boolean;
-  /** 危险操作（结束进程等）用红色文字。 */
+  /** 危险操作（结束进程等）用 danger（柔玫瑰）文字。 */
   danger?: boolean;
   /** 分隔线后的项目组（渲染为上一条 hr）。 */
   dividerBefore?: boolean;
@@ -133,7 +133,7 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
       ref={ref}
       role="menu"
       onKeyDown={onMenuKeyDown}
-      className="fixed z-[60] min-w-[140px] rounded-md border border-base-600 bg-base-800 py-1 text-sm shadow-2xl"
+      className="glass-elevated fixed z-[60] min-w-[140px] rounded-lg py-1 text-sm shadow-2xl"
       style={{ left: pos.x, top: pos.y }}
     >
       {items.map((it, i) => (
@@ -145,7 +145,7 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
             tabIndex={i === focusIdx ? 0 : -1}
             onClick={() => { it.onSelect(); onClose(); }}
             className={`block w-full px-3 py-1.5 text-left disabled:cursor-not-allowed disabled:opacity-40 hover:bg-base-700 ${
-              it.danger ? 'text-red-400 hover:bg-red-950/40' : 'text-fg-primary'
+              it.danger ? 'text-danger hover:bg-danger/10' : 'text-fg-primary'
             }`}
           >
             {it.label}

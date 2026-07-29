@@ -72,16 +72,16 @@ function formatMem(bytes: number): string {
 const VIRTUALIZE_THRESHOLD = 100;
 const ROW_HEIGHT = 29;
 
-/** Color classes for each process-label kind. */
+/** Color classes for each process-label kind（Aurora v1.2：底色降到 14% 透明度，字色不变）。 */
 const KIND_COLORS: Record<string, string> = {
-  dev: 'bg-accent/20 text-accent',
-  test: 'bg-green-500/20 text-green-400',
-  build: 'bg-purple-500/20 text-purple-400',
-  container: 'bg-blue-500/20 text-blue-400',
-  db: 'bg-amber-500/20 text-amber-400',
-  system: 'bg-slate-600/30 text-fg-secondary',
-  ai: 'bg-fuchsia-500/20 text-fuchsia-400',
-  'ai-ide': 'bg-violet-500/20 text-violet-400',
+  dev: 'bg-accent/[0.14] text-accent',
+  test: 'bg-green-500/[0.14] text-green-400',
+  build: 'bg-purple-500/[0.14] text-purple-400',
+  container: 'bg-blue-500/[0.14] text-blue-400',
+  db: 'bg-amber-500/[0.14] text-amber-400',
+  system: 'bg-slate-600/[0.14] text-fg-secondary',
+  ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
+  'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
 };
 
 // ---- Memoized row: only re-renders when its own inputs change ----
@@ -120,9 +120,9 @@ const ProcessRow = memo(function ProcessRow({
       role="row"
       tabIndex={isFocused ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
-      className={`border-b border-base-700/30 hover:bg-base-700/30 cursor-pointer ${
+      className={`border-b border-base-700/30 hover:bg-base-700 cursor-pointer ${
         isSelected ? 'bg-base-700/50' : ''
-      } ${memHighlight ? 'bg-yellow-900/10' : ''} ${
+      } ${memHighlight ? 'bg-warn/10' : ''} ${
         isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
       }`}
       onClick={() => onToggleSelect(proc.pid)}
@@ -162,7 +162,7 @@ const ProcessRow = memo(function ProcessRow({
             <span
               className={`ml-1 rounded px-1 text-[10px] ${
                 KIND_COLORS[label.kind] ||
-                'bg-slate-600/30 text-fg-secondary'
+                'bg-slate-600/[0.14] text-fg-secondary'
               }`}
             >
               {label.label}
@@ -172,7 +172,7 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       <td
         className={`px-2 py-1 text-right font-mono ${
-          cpuHighlight ? 'text-red-400' : 'text-fg-primary'
+          cpuHighlight ? 'text-danger' : 'text-fg-primary'
         }`}
       >
         {cpu.toFixed(1)}
@@ -180,14 +180,14 @@ const ProcessRow = memo(function ProcessRow({
       {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
       <td
         className={`px-2 py-1 text-right font-mono ${
-          gpuHighlight ? 'text-red-400' : 'text-fg-primary'
+          gpuHighlight ? 'text-danger' : 'text-fg-primary'
         }`}
       >
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
       <td
         className={`px-2 py-1 text-right font-mono ${
-          memHighlight ? 'text-amber-400' : 'text-fg-primary'
+          memHighlight ? 'text-warn' : 'text-fg-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
@@ -210,7 +210,7 @@ const ProcessRow = memo(function ProcessRow({
             e.stopPropagation();
             onKill(proc.pid, proc.name);
           }}
-          className="rounded bg-red-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-red-500"
+          className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
         >
           结束
         </button>

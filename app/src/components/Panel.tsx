@@ -14,7 +14,7 @@ export function Panel({ id, children }: { id: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useVisibilityTracking(id, ref);
   return (
-    <div ref={ref} className="h-full w-full overflow-hidden bg-base-800">
+    <div ref={ref} className="glass h-full w-full overflow-hidden rounded-[14px]">
       {children}
     </div>
   );
