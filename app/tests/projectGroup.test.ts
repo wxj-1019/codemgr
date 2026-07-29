@@ -122,4 +122,41 @@ describe('groupByProject', () => {
     expect(groups[0].name).toBe('app');
     expect(groups[groups.length - 1].name).toBe('未分组');
   });
+
+  // ── bug #3：同名 worktree 显示名消歧 + identity 键唯一 ──
+
+  it('disambiguates same-basename groups by parent segment', () => {
+    // 两个不同完整路径、相同 basename（app）→ 两组，name 加父段消歧
+    const groups = groupByProject([
+      p({ pid: 1, cwd: 'C:\\proj\\app' }),
+      p({ pid: 2, cwd: 'C:\\worktrees\\x\\app' }),
+    ]);
+    expect(groups.length).toBe(2);
+    const names = groups.map((g) => g.name);
+    // 两个 name 不应相同（消歧生效）
+    expect(new Set(names).size).toBe(2);
+    // 消歧后 name 应包含 basename
+    expect(names.every((n) => n.endsWith('app'))).toBe(true);
+  });
+
+  it('keeps basename when no collision', () => {
+    // 唯一 basename 不消歧（回归保护：现有行为）
+    const groups = groupByProject([
+      p({ pid: 1, cwd: 'C:\\proj\\app' }),
+      p({ pid: 2, cwd: 'C:\\other\\svc' }),
+    ]);
+    const names = groups.map((g) => g.name).sort();
+    expect(names).toEqual(['app', 'svc']);
+  });
+
+  it('dir (identity key) stays unique and normalized across same-basename groups', () => {
+    const groups = groupByProject([
+      p({ pid: 1, cwd: 'C:\\proj\\app' }),
+      p({ pid: 2, cwd: 'C:\\worktrees\\x\\app' }),
+    ]);
+    const dirs = groups.map((g) => g.dir);
+    expect(new Set(dirs).size).toBe(2); // identity 键唯一
+    expect(dirs).toContain('C:/proj/app');
+    expect(dirs).toContain('C:/worktrees/x/app');
+  });
 });
