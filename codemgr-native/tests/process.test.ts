@@ -101,7 +101,7 @@ describe('killTree', () => {
     const procs = native.processScan();
     const svc = procs.find((p) => p.name.toLowerCase() === 'services.exe');
     expect(svc).toBeDefined();
-    // services.exe 在保护名单；其子进程是 svchost.exe 等也在名单内 → 0
+    // 根在保护名单内 → KillTree 整树拒绝，返回 0
     expect(native.killTree(svc!.pid)).toBe(0);
   });
 
