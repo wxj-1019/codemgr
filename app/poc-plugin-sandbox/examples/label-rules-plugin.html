@@ -1,0 +1,48 @@
+<!doctype html>
+<!--
+  CodeMgr 示例插件：注册自定义标签规则。
+
+  这是 6b 第一步（标签规则注册）的完整可运行示例。把它放到一个本地路径，
+  然后在 userData/plugins.json 里登记即可（详见 docs/PLUGINS.md）。
+
+  安全：本文件运行在 iframe sandbox（allow-scripts，无 allow-same-origin）内，
+  无 Node/Electron。唯一能力出口是 postMessage 注册标签规则。
+-->
+<html lang="zh">
+<head><meta charset="utf-8" /></head>
+<body>
+<script>
+  // 等宿主就绪信号
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.type !== 'ready') return;
+
+    // 注册两条标签规则：
+    //  - 名字含 "deno" 的进程标为 dev/Deno
+    //  - 命令行同时含 "pnpm" 和 "test" 的进程标为 test/pnpm-test
+    //
+    // 注意：不需要提供 id（宿主强制加 plugin: 前缀）。
+    // groups 是 OR 关系；每组内 include 是 AND、exclude 是 NOT。
+    window.parent.postMessage({
+      type: 'registerLabelRules',
+      rules: [
+        {
+          label: 'Deno',
+          kind: 'dev',
+          field: 'name',
+          enabled: true,
+          groups: [{ include: ['deno'] }],
+        },
+        {
+          label: 'pnpm-test',
+          kind: 'test',
+          field: 'cmdline',
+          enabled: true,
+          groups: [{ include: ['pnpm', 'test'], exclude: ['build'] }],
+        },
+      ],
+    }, '*');
+  });
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload } from '../../electron/ipc-types';
+import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry } from '../../electron/ipc-types';
 
 // 渲染层统一通过此封装访问 native（绝不直接 require）
 export const ipc = {
@@ -38,6 +38,9 @@ export const ipc = {
   },
   async importLabelRules(): Promise<LabelRulesPayload | null> {
     return window.codemgr.importLabelRules();
+  },
+  async listPlugins(): Promise<PluginManifestEntry[]> {
+    return window.codemgr.listPlugins();
   },
   async getAppVersion(): Promise<string> {
     return window.codemgr.getAppVersion();

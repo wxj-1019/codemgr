@@ -170,9 +170,11 @@ v1.1（已完成，当前 main）
 | 步骤 | 内容 | 产出 | 状态 |
 |:---:|------|------|:---:|
 | F1 | 安全模型 spike（iframe sandbox vs Worker+Comlink vs UtilityProcess） | 选型报告 + PoC | ✅ **已锁定**（PoC 4 项全过，见下） |
-| F2 | 受控 API 设计（postMessage 契约，沙箱下不暴露 `window.codemgr.plugin.*`） | API 契约 spec | 待做 |
-| F3 | 插件加载器（`<PluginFrame>`）+ 生命周期 + 崩溃熔断 | loader | 待做 |
-| F4 | 文档：插件开发指南 | `docs/PLUGINS.md` | 待做 |
+| F2 | 受控 API 设计（postMessage 契约 + pluginRules 独立层 + manifest IPC） | `pluginProtocol.ts` + `labelRulesStore.pluginRules` + `listPlugins` IPC | ✅ 完成（v2.0） |
+| F3 | 插件加载器（`<PluginFrame>` + `<PluginHost>`）+ 生命周期 + 崩溃熔断 | loader + 卸载清理 | ✅ 完成（v2.0，6b 第一步） |
+| F4 | 文档：插件开发指南 | `docs/PLUGINS.md` + 可运行示例 | ✅ 完成（v2.0） |
+
+> **6b 第二步（视图嵌入 mosaic）未做**：需改 PanelId 闭合类型 + 4 耦合点（renderTile/createNode/PANEL_TITLES/visibilityStore），单独立项。本次 F2-F4 聚焦标签规则注册（价值最高、风险最低），不动 mosaic。
 
 **门禁**：F1 的安全选型必须先过 review——这是 v2.0 最大的不确定性，不允许边做边定。
 
