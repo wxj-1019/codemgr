@@ -254,6 +254,23 @@ ipcMain.handle(IPC.LIST_PLUGINS, (): PluginManifestEntry[] => {
 // 应用版本号（来自 package.json，经 app.getVersion()）。渲染层用于显示当前版本。
 ipcMain.handle(IPC.APP_VERSION, () => app.getVersion());
 
+// ── 开机自启（login item）──
+// 读取当前登录启动状态
+ipcMain.handle(IPC.GET_AUTO_LAUNCH, () => app.getLoginItemSettings().openAtLogin);
+
+// 设置登录启动，返回设置后的实际状态（以系统为准，UI 据此回滚）
+// 注意：开发模式（pnpm dev）下 setLoginItemSettings 指向的是 electron.exe 而非
+// 打包后的 CodeMgr.exe，这是 Electron 的已知行为——打包后（app.isPackaged）生效。
+ipcMain.handle(IPC.SET_AUTO_LAUNCH, (_evt, enabled: boolean) => {
+  try {
+    app.setLoginItemSettings({ openAtLogin: enabled });
+  } catch (e) {
+    console.error('setLoginItemSettings failed:', e);
+  }
+  // 无论成败都返回实际状态，渲染层据此回滚 UI
+  return app.getLoginItemSettings().openAtLogin;
+});
+
 // ── 插件数据源 UtilityProcess（6c）──
 // UtilityProcess 承载 native 数据源采集，进程级隔离。主进程经 MessagePort 与之通信。
 // 这是可选增强——崩溃时重新 fork，不影响主功能（主 app 不依赖它）。

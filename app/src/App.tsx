@@ -8,6 +8,7 @@ import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
 import { PluginHost } from './components/PluginHost';
 import { PluginPanel } from './components/PluginPanel';
+import { AutoLaunchToggle } from './components/AutoLaunchToggle';
 import { useThemeStore } from './store/themeStore';
 import { ipc } from './lib/ipc';
 import {
@@ -147,6 +148,7 @@ export function App() {
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
+        <AutoLaunchToggle />
         {version && (
           <span
             className="px-2 py-2 self-center text-[11px] text-fg-muted"

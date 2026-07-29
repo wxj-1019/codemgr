@@ -21,6 +21,9 @@ export const IPC = {
   DATA_SOURCE_RESULT: 'plugin:dataSource',
   // 应用版本号：渲染层显示当前版本（来自 package.json，经 app.getVersion()）
   APP_VERSION: 'app:getVersion',
+  // 开机自启：读/写 login item 设置（经 app.getLoginItemSettings / setLoginItemSettings）
+  GET_AUTO_LAUNCH: 'app:getAutoLaunch',
+  SET_AUTO_LAUNCH: 'app:setAutoLaunch',
 } as const;
 
 /**
@@ -150,4 +153,8 @@ export interface ExposedApi {
   onDataSourceResult(cb: (capability: string, data: unknown) => void): () => void;
   // 应用版本号（来自 package.json，经 app.getVersion()）
   getAppVersion(): Promise<string>;
+  // 开机自启：读取当前 login item 状态
+  getAutoLaunch(): Promise<boolean>;
+  // 开机自启：设置后返回实际生效状态（UI 以此为准，失败时调用方回滚）
+  setAutoLaunch(enabled: boolean): Promise<boolean>;
 }

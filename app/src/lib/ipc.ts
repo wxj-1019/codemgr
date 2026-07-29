@@ -53,4 +53,11 @@ export const ipc = {
   async getAppVersion(): Promise<string> {
     return window.codemgr.getAppVersion();
   },
+  // 开机自启：读当前状态 / 设置后返回实际状态
+  async getAutoLaunch(): Promise<boolean> {
+    return window.codemgr.getAutoLaunch();
+  },
+  async setAutoLaunch(enabled: boolean): Promise<boolean> {
+    return window.codemgr.setAutoLaunch(enabled);
+  },
 };

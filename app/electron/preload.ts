@@ -26,6 +26,9 @@ const api: ExposedApi = {
     return () => ipcRenderer.removeListener(IPC.DATA_SOURCE_RESULT, handler as never);
   },
   getAppVersion: () => ipcRenderer.invoke(IPC.APP_VERSION),
+  // 开机自启：读当前状态 / 设置后返回实际状态
+  getAutoLaunch: () => ipcRenderer.invoke(IPC.GET_AUTO_LAUNCH),
+  setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke(IPC.SET_AUTO_LAUNCH, enabled),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);
