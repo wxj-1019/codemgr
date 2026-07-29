@@ -1,4 +1,4 @@
-import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electron/ipc-types';
+import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot, GitIdentity } from '../../electron/ipc-types';
 
 // 渲染层统一通过此封装访问 native（绝不直接 require）
 export const ipc = {
@@ -72,5 +72,8 @@ export const ipc = {
   },
   async loadSnapshot(id: string): Promise<ProcessSnapshot | null> {
     return window.codemgr.loadSnapshot(id);
+  },
+  async fetchGitIdentity(cwd: string): Promise<GitIdentity | null> {
+    return window.codemgr.fetchGitIdentity(cwd);
   },
 };

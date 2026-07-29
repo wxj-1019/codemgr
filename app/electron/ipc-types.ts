@@ -32,6 +32,8 @@ export const IPC = {
   SNAPSHOT_SAVE: 'snapshot:save',
   SNAPSHOT_DELETE: 'snapshot:delete',
   SNAPSHOT_LOAD: 'snapshot:load',
+  // 工作区 Git 身份（B）：按需从 cwd 解析 git root/branch/HEAD/worktree。纯 fs，不 spawn git。
+  FETCH_GIT_IDENTITY: 'git:fetchIdentity',
 } as const;
 
 /**
@@ -250,4 +252,6 @@ export interface ExposedApi {
   saveSnapshot(name: string, entries: SnapshotEntry[]): Promise<ProcessSnapshot | null>;
   deleteSnapshot(id: string): Promise<boolean>;
   loadSnapshot(id: string): Promise<ProcessSnapshot | null>;
+  // 工作区 Git 身份（B）。接受 cwd（非 pid），main 用 fs 解析。null=非 git 目录/解析失败。
+  fetchGitIdentity(cwd: string): Promise<GitIdentity | null>;
 }

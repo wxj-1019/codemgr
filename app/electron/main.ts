@@ -4,6 +4,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlink
 import { randomUUID } from 'node:crypto';
 import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
+import { resolveGitIdentity } from './gitWorkspace';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -416,6 +417,16 @@ ipcMain.handle(IPC.SNAPSHOT_DELETE, (_evt, id: string): boolean => {
   } catch (e) {
     console.error('snapshot:delete failed:', e);
     return false;
+  }
+});
+
+// 工作区 Git 身份（B）：纯 fs 解析，catch→null（非 git 目录/权限/边界）。
+ipcMain.handle(IPC.FETCH_GIT_IDENTITY, async (_evt, cwd: string) => {
+  try {
+    return resolveGitIdentity(cwd);
+  } catch (e) {
+    console.error('fetchGitIdentity failed:', e);
+    return null;
   }
 });
 

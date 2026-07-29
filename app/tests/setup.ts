@@ -37,6 +37,7 @@ export function mockIpc(
     saveSnapshot: vi.fn(() => Promise.resolve(null)),
     deleteSnapshot: vi.fn(() => Promise.resolve(true)),
     loadSnapshot: vi.fn(() => Promise.resolve(null)),
+    fetchGitIdentity: vi.fn(() => Promise.resolve(null)),
     ...overrides,
   };
   Object.defineProperty(window, 'codemgr', {

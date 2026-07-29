@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProcessInfo } from '../../electron/ipc-types';
+import type { ProcessInfo, GitIdentity } from '../../electron/ipc-types';
 
 // 单进程历史曲线滚动窗口长度。进程面板轮询 2s → 60 点 ≈ 120s 窗口。
 export const PROC_HIST_LEN = 60;
@@ -19,6 +19,9 @@ interface ProcessPanelState {
   // 区分。分组键优先用此值，缺失回退启发式。一旦填充即冻结，不受 processScan 刷新
   // 影响（防分组抖动）；进程退出随 pidSet 清理一并失效（见 setProcesses prune）。
   preciseCwdByPid: Record<number, string>;
+  // Git 身份旁路缓存（B，按需解析）：pid → identity（null=已解析但非 git）。
+  // 与 preciseCwdByPid 同生命周期：随 pidSet 清理，不持久化。
+  gitIdentityByPid: Record<number, GitIdentity | null>;
   filter: string;
   sortKey: 'pid' | 'name' | 'cpu' | 'memory' | 'gpu';
   sortAsc: boolean;
@@ -53,6 +56,7 @@ interface ProcessPanelState {
   setSidebarProportion: (p: number) => void;
   setPollMs: (ms: number) => void;
   setPreciseCwd: (pid: number, cwd: string) => void;
+  setGitIdentity: (pid: number, identity: GitIdentity | null) => void;
   reset: () => void;
 }
 
@@ -63,6 +67,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       cpuMap: {},
       procHistory: {},
       preciseCwdByPid: {},
+      gitIdentityByPid: {},
       filter: '',
       sortKey: 'pid',
       sortAsc: true,
@@ -98,7 +103,12 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
           const n = Number(k);
           if (pidSet.has(n)) preciseCwdByPid[n] = s.preciseCwdByPid[n];
         }
-        return { processes: p, error: null, staleAt: null, selectedPids, cpuMap, procHistory, preciseCwdByPid };
+        const gitIdentityByPid: Record<number, GitIdentity | null> = {};
+        for (const k of Object.keys(s.gitIdentityByPid)) {
+          const n = Number(k);
+          if (pidSet.has(n)) gitIdentityByPid[n] = s.gitIdentityByPid[n];
+        }
+        return { processes: p, error: null, staleAt: null, selectedPids, cpuMap, procHistory, preciseCwdByPid, gitIdentityByPid };
       }),
       setCpuMap: (c) => set((s) => {
         const m = { ...s.cpuMap };
@@ -150,8 +160,9 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       setSidebarProportion: (p) => set({ sidebarProportion: Math.min(0.6, Math.max(0.15, p)) }),
       setPollMs: (ms) => set({ pollMs: ms }),
       setPreciseCwd: (pid, cwd) => set((s) => ({ preciseCwdByPid: { ...s.preciseCwdByPid, [pid]: cwd } })),
+      setGitIdentity: (pid, identity) => set((s) => ({ gitIdentityByPid: { ...s.gitIdentityByPid, [pid]: identity } })),
       reset: () => set({
-        processes: [], cpuMap: {}, procHistory: {}, preciseCwdByPid: {}, filter: '', sortKey: 'pid', sortAsc: true,
+        processes: [], cpuMap: {}, procHistory: {}, preciseCwdByPid: {}, gitIdentityByPid: {}, filter: '', sortKey: 'pid', sortAsc: true,
         viewMode: 'tree', expandedPids: new Set(), expandedGroups: new Set(),
         selectedPids: new Set(), loading: false, error: null, staleAt: null, sidebarProportion: 0.3,
         pollMs: 2000,

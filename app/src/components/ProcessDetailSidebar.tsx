@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { GitIdentity } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
 import { MiniChart } from './MiniChart';
@@ -14,8 +15,8 @@ export function ProcessDetailSidebar({
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
 }) {
-  const { processes, selectedPids, procHistory, preciseCwdByPid, setPreciseCwd: setStoreCwd } =
-    useProcessPanelStore();
+  const { processes, selectedPids, procHistory, preciseCwdByPid, setPreciseCwd: setStoreCwd,
+    gitIdentityByPid, setGitIdentity } = useProcessPanelStore();
   // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
   const pid = selectedPids.size === 1 ? [...selectedPids][0] : null;
 
@@ -26,6 +27,10 @@ export function ProcessDetailSidebar({
   // 未命中才按需拉取，结果写回 store 缓存。
   const [preciseCwd, setPreciseCwd] = useState<string | null>(null);
   const [cwdState, setCwdState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
+  // Git 身份（B，按需）：优先复用 store 缓存，未命中按需拉取。
+  // undefined=未解析，null=已解析非 git，GitIdentity=已解析。
+  const [gitIdentity, setGitIdentityLocal] = useState<GitIdentity | null | undefined>(undefined);
+  const [gitState, setGitState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
   useEffect(() => {
     setEnvVars(null);
     setEnvState('idle');
@@ -38,7 +43,16 @@ export function ProcessDetailSidebar({
       setPreciseCwd(null);
       setCwdState('idle');
     }
-  }, [pid, preciseCwdByPid]);
+    // Git 身份：store 缓存命中则展示（含 null=非 git），否则 idle
+    const cachedGit = pid != null ? gitIdentityByPid[pid] : undefined;
+    if (cachedGit !== undefined) {
+      setGitIdentityLocal(cachedGit);
+      setGitState('done');
+    } else {
+      setGitIdentityLocal(undefined);
+      setGitState('idle');
+    }
+  }, [pid, preciseCwdByPid, gitIdentityByPid]);
   // 比对 in-flight 请求是否已陈旧（native 调用不可中断，故不用 AbortController）
   const pidRef = useRef(pid);
   pidRef.current = pid;
@@ -84,6 +98,43 @@ export function ProcessDetailSidebar({
     } catch {
       if (pidRef.current !== pid) return;
       setCwdState('error');
+    }
+  }
+
+  async function loadGitIdentity() {
+    if (pid == null) return;
+    // store 缓存命中（含 null=非 git）：直接展示
+    const cached = gitIdentityByPid[pid];
+    if (cached !== undefined) {
+      setGitIdentityLocal(cached);
+      setGitState('done');
+      return;
+    }
+    // 取 cwd：精确优先，回退启发式；空则先级联拉精确 cwd
+    const p = processes.find((x) => x.pid === pid);
+    let cwd = preciseCwdByPid[pid] ?? p?.cwd ?? '';
+    setGitState('loading');
+    try {
+      if (!cwd) {
+        const precise = await ipc.fetchCwd(pid);
+        if (pidRef.current !== pid) return;
+        cwd = precise ?? '';
+        if (cwd) setStoreCwd(pid, cwd);
+      }
+      if (!cwd) {
+        setGitIdentityLocal(null);
+        setGitState('done');
+        setGitIdentity(pid, null);
+        return;
+      }
+      const identity = await ipc.fetchGitIdentity(cwd);
+      if (pidRef.current !== pid) return;
+      setGitIdentityLocal(identity);
+      setGitState('done');
+      setGitIdentity(pid, identity);  // 写回 store 缓存（null 也写，避免重复 IPC）
+    } catch {
+      if (pidRef.current !== pid) return;
+      setGitState('error');
     }
   }
 
@@ -158,6 +209,36 @@ export function ProcessDetailSidebar({
               )}
             </div>
           </div>
+          <div>
+            <dt className="text-fg-muted">Git</dt>
+            <dd className="mt-0.5">
+              {gitState === 'idle' && (
+                <button onClick={loadGitIdentity} className="text-accent hover:underline">
+                  解析 Git 身份
+                </button>
+              )}
+              {gitState === 'loading' && <span className="text-fg-muted">解析中…</span>}
+              {gitState === 'error' && (
+                <span className="text-fg-muted">解析失败</span>
+              )}
+              {gitState === 'done' && gitIdentity === null && (
+                <span className="text-fg-muted">非 Git 仓库</span>
+              )}
+              {gitState === 'done' && gitIdentity && (
+                <div className="space-y-0.5 font-mono text-fg-secondary">
+                  <div>
+                    {gitIdentity.detached
+                      ? `detached @ ${gitIdentity.head.slice(0, 8)}`
+                      : gitIdentity.branch}
+                    {gitIdentity.isWorktree && (
+                      <span className="ml-1 rounded bg-base-700 px-1 text-[10px] text-fg-muted">worktree</span>
+                    )}
+                  </div>
+                  <div className="break-all text-fg-muted text-[11px]">{gitIdentity.gitRoot}</div>
+                </div>
+              )}
+            </dd>
+          </div>
           <Row label="父进程 PID" value={String(proc.ppid)} mono />
           <Row label="运行时长" value={formatDuration(uptimeMs)} />
           <Row label="累计 CPU 时间" value={formatCpuTime(cpuTotalMs)} />
@@ -168,7 +249,7 @@ export function ProcessDetailSidebar({
               <MiniChart
                 data={procHistory[proc.pid]!}
                 dataKey="cpu"
-                color="#2dd4bf"
+                color="var(--accent-data)"
                 domain={[0, 100]}
                 formatValue={(v) => v.toFixed(1) + '%'}
                 idSuffix={`cpu-${proc.pid}`}
@@ -177,7 +258,7 @@ export function ProcessDetailSidebar({
               <MiniChart
                 data={procHistory[proc.pid]!}
                 dataKey="mem"
-                color="#a78bfa"
+                color="var(--accent)"
                 formatValue={(v) => formatBytes(v)}
                 idSuffix={`mem-${proc.pid}`}
               />
@@ -215,7 +296,7 @@ export function ProcessDetailSidebar({
       <div className="border-t border-base-600 p-3">
         <button
           onClick={() => onKill(proc.pid, proc.name)}
-          className="w-full rounded bg-red-600/80 px-3 py-1.5 text-sm text-white hover:bg-red-500"
+          className="btn-danger-quiet w-full rounded-lg px-3 py-1.5 text-sm"
         >
           结束进程
         </button>

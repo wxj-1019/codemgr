@@ -35,6 +35,7 @@ const api: ExposedApi = {
   saveSnapshot: (name: string, entries: SnapshotEntry[]) => ipcRenderer.invoke(IPC.SNAPSHOT_SAVE, name, entries),
   deleteSnapshot: (id: string) => ipcRenderer.invoke(IPC.SNAPSHOT_DELETE, id),
   loadSnapshot: (id: string) => ipcRenderer.invoke(IPC.SNAPSHOT_LOAD, id),
+  fetchGitIdentity: (cwd: string) => ipcRenderer.invoke(IPC.FETCH_GIT_IDENTITY, cwd),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);
