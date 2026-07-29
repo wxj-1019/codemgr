@@ -15,6 +15,7 @@
     "allotment": "^1.20.5",
     "react": "18",
     "react-dom": "18",
+    "react-mosaic-component": "^6",
     "recharts": "2",
     "zustand": "4"
   },

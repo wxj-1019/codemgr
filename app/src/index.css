@@ -49,3 +49,46 @@ body {
 [class*='split-view-container'] [class*='split-view-view'] + [class*='split-view-view'] {
   border-left: 1px solid var(--border);
 }
+
+/* ── react-mosaic 主题适配 ──
+   mosaic 默认工具栏/正文背景是白色、分割条 hover 是黑色，与深色主题冲突。
+   不用默认的 mosaic-blueprint-theme（避免 blueprint 深色按钮样式），改用
+   自定义 .mosaic-theme 命名空间，把硬编码颜色覆盖成语义 CSS 变量，
+   让亮/暗主题都正确。参照 allotment 覆盖层的同一思路。 */
+.mosaic-theme.mosaic,
+.mosaic-theme .mosaic-window,
+.mosaic-theme .mosaic-preview {
+  box-shadow: none;              /* 去掉默认的白色投影残影 */
+}
+/* 工具栏：面板色背景 + 主文字色 */
+.mosaic-theme .mosaic-window-toolbar {
+  background: var(--bg-elevated);
+  box-shadow: none;
+  border-bottom: 1px solid var(--border);
+}
+.mosaic-theme .mosaic-window-title {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+/* 控制按钮分隔线 */
+.mosaic-theme .mosaic-window-controls .separator {
+  border-left-color: var(--border);
+}
+/* 正文：面板色（Panel 组件已自带 bg-base-800，这里兜底） */
+.mosaic-theme .mosaic-window-body,
+.mosaic-theme .mosaic-window-additional-actions-bar {
+  background: var(--bg-panel);
+}
+/* 分割条 hover：默认黑色，改为 muted 色 + 半透明（与 allotment sash 一致） */
+.mosaic-theme .mosaic-split:hover {
+  background: var(--text-muted);
+  opacity: 0.35;
+}
+.mosaic-theme .mosaic-split .mosaic-split-line {
+  background: var(--border);
+}
+/* 拖拽落点高亮：用 accent 色提示 */
+.mosaic-theme .mosaic-drop-target .drop-target-container .drop-target {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-color: var(--accent);
+}

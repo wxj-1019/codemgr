@@ -4,10 +4,24 @@
 
 ---
 
-## [Unreleased]
+## [v1.7] — 2026-07-29
+
+### 新增
+- **可拖拽多面板布局（react-mosaic）**：用 react-mosaic-component 二叉树布局替换原 Tab 切换。三大面板（端口雷达/进程/性能）可自由拆分、嵌套、拖拽移动、最小化、关闭——把进程当开发工件同时监控多个维度。布局树持久化到 localStorage（`codemgr:layout`），刷新后恢复。
+- **3 个布局预设**：经典（进程单面板，等同旧默认）/ 端口+性能（左右 5:5）/ 开发聚焦（进程 70% + 右侧上下分端口与性能）。顶部工具栏一键切换。
+- **面板可见性轮询节流**：多面板同时挂载时，被遮挡/折叠/整窗最小化的面板自动停止 native 轮询（IntersectionObserver + visibilitychange），避免三个轮询器（1s/2s/3s）并发造成采集尖刺（roadmap R2 对策）。
+
+### 工程化
+- `layoutStore`：mosaic 二叉树持久化 + 预设（persist + partialize，照 processPanelStore 范式）。
+- `visibilityStore` + `useVisibilityTracking`：全局可见性广播，三个轮询 hook 改造为可见性感知（不可见即停 interval，可见即恢复并补一次刷新）。
+- `Panel` 包装器：面板内容容器 + 可见性追踪接入点（MosaicWindow 提供标题栏/拖拽/控制按钮）。
+- 主题适配：mosaic 默认白底/黑分割条覆盖为语义 CSS 变量（`.mosaic-theme` 命名空间），亮/暗主题双适配。
 
 ### Fixed
 - **native 构建工具链**：`build`/`build:electron`/`rebuild` 不再 baked VS2019 Community 的固定 CMake 路径（该路径在仅有 VS2022 BuildTools 的机器/CI 上不存在，导致 `CMake is not installed` 报错）。改由 `scripts/build.mjs` 用 `vswhere` 动态发现 VS2017+ 自带的 CMake（覆盖所有 edition），并动态读取 Electron 版本号而非硬编码 `43.2.0`。换机器只需装了 VS Build Tools + CMake 组件即可，无需改代码。
+
+### 测试
+- app 122→130（+8 layoutStore：3 预设树结构 / setRoot / partialize 形状）。
 
 ---
 

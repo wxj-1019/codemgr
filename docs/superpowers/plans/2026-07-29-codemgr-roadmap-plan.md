@@ -255,7 +255,7 @@ v1.1（已完成，当前 main）
 
 ### v1.2（方案 1+2）
 - ✅ **方案 2（标签规则）** 已完成（commit `84f46df`）：数据驱动引擎 + 编辑器 + localStorage 持久化。spec 的「导入导出」当时**未做**，留到 v1.4。
-- ⚠️ **方案 1（react-mosaic 全局布局）未落地**——App.tsx 仍是写死 Tab 切换。v1.4 只做了其最小子集「侧栏可拖宽」（用 allotment，非 mosaic）。
+- ✅ **方案 1（react-mosaic 全局布局）** 已完成（v1.7）：`react-mosaic-component@^6` 二叉树布局替换 Tab，三大面板可自由拆分/嵌套/拖拽/关闭；`layoutStore` 持久化布局树 + 3 预设（classic/port-perf/dev-focus）；面板可见性轮询节流（IntersectionObserver + visibilitychange，对策 R2）。v1.4 的 allotment 侧栏可拖宽作为 ProcessPanel 内部分栏保留（与外层 mosaic 正交）。
 
 ### v1.3（方案 3+4+5）
 - ✅ **方案 3（环境变量查看）** 已完成（commit `49255ff`）：`readProcessEnv` PEB 行走 + 详情侧栏「加载环境变量」。
@@ -269,6 +269,7 @@ v1.4 是 v1.3 完成后的低风险体验补强，三个独立特性：
 - ✅ **详情侧栏可拖宽**：allotment 分栏，比例持久化（方案 1 的最小子集，非全局 mosaic）。
 
 ### 待办（v2.0）
-- 方案 1（react-mosaic 全局多面板布局）：仍未做，需单独排期。
 - 方案 5 的「精确 cwd 接入项目分组」：当前精确值仅展示未用于分组，需评估分组抖动风险后立项。
 - 方案 6（插件系统）：依赖安全沙箱选型 spike（F1）。
+
+> 方案 1（react-mosaic 全局多面板布局）已于 v1.7 完成，从待办移除。
