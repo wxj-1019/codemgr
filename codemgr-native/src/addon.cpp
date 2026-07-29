@@ -7,6 +7,7 @@
 #include "perf_collector.h"
 #include "env_collector.h"
 #include "cwd_collector.h"
+#include "disk_collector.h"
 
 // 占位函数：验证模块能加载
 Napi::Value Hello(const Napi::CallbackInfo& info) {
@@ -25,6 +26,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "perfCounters"), Napi::Function::New(env, PerfCounters));
   exports.Set(Napi::String::New(env, "readProcessEnv"), Napi::Function::New(env, ReadProcessEnv));
   exports.Set(Napi::String::New(env, "readProcessCwd"), Napi::Function::New(env, ReadProcessCwd));
+  exports.Set(Napi::String::New(env, "diskVolumes"), Napi::Function::New(env, DiskVolumes));
   return exports;
 }
 

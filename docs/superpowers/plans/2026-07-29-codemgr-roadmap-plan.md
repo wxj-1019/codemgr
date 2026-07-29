@@ -188,7 +188,8 @@ v1.1（已完成，当前 main）
 依赖 6b 稳定后，开放受控的 native 能力白名单。
 
 > **6c 第一步（管道）已完成（v2.0）**：UtilityProcess（`utility-host.mjs`，进程级隔离 + 崩溃自恢复）+ MessagePort 多跳链路（UtilityProcess → main → renderer → iframe）+ 白名单机制（`ALLOWED_CAPABILITIES` + manifest `capabilities` 校验，非法项剥离）+ `dataSource` 协议消息。用模拟数据源（demo-source）跑通端到端，验证架构。
-> **6c 第二步（真实数据源）待做**：接入真实 native collector（如 docker/git），每个能力加白名单 + UtilityProcess 路由。需主仓库 review。
+> **6c 第二步（首个真实数据源）已完成（v2.0）**：disk-volumes——磁盘卷列表 collector（`disk_collector.cpp`，GetLogicalDriveStringsW + GetDriveTypeW + GetDiskFreeSpaceExW），白名单加 `disk-volumes`，utility-host 路由到 `native.diskVolumes()`。实测 UtilityProcess 子进程成功 require 同一 .node 并采集真实磁盘数据（5 卷）。验证了"6c 新增能力四步公式"（collector + addon 注册 + 白名单 + 路由）。
+> **后续真实数据源**（docker/git 等）按同公式接入，需主仓库 review + 环境验证。
 
 ---
 
