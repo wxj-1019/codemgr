@@ -21,9 +21,14 @@ export function ProcessDetailSidebar({
   // 环境变量：按需加载，切换选中进程时重置（不做轮询，避免高频 ReadProcessMemory）
   const [envVars, setEnvVars] = useState<Record<string, string> | null>(null);
   const [envState, setEnvState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
+  // 精确 cwd（PEB 直读）：同环境变量的按需模式，与 ProcessInfo.cwd 的启发式值区分
+  const [preciseCwd, setPreciseCwd] = useState<string | null>(null);
+  const [cwdState, setCwdState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
   useEffect(() => {
     setEnvVars(null);
     setEnvState('idle');
+    setPreciseCwd(null);
+    setCwdState('idle');
   }, [pid]);
   // 比对 in-flight 请求是否已陈旧（native 调用不可中断，故不用 AbortController）
   const pidRef = useRef(pid);
@@ -44,6 +49,24 @@ export function ProcessDetailSidebar({
     } catch {
       if (pidRef.current !== pid) return; // 同上：陈旧请求的 rejection 也丢弃
       setEnvState('error'); // invoke reject（通道缺失/热更新错配）：避免卡在"读取中…"
+    }
+  }
+
+  async function loadCwd() {
+    if (pid == null) return;
+    setCwdState('loading');
+    try {
+      const result = await ipc.fetchCwd(pid);
+      if (pidRef.current !== pid) return;
+      if (result === null) {
+        setCwdState('error');
+      } else {
+        setPreciseCwd(result);
+        setCwdState('done');
+      }
+    } catch {
+      if (pidRef.current !== pid) return;
+      setCwdState('error');
     }
   }
 
@@ -95,7 +118,29 @@ export function ProcessDetailSidebar({
               <button onClick={copyCmd} className="mt-1 text-accent hover:underline">复制命令行</button>
             )}
           </div>
-          <Row label="工作目录" value={proc.cwd || '—'} mono />
+          <div>
+            <dt className="text-fg-muted">
+              工作目录
+              <span className="ml-1 text-fg-muted/70">(启发式)</span>
+            </dt>
+            <dd className="mt-0.5 break-all font-mono text-fg-secondary">{proc.cwd || '—'}</dd>
+            <div className="mt-1">
+              {cwdState === 'idle' && (
+                <button onClick={loadCwd} className="text-accent hover:underline">
+                  读取精确工作目录
+                </button>
+              )}
+              {cwdState === 'loading' && <span className="text-fg-muted">读取中…</span>}
+              {cwdState === 'error' && (
+                <span className="text-fg-muted">读取失败：权限不足或进程已退出</span>
+              )}
+              {cwdState === 'done' && preciseCwd !== null && (
+                <dd className="break-all font-mono text-fg-secondary">
+                  <span className="text-accent/80">(精确)</span> {preciseCwd || '—'}
+                </dd>
+              )}
+            </div>
+          </div>
           <Row label="父进程 PID" value={String(proc.ppid)} mono />
           <Row label="运行时长" value={formatDuration(uptimeMs)} />
           <Row label="累计 CPU 时间" value={formatCpuTime(cpuTotalMs)} />

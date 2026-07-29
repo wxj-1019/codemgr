@@ -20,6 +20,9 @@ export const ipc = {
   async fetchProcessEnv(pid: number): Promise<Record<string, string> | null> {
     return window.codemgr.fetchProcessEnv(pid);
   },
+  async fetchCwd(pid: number): Promise<string | null> {
+    return window.codemgr.fetchCwd(pid);
+  },
   async fetchProcesses(): Promise<ProcessInfo[]> {
     return window.codemgr.fetchProcesses();
   },

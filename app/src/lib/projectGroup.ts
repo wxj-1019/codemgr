@@ -8,8 +8,11 @@ export interface ProjectGroup {
 }
 
 // Normalize a Windows path to a comparable form (uppercase drive, forward slashes).
+// 同时剥离 NT 命名空间前缀（\??\ 和 \\?\）——精确 cwd（PEB 直读）偶尔带这类前缀，
+// 不剥则与启发式 cwd 形成不同分组键。native 侧已主要处理，此处二次保险。
 function normPath(p: string): string {
   return p
+    .replace(/^(?:\\\?\?\\|\\\\\?\\)/i, '')   // \??\ 或 \\?\ 前缀
     .replace(/\\/g, '/')
     .replace(/^[a-z]:/, (m) => m.toUpperCase())
     .replace(/\/$/, '');

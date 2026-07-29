@@ -58,6 +58,7 @@ export interface NativeBindings {
   killByPids(pids: number[]): number;
   killTree(pid: number): number;
   readProcessEnv(pid: number): Record<string, string>;
+  readProcessCwd(pid: number): string;
 }
 
 // 加载编译产物（index.ts 位于包根，build/ 在同级）

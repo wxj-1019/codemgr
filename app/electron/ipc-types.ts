@@ -6,6 +6,7 @@ export const IPC = {
   KILL_BY_PIDS: 'proc:killByPids',
   KILL_TREE: 'proc:killTree',
   FETCH_PROCESS_ENV: 'proc:fetchEnv',
+  FETCH_CWD: 'proc:fetchCwd',
   FETCH_PROCESSES: 'proc:fetchProcesses',
   FETCH_CPU: 'proc:fetchCpu',
   FETCH_PERF: 'perf:fetch',
@@ -69,6 +70,8 @@ export interface ExposedApi {
   killTree(pid: number): Promise<number>;
   // null = 读取失败：权限不足或进程已退出，UI 据此降级提示
   fetchProcessEnv(pid: number): Promise<Record<string, string> | null>;
+  // null = 同上；精确 cwd（PEB 直读），与 ProcessInfo.cwd 的启发式值区分
+  fetchCwd(pid: number): Promise<string | null>;
   fetchProcesses(): Promise<ProcessInfo[]>;
   fetchCpu(): Promise<CpuUsage[]>;
   fetchPerf(): Promise<PerfData | null>;

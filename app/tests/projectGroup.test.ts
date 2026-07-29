@@ -48,4 +48,22 @@ describe('groupByProject', () => {
     // big (2 procs) before small (1 proc); 未分组 absent here
     expect(groups[0].pids.length).toBeGreaterThanOrEqual(groups[1].pids.length);
   });
+
+  it('strips \\??\\ NT prefix so precise cwd groups with heuristic cwd', () => {
+    // 启发式 cwd 给 Win32 路径，精确 cwd（PEB 直读）可能带 \??\ 前缀；两者应归同组
+    const groups = groupByProject([
+      p({ pid: 1, cwd: 'C:\\proj\\app' }),
+      p({ pid: 2, cwd: '\\??\\C:\\proj\\app' }),
+    ]);
+    expect(groups.length).toBe(1);
+    expect(groups[0].pids).toEqual([1, 2]);
+  });
+
+  it('strips \\\\?\\ NT prefix', () => {
+    const groups = groupByProject([
+      p({ pid: 1, cwd: '\\\\?\\C:\\dev\\svc' }),
+      p({ pid: 2, cwd: 'C:\\dev\\svc' }),
+    ]);
+    expect(groups.length).toBe(1);
+  });
 });

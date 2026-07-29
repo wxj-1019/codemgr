@@ -114,6 +114,15 @@ ipcMain.handle(IPC.FETCH_PROCESS_ENV, async (_evt, pid: number) => {
   }
 });
 
+ipcMain.handle(IPC.FETCH_CWD, async (_evt, pid: number) => {
+  try {
+    return native.readProcessCwd(pid);
+  } catch (e) {
+    console.error('readProcessCwd failed:', e);
+    return null;  // 同 FETCH_PROCESS_ENV：失败降级为 null，UI 提示
+  }
+});
+
 ipcMain.handle(IPC.FETCH_PROCESSES, async () => {
   try {
     return native.processScan();
