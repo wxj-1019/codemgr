@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PortRadar } from './components/PortRadar';
 import { ProcessPanel } from './components/ProcessPanel';
 import { PerfPanel } from './components/PerfPanel';
+import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { useThemeStore } from './store/themeStore';
 
 type Tab = 'port' | 'process' | 'perf';
@@ -14,6 +15,7 @@ const tabs: { id: Tab; label: string }[] = [
 
 export function App() {
   const [active, setActive] = useState<Tab>('port');
+  const [rulesOpen, setRulesOpen] = useState(false);
   const { theme, toggle } = useThemeStore();
 
   return (
@@ -34,8 +36,15 @@ export function App() {
           </button>
         ))}
         <button
-          onClick={toggle}
+          onClick={() => setRulesOpen(true)}
           className="ml-auto px-3 py-2 text-sm text-fg-secondary hover:text-fg-primary"
+          aria-label="标签规则"
+        >
+          🏷️
+        </button>
+        <button
+          onClick={toggle}
+          className="px-3 py-2 text-sm text-fg-secondary hover:text-fg-primary"
           aria-label="切换主题"
         >
           {theme === 'dark' ? '☀️' : '🌙'}
@@ -48,6 +57,8 @@ export function App() {
         {active === 'process' && <ProcessPanel />}
         {active === 'perf' && <PerfPanel />}
       </div>
+
+      {rulesOpen && <LabelRuleEditor onClose={() => setRulesOpen(false)} />}
     </div>
   );
 }

@@ -1,42 +1,20 @@
+// 进程标签：对外接口保持 labelForProcess(name, cmdline) => ProcessLabel | null 不变
+// （两个调用点 ProcessTable / ProjectGroupView 零改动）。
+// 内部改为委托数据驱动的规则引擎：规则来自 labelRulesStore 合并后的 activeRules。
+import type { LabelRule } from './labelRules';
+import { getActiveRules } from '../store/labelRulesStore';
+
 export interface ProcessLabel {
   label: string;
-  kind: 'dev' | 'test' | 'build' | 'container' | 'db' | 'system';
+  kind: string; // 放宽为 string：用户可自定义 kind；KIND_COLORS 已是 Record<string,...>
 }
 
-// Heuristic rules for labeling processes by name + command-line
+import { matchRules } from './labelRules';
+
+// Heuristic rules for labeling processes by name + command-line.
+// 规则现在数据驱动，详见 lib/labelRules.ts 与 store/labelRulesStore.ts。
 export function labelForProcess(name: string, cmdline: string): ProcessLabel | null {
-  const lower = (name + ' ' + cmdline).toLowerCase();
-
-  // Database processes
-  if (name.toLowerCase().includes('postgres') || lower.includes('postgres')) return { label: 'PostgreSQL', kind: 'db' };
-  if (name.toLowerCase().includes('mysql') || name.toLowerCase().includes('mariadb')) return { label: 'MySQL', kind: 'db' };
-  if (name.toLowerCase().includes('mongod') || name.toLowerCase().includes('mongos')) return { label: 'MongoDB', kind: 'db' };
-  if (name.toLowerCase().includes('redis')) return { label: 'Redis', kind: 'db' };
-
-  // Container
-  if (name.toLowerCase().includes('docker') || name.toLowerCase().includes('containerd')) return { label: 'Docker', kind: 'container' };
-
-  // Build patterns (before generic vite to catch 'vite build')
-  if ((lower.includes('vite') && lower.includes('build')) || lower.includes('webpack') || lower.includes('tsc') || lower.includes('npm run build'))
-    return { label: 'build task', kind: 'build' };
-
-  // Test patterns (before generic node.js to catch jest, mocha, etc.)
-  if (lower.includes('jest') || lower.includes('mocha') || lower.includes('pytest') || lower.includes('vitest'))
-    return { label: 'test runner', kind: 'test' };
-
-  // Dev server patterns
-  if (lower.includes('vite') && lower.includes('preview')) return { label: 'vite preview', kind: 'dev' };
-  if (lower.includes('vite')) return { label: 'dev server', kind: 'dev' };
-  if (lower.includes('npm run dev') || lower.includes('npm run start') || lower.includes('next dev')) return { label: 'dev server', kind: 'dev' };
-  if (lower.includes('webpack') && !lower.includes('build')) return { label: 'webpack dev', kind: 'dev' };
-  if (lower.includes('create-react-app') || lower.includes('react-scripts')) return { label: 'react dev', kind: 'dev' };
-  if (lower.includes('python') && (lower.includes('manage.py') || lower.includes('flask') || lower.includes('django') || lower.includes('uvicorn')))
-    return { label: 'python dev', kind: 'dev' };
-  if (lower.includes('node') && (lower.includes('.js') || lower.includes('.ts') || lower.includes('.mjs'))) return { label: 'node app', kind: 'dev' };
-
-  // System processes
-  if (name.toLowerCase().includes('svchost') || name.toLowerCase().includes('lsass') || name.toLowerCase().includes('winlogon'))
-    return { label: 'system', kind: 'system' };
-
-  return null;
+  const rules: LabelRule[] = getActiveRules();
+  const m = matchRules(rules, name, cmdline);
+  return m ? { label: m.label, kind: m.kind } : null;
 }
