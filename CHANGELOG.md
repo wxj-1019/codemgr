@@ -4,6 +4,26 @@
 
 ---
 
+## [v1.3] — 2026-07-29
+
+### 新增
+- **自定义标签规则（核心）**：进程标签从硬编码 if 链改为数据驱动引擎。新增「⚙️ 标签规则」编辑器（导航栏），支持启用/禁用默认规则、增删自定义规则、实时预览命中结果。规则模型用条件组（include 全部命中=AND / exclude 命中=NOT / 多组=OR），1:1 覆盖原规则的混合条件；偏好随 localStorage 持久化（codemgr:labelRules）。`labelForProcess(name, cmdline)` 签名不变，调用点零改。
+- **单进程 CPU/内存曲线**：进程详情侧栏新增所选进程的 CPU%（0–100）与内存两条迷你曲线（60 点 ≈ 120s 滚动窗口）。数据复用现有轮询（cpuDelta + processScan 的 workingSetBytes），同一 tick 配对采点，无需新 IPC。进程退出后历史自动清理。
+- **按需精确工作目录（路线 A）**：详情侧栏「读取精确工作目录」按钮按需直读 PEB `CurrentDirectory.DosPath`（精确值，区别于 ProcessInfo.cwd 的命令行启发式）。按钮复刻环境变量的 idle/loading/error/done + pidRef 防陈旧模式；精确值存组件 local state，不覆盖启发式 cwd（项目分组仍以其为键）。
+
+### 采集层（codemgr-native）
+- `readProcessCwd(pid)`：PEB 行走（与 `readProcessEnv` 同源骨架），读 `RTL_USER_PROCESS_PARAMETERS` 偏移 0x38 的 UNICODE_STRING，剥离 `\??\` / `\\?\` NT 前缀。**不进 `processScan` 热路径**（直读 PEB cwd 每进程多 1 NtQIP + 2 ReadProcessMemory，全量采集会破 20ms 红线）。
+
+### 性能
+- processScan p99 = 12.38 ms（396 进程，按需 cwd 通道零影响，红线 < 20ms 通过）。
+- netScan p99 = 6.20 ms（465 连接）。
+- 60s 内存泄漏检测 RSS −8.49 MB（无泄漏）。
+
+### 测试覆盖
+- labelRules 引擎单测（include/exclude/groups/field/顺序）、processPanelStore 历史采点与裁剪、projectGroup NT 前缀剥离、readProcessCwd 正确性（自身进程/System 进程）。共 119 PASS（native 22 + app 97）。
+
+---
+
 ## [v1.2] — 2026-07-29
 
 ### 新增
