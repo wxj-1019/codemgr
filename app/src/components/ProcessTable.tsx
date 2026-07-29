@@ -312,8 +312,8 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   }, [sorted]);
 
   const allSelected = useMemo(
-    () => selectedPids.size > 0 && sorted.every((p) => selectedPids.has(p.pid)),
-    [selectedPids, sorted],
+    () => rows.length > 0 && rows.every((r) => selectedPids.has(r.proc.pid)),
+    [selectedPids, rows],
   );
 
   const setSortKey = useProcessPanelStore((s) => s.setSortKey);
@@ -466,12 +466,12 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
             <th className="w-8 px-1 py-2">
               <input
                 type="checkbox"
-                aria-label="全选当前列表"
+                aria-label="全选可见行"
                 checked={allSelected}
                 onChange={() =>
                   allSelected
                     ? clearSelection()
-                    : selectAll(sorted.map((p) => p.pid))
+                    : selectAll(rows.map((r) => r.proc.pid))
                 }
                 className="accent-accent"
               />
