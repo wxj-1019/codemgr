@@ -48,9 +48,10 @@
   - per-process：从实例名解析 `pid_(\d+)_` 前缀（**宽松解析**：只认 `pid_` 前缀 + 数字，其余段不假设格式——格式随 Windows 版本微变，这是风险 R1 的对策），按 pid 累加 GPU% 与 Dedicated Usage。
   - 显存总量：DXGI `IDXGIFactory4::EnumAdapters1` + `IDXGIAdapter3::QueryVideoMemoryInfo(DXGI_MEMORY_SEGMENT_GROUP_LOCAL)` 取 `CurrentUsage/ Budget`；取第一块硬件适配器。DXGI 失败时 fallback：per-process Dedicated Usage 求和作"已用"，总量显示"未知"。
 
-**PdhAddEnglishCounter 的坑（写进实现注意）：**
-- 该 API 要求计数器路径为英文且系统支持 English locale 名称注册（Win10 1709+ 全部支持）。
-- `PdhExpandWildCardPath` 有 English 变体 `PdhExpandWildCardPath` 不分语言（展开的是已注册实例名），但为稳妥用 `PdhAddEnglishCounter` 逐个加展开后的路径。
+**与现有 disk PDH 的关键差异（实现注意）：**
+- **English API vs 本地化 API**：现有 disk PDH（`perf_collector.cpp:131`）用 `PdhAddCounterW` + 本地化计数器名（`Disk Read Bytes/sec`）——这在中文系统会因计数器名本地化而失败（disk 能用是因为 `Disk Read Bytes/sec` 恰好是英文路径在中文系统也注册了，但这是脆弱的）。GPU 计数器**改用 `PdhAddEnglishCounterW`**（需 `pdh.lib`，已在 WIN_LIBS），强制走英文注册名，彻底免本地化。这是 GPU collector 与 disk collector 的核心差异，新写时不要照抄 disk 的 `PdhAddCounterW`。
+- **DXGI 链接**：`IDXGIFactory4`/`IDXGIAdapter3` 在 `dxgi.dll`，需在 CMakeLists 的 `WIN_LIBS` 加 `dxgi`（现有 WIN_LIBS 无 dxgi，见 `CMakeLists.txt:14-22`）。DXGI 头 `<dxgi1_6.h>`（IDXGIAdapter3 在 1.4，Factory4 在 1.6）。
+- **`PdhAddEnglishCounter` 的坑**：该 API 要求计数器路径为英文且系统支持 English locale 名称注册（Win10 1709+ 全部支持）。`PdhExpandWildCardPath` 不分语言（展开的是已注册实例名），展开后再用 `PdhAddEnglishCounterW` 逐个加——实例名本身（`pid_xxx_luid_xxx`）不含本地化文本，安全。
 
 ### 1.3 数据模型与接线
 
@@ -79,9 +80,12 @@ export interface PerfData {
 ### 1.5 测试策略
 
 - **native 测试**（`tests/gpu.test.ts`）：结构断言——`gpu` 字段存在；若 `available=true` 则 totalPercent ∈ [0,100]、vramUsed ≤ budget × 1.1（budget 是软上限）、perProcess 每项 pid>0；若 `available=false`（CI/虚拟机）则其余字段为 0。**不做"必须 >0"断言**（环境无 GPU 负载时合法为 0）。
-- **聚合逻辑纯函数抽出**：实例名→pid 解析（`parseGpuEnginePid("pid_1234_luid_...")`）+ per-pid 累加，在 native 测试用伪造实例名表驱动（不依赖真实 PDH）。
-- **UI**：perfStore 处理 gpu=null 的降级渲染（jsdom 测试）；进程面板 GPU 列排序（沿用现有 sort 测试模式）。
-- **bench**：perfCounters p99 基线 ~3ms，加 GPU 后判据 < 10ms。
+- **聚合逻辑纯函数测试的暴露方式**：现有 addon 没有暴露内部纯函数供测试的先例（所有导出都是完整采集函数）。两种方案：
+  - **方案 A（推荐）**：纯函数 `ParseGpuEnginePid`/`AggregateGpuSamples` 保持 internal static，**不暴露**——改为通过完整的 `perfCounters`（含 GPU）的结构断言间接覆盖聚合正确性（真实环境有 GPU 时 perProcess 的 pid 与 processScan 的 pid 应有交集）。纯函数的单元正确性靠 code review + 集成断言，不追求 native 层纯函数单元测试（与现有 perf_collector 的 cpu/disk 聚合逻辑同等待遇——它们也都没单独单测）。
+  - 方案 B：额外暴露 `_test_gpuAggregate(samples)` 测试导出（前缀 `_test_` 标记），用伪造实例名表驱动。代价是污染生产导出面。
+  - 选方案 A：与现有 collector 测试范式一致（结构断言为主），不为 GPU 破例加测试导出。
+- **UI**：perfStore 处理 gpu=null/available=false 的降级渲染（jsdom 测试）；进程面板 GPU 列排序（沿用现有 sort 测试模式）。
+- **bench**：perfCounters p99 基线 ~3ms，加 GPU 后判据 < 10ms。注意 bench 对机器负载敏感（软 gate），无 GPU 环境下 GPU 采集是空操作（available=false 快速返回），不会拖慢 perfCounters。
 
 ### 1.6 风险
 
@@ -176,9 +180,11 @@ export function diffSnapshots(base: SnapshotEntry[], current: SnapshotEntry[]): 
 
 ## 排期
 
+> **版本号对齐**：v2.1 已被"AI 开发工具默认标签 + 开机自启"占用（见 AGENTS §8 / CHANGELOG）。GPU 监控并入 v2.1（同版本多特性，未发版可扩），进程快照对比 = v2.2。
+
 | 版本 | 内容 | 工作量 | 依赖 |
 |------|------|:---:|------|
-| **v2.1** | GPU/显存监控（native + perf 子标签 + 进程列） | 中 | 无（native 新 collector 独立文件） |
+| **v2.1**（扩） | GPU/显存监控（native + perf 子标签 + 进程列），与已有 AI 标签/自启同版 | 中 | 无（native 新 collector 独立文件） |
 | **v2.2** | 进程快照对比（diff 引擎 + 文件 IO + SnapshotPanel） | 中 | v1.8 的布局/多选/killByPids 均已就位 |
 
 ## 明确不做
