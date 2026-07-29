@@ -6,10 +6,14 @@ import { filterConnections, isListenLike } from '../lib/portFilter';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
+import { PollIntervalSelect } from './PollIntervalSelect';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
-  const { connections, loading, error, selectedPid, select, filter, setFilter } = usePortRadarStore();
+  const {
+    connections, loading, error, selectedPid, select, filter, setFilter,
+    pollMs, setPollMs,
+  } = usePortRadarStore();
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
 
@@ -49,13 +53,16 @@ export function PortRadar() {
             {error && ' · 上次刷新出错'}
           </p>
         </div>
-        <input
-          type="text"
-          placeholder="搜索端口/进程/PID/地址…"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
-        />
+        <div className="flex items-center gap-3">
+          <PollIntervalSelect value={pollMs} onChange={setPollMs} />
+          <input
+            type="text"
+            placeholder="搜索端口/进程/PID/地址…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
+          />
+        </div>
       </header>
 
       {showErrorBanner && (

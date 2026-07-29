@@ -3,13 +3,13 @@ import { ipc } from '../lib/ipc';
 import { usePerfStore } from '../store/perfStore';
 import { useVisibilityStore, selectPollable } from '../store/visibilityStore';
 
-const POLL_MS = 1000; // performance panel refresh interval (1s)
 const PANEL: 'perf' = 'perf';
 
 export function usePerf() {
   const setPerf = usePerfStore((s) => s.setPerf);
   const setLoading = usePerfStore((s) => s.setLoading);
   const setError = usePerfStore((s) => s.setError);
+  const pollMs = usePerfStore((s) => s.pollMs);
   const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
   const busyRef = useRef(false);
@@ -44,10 +44,11 @@ export function usePerf() {
 
     if (!pollable) return;  // 不可见：不启动轮询
     poll();
-    const timer = setInterval(poll, POLL_MS);
+    if (pollMs <= 0) return;  // 暂停：不建 interval（effect 重跑时仍会补一次刷新）
+    const timer = setInterval(poll, pollMs);
     return () => {
       stoppedRef.current = true;
       clearInterval(timer);
     };
-  }, [setPerf, setLoading, setError, pollable]);
+  }, [setPerf, setLoading, setError, pollable, pollMs]);
 }

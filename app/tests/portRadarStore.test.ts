@@ -15,7 +15,10 @@ const sampleConn = (over: Partial<NetConnection> = {}): NetConnection => ({
 });
 
 describe('portRadarStore', () => {
+  // persist middleware reads/writes localStorage; clear it before each test so
+  // rehydrated state from a prior test can't leak in (reset() alone re-persists).
   beforeEach(() => {
+    localStorage.clear();
     usePortRadarStore.getState().reset();
   });
 
@@ -48,5 +51,27 @@ describe('portRadarStore', () => {
     expect(usePortRadarStore.getState().filter).toBe('8080');
     usePortRadarStore.getState().reset();
     expect(usePortRadarStore.getState().filter).toBe('');
+  });
+
+  it('pollMs defaults to 3000 (port radar interval)', () => {
+    expect(usePortRadarStore.getState().pollMs).toBe(3000);
+  });
+
+  it('setPollMs updates the refresh interval (0 = paused)', () => {
+    const st = usePortRadarStore.getState();
+    st.setPollMs(1000);
+    expect(usePortRadarStore.getState().pollMs).toBe(1000);
+    st.setPollMs(0);
+    expect(usePortRadarStore.getState().pollMs).toBe(0);
+  });
+
+  it('persists pollMs via partialize', () => {
+    localStorage.clear();
+    const api = (usePortRadarStore as unknown as {
+      persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
+    }).persist;
+    const persisted = api.getOptions().partialize(usePortRadarStore.getState());
+    // 只持久化刷新间隔偏好；connections/selectedPid 等运行时数据不存
+    expect(persisted).toEqual({ pollMs: 3000 });
   });
 });

@@ -11,6 +11,7 @@ import { usePerf } from '../hooks/usePerf';
 import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
 import { LoadState } from './LoadState';
+import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatBytesPerSec } from '../lib/format';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network';
@@ -30,7 +31,7 @@ function fmtBytes(b: number): string {
 
 export function PerfPanel() {
   usePerf();
-  const { current, history, error } = usePerfStore();
+  const { current, history, error, pollMs, setPollMs } = usePerfStore();
   const [sub, setSub] = useState<SubTab>('cpu');
 
   if (!current) {
@@ -55,20 +56,23 @@ export function PerfPanel() {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
         <h1 className="text-lg font-semibold text-fg-primary">性能</h1>
-        <div className="flex gap-1">
-          {subTabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSub(t.id)}
-              className={`rounded px-3 py-1 text-sm ${
-                sub === t.id
-                  ? 'bg-accent/20 text-accent'
-                  : 'text-fg-secondary hover:text-fg-primary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <PollIntervalSelect value={pollMs} onChange={setPollMs} />
+          <div className="flex gap-1">
+            {subTabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setSub(t.id)}
+                className={`rounded px-3 py-1 text-sm ${
+                  sub === t.id
+                    ? 'bg-accent/20 text-accent'
+                    : 'text-fg-secondary hover:text-fg-primary'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 

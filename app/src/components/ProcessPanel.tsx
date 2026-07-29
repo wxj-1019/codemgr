@@ -10,6 +10,7 @@ import { ProjectGroupView } from './ProjectGroupView';
 import { ProcessDetailSidebar } from './ProcessDetailSidebar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
+import { PollIntervalSelect } from './PollIntervalSelect';
 
 // Tailwind 的 lg 断点 = 1024px。侧栏仅 lg+ 显示（与原 hidden lg:block 一致），
 // 用 matchMedia 判断，避免 allotment 在小屏仍给侧栏 pane 分配空间。
@@ -27,13 +28,14 @@ function useIsLg(): boolean {
 }
 
 export function ProcessPanel() {
-  useProcessPanel(); // Start polling (2s interval)
+  useProcessPanel(); // Start polling (interval from store, default 2s)
 
   const isLg = useIsLg();
 
   const {
     processes, loading, error, selectedPids, filter, setFilter, clearSelection,
     viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
+    pollMs, setPollMs,
   } = useProcessPanelStore();
 
   const [pendingKill, setPendingKill] = useState<{
@@ -189,6 +191,7 @@ export function ProcessPanel() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <PollIntervalSelect value={pollMs} onChange={setPollMs} />
           <input
             type="text"
             placeholder="搜索进程/命令行/PID…"

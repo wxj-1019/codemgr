@@ -3,7 +3,6 @@ import { ipc } from '../lib/ipc';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { useVisibilityStore, selectPollable } from '../store/visibilityStore';
 
-const POLL_MS = 2000;  // process panel refresh interval (spec 5.1)
 const PANEL: 'process' = 'process';
 
 export function useProcessPanel() {
@@ -12,6 +11,7 @@ export function useProcessPanel() {
   const appendHistory = useProcessPanelStore((s) => s.appendHistory);
   const setLoading = useProcessPanelStore((s) => s.setLoading);
   const setError = useProcessPanelStore((s) => s.setError);
+  const pollMs = useProcessPanelStore((s) => s.pollMs);
   const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
   const busyRef = useRef(false);
@@ -55,10 +55,11 @@ export function useProcessPanel() {
 
     if (!pollable) return;  // 不可见：不启动轮询
     poll();
-    const timer = setInterval(poll, POLL_MS);
+    if (pollMs <= 0) return;  // 暂停：不建 interval（effect 重跑时仍会补一次刷新）
+    const timer = setInterval(poll, pollMs);
     return () => {
       stoppedRef.current = true;
       clearInterval(timer);
     };
-  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError, pollable]);
+  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError, pollable, pollMs]);
 }

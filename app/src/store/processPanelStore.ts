@@ -26,6 +26,8 @@ interface ProcessPanelState {
   error: string | null;
   // 详情侧栏占容器宽度的比例（0-1），驱动 allotment 受控 sizes。持久化，刷新恢复。
   sidebarProportion: number;
+  // 轮询间隔（ms），0 = 暂停。持久化，重启后保留。
+  pollMs: number;
 
   setProcesses: (p: ProcessInfo[]) => void;
   setCpuMap: (c: { pid: number; cpuPercent: number }[]) => void;
@@ -43,6 +45,7 @@ interface ProcessPanelState {
   setLoading: (b: boolean) => void;
   setError: (e: string | null) => void;
   setSidebarProportion: (p: number) => void;
+  setPollMs: (ms: number) => void;
   reset: () => void;
 }
 
@@ -63,6 +66,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       error: null,
       // 侧栏约占容器 30%；allotment 用比例驱动，窗口 resize 时侧栏按比例缩放
       sidebarProportion: 0.3,
+      pollMs: 2000,  // 进程面板默认 2s（与原硬编码 POLL_MS 一致）
 
       setProcesses: (p) => set((s) => {
         // Prune stale entries: only keep PIDs still present in the new snapshot.
@@ -128,21 +132,24 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       setError: (e) => set({ error: e }),
       // 钳制到 15%-60%：太窄曲线/命令行看不清，太宽挤掉进程表
       setSidebarProportion: (p) => set({ sidebarProportion: Math.min(0.6, Math.max(0.15, p)) }),
+      setPollMs: (ms) => set({ pollMs: ms }),
       reset: () => set({
         processes: [], cpuMap: {}, procHistory: {}, filter: '', sortKey: 'pid', sortAsc: true,
         viewMode: 'tree', expandedPids: new Set(), expandedGroups: new Set(),
         selectedPids: new Set(), loading: false, error: null, sidebarProportion: 0.3,
+        pollMs: 2000,
       }),
     }),
     {
       name: 'codemgr:process-panel',
-      // 只持久化排序/过滤/视图/侧栏比例偏好；processes/cpuMap/selectedPids 是运行时数据，不存
+      // 只持久化排序/过滤/视图/侧栏比例/刷新间隔偏好；processes/cpuMap/selectedPids 是运行时数据，不存
       partialize: (s) => ({
         sortKey: s.sortKey,
         sortAsc: s.sortAsc,
         filter: s.filter,
         viewMode: s.viewMode,
         sidebarProportion: s.sidebarProportion,
+        pollMs: s.pollMs,
       }),
     },
   ),

@@ -139,7 +139,7 @@ describe('processPanelStore', () => {
     st.toggleSort(); // sortAsc -> false
     st.setFilter('node');
     st.setViewMode('project');
-    // partialize must produce exactly { sortKey, sortAsc, filter, viewMode, sidebarProportion } —
+    // partialize must produce exactly { sortKey, sortAsc, filter, viewMode, sidebarProportion, pollMs } —
     // no processes/cpuMap/selectedPids/etc. The store exposes its persist API.
     const api = (useProcessPanelStore as unknown as {
       persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
@@ -148,8 +148,20 @@ describe('processPanelStore', () => {
     const persisted = opts.partialize(useProcessPanelStore.getState());
     expect(persisted).toEqual({
       sortKey: 'cpu', sortAsc: false, filter: 'node', viewMode: 'project',
-      sidebarProportion: 0.3,
+      sidebarProportion: 0.3, pollMs: 2000,
     });
+  });
+
+  it('pollMs defaults to 2000 (process panel interval)', () => {
+    expect(useProcessPanelStore.getState().pollMs).toBe(2000);
+  });
+
+  it('setPollMs updates the refresh interval (0 = paused)', () => {
+    const st = useProcessPanelStore.getState();
+    st.setPollMs(5000);
+    expect(useProcessPanelStore.getState().pollMs).toBe(5000);
+    st.setPollMs(0);
+    expect(useProcessPanelStore.getState().pollMs).toBe(0);
   });
 
   it('setSidebarProportion clamps to 0.15-0.6', () => {
