@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PortRadar } from './components/PortRadar';
 import { ProcessPanel } from './components/ProcessPanel';
 import { PerfPanel } from './components/PerfPanel';
 import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { useThemeStore } from './store/themeStore';
+import { ipc } from './lib/ipc';
 
 type Tab = 'port' | 'process' | 'perf';
 
@@ -17,6 +18,11 @@ export function App() {
   const [active, setActive] = useState<Tab>('port');
   const [rulesOpen, setRulesOpen] = useState(false);
   const { theme, toggle } = useThemeStore();
+  // 版本号：挂载时拉一次（来自 package.json，经 app.getVersion()）。不轮询。
+  const [version, setVersion] = useState('');
+  useEffect(() => {
+    ipc.getAppVersion().then(setVersion).catch(() => { /* 忽略，版本非关键 */ });
+  }, []);
 
   return (
     <div className="flex h-screen flex-col bg-base-900">
@@ -49,6 +55,14 @@ export function App() {
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
+        {version && (
+          <span
+            className="px-2 py-2 self-center text-[11px] text-fg-muted"
+            title={`CodeMgr v${version}`}
+          >
+            v{version}
+          </span>
+        )}
       </nav>
 
       {/* Active panel */}

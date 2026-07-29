@@ -16,6 +16,7 @@ const api: ExposedApi = {
   // 文件路径由 main 的对话框决定，渲染层只传/收数据，拿不到路径（守红线）
   exportLabelRules: (payload: LabelRulesPayload) => ipcRenderer.invoke(IPC.EXPORT_LABEL_RULES, payload),
   importLabelRules: () => ipcRenderer.invoke(IPC.IMPORT_LABEL_RULES),
+  getAppVersion: () => ipcRenderer.invoke(IPC.APP_VERSION),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);

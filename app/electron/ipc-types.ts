@@ -13,6 +13,8 @@ export const IPC = {
   // 标签规则导入导出：文件 IO 必须封在 main（红线），渲染层只拿数据/布尔
   EXPORT_LABEL_RULES: 'config:exportLabelRules',
   IMPORT_LABEL_RULES: 'config:importLabelRules',
+  // 应用版本号：渲染层显示当前版本（来自 package.json，经 app.getVersion()）
+  APP_VERSION: 'app:getVersion',
 } as const;
 
 /**
@@ -109,4 +111,6 @@ export interface ExposedApi {
   // 导出返回是否成功（用户取消对话框也算 false）；导入返回载荷或 null（取消/损坏）。
   exportLabelRules(payload: LabelRulesPayload): Promise<boolean>;
   importLabelRules(): Promise<LabelRulesPayload | null>;
+  // 应用版本号（来自 package.json，经 app.getVersion()）
+  getAppVersion(): Promise<string>;
 }

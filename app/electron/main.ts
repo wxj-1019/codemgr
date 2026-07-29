@@ -222,6 +222,9 @@ ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
   }
 });
 
+// 应用版本号（来自 package.json，经 app.getVersion()）。渲染层用于显示当前版本。
+ipcMain.handle(IPC.APP_VERSION, () => app.getVersion());
+
 app.whenReady().then(() => {
   createWindow();
 

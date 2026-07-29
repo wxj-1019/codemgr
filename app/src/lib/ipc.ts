@@ -39,4 +39,7 @@ export const ipc = {
   async importLabelRules(): Promise<LabelRulesPayload | null> {
     return window.codemgr.importLabelRules();
   },
+  async getAppVersion(): Promise<string> {
+    return window.codemgr.getAppVersion();
+  },
 };
