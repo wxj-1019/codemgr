@@ -144,10 +144,11 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
-- **v1.3**（tag `v1.3`）：自定义标签规则（数据驱动引擎 + 编辑器 + localStorage 持久化）+ 单进程 CPU/内存曲线 + 按需精确工作目录（PEB 直读，路线 A，不进热路径）。
+- **v1.4**（tag `v1.4`）：标签规则导入导出（受控文件 IO 通道）+ 进程行右键菜单（ContextMenu 组件）+ 详情侧栏可拖宽（allotment 分栏，比例持久化）。
+- **v1.3**（tag `v1.3`）：自定义标签规则（数据驱动引擎 + 编辑器 + localStorage 持久化）+ 单进程 CPU/内存曲线 + 按需精确工作目录（PEB 直读，路线 A，不进热路径）+ kill 路径加固（killProcess 补保护名单）。
 - **v1.2**（tag `v1.2`）：端口雷达搜索过滤 + 冲突高亮 + 结束进程树 + 进程环境变量查看。
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
-- 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程）、netScan p99=6.2ms、60s 无泄漏。
-- 测试：app 97/97 + native 24/24，共 121 PASS。
+- 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.4 未改 native）、netScan p99=6.2ms、60s 无泄漏。
+- 测试：app 110/110 + native 24/24，共 134 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。

@@ -4,6 +4,23 @@
 
 ---
 
+## [v1.4] — 2026-07-29
+
+### 新增
+- **标签规则导入导出**：标签规则编辑器新增「导出」「导入」按钮。导出把当前规则集（自定义规则 + 默认开关/覆盖）存为 JSON 文件；导入从文件加载并**整体替换**现有规则（导入前对有改动的规则二次确认）。文件路径由主进程对话框决定，渲染层只收发数据、拿不到路径（守安全红线）。新增 `IPC.EXPORT_LABEL_RULES` / `IPC.IMPORT_LABEL_RULES` 两个受控文件 IO 通道。
+- **进程行右键菜单**：进程表（树形视图）与项目分组视图的进程行支持右键，菜单含「结束进程 / 结束进程树 / 复制命令行 / 复制 PID」。结束操作复用现有确认对话框流程；复制操作失败静默（clipboard 可能被环境阻断）。自建轻量 `ContextMenu` 组件（零依赖，视口边界翻转定位，Esc/外部点击关闭）。
+- **详情侧栏可拖宽**：进程详情侧栏宽度从固定 320px 改为可拖拽（allotment 分栏）。拖动比例钳制在 15%-60%（太窄曲线看不清、太宽挤掉进程表），随 `codemgr:process-panel` 持久化，刷新恢复。仅 lg+ 屏（≥1024px）显示侧栏，小屏仍只显示进程表。分割条用项目主题色适配亮/暗。
+
+### 工程化
+- v1.4 为 v2.0 插件系统预演了「受控文件 IO 通道」模式（main 封装 dialog+fs，渲染层只拿数据）。
+- 测试基线：121 → 134 PASS（app 97→110，native 24 不变）。新增 labelRulesStore 导入语义、ContextMenu 组件、setSidebarProportion 钳制单测。
+
+### 已知限制
+- 标签规则的 main handler（`validateLabelRulesPayload` + dialog/fs）未单测——耦合 electron 环境，导入导出留人工验收；可测逻辑（store 的 `replaceAll` 深拷贝/替换语义）已覆盖。
+- 右键菜单的剪贴板复制在 contextIsolation 下依赖 navigator.clipboard，部分环境可能阻断（与侧栏 copyCmd 同条件）。
+
+---
+
 ## [v1.3] — 2026-07-29
 
 ### 新增
