@@ -34,7 +34,8 @@ export interface ReadonlyConnection {
 export type HostToPluginMsg =
   | { type: 'ready' }
   | { type: 'snapshot'; processes: ReadonlyProcessInfo[]; ports: ReadonlyConnection[] }
-  | { type: 'theme'; vars: Record<string, string> };
+  | { type: 'theme'; vars: Record<string, string> }
+  | { type: 'dataSource'; capability: string; data: unknown };
 
 export type PluginToHostMsg =
   | { type: 'registerLabelRules'; rules: unknown[] };

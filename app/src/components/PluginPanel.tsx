@@ -4,6 +4,7 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useVisibilityStore } from '../store/visibilityStore';
 import { useThemeStore } from '../store/themeStore';
+import { ipc } from '../lib/ipc';
 import type { HostToPluginMsg, ReadonlyProcessInfo, ReadonlyConnection } from '../lib/pluginProtocol';
 
 // 快照推送间隔（与 process 面板轮询一致，2s）。视图插件据此刷新。
@@ -102,6 +103,22 @@ export function PluginPanel({ id }: { id: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 数据源订阅（6c）：插件声明 capabilities 时，请求数据 + 监听结果转发进 iframe
+  useEffect(() => {
+    const caps = entry?.capabilities;
+    if (!caps || caps.length === 0) return;
+    // 订阅数据源结果事件，按 capability 路由转发
+    const unsubscribe = ipc.onDataSourceResult((capability, data) => {
+      if (caps.includes(capability)) post({ type: 'dataSource', capability, data });
+    });
+    // 对每个 capability 发起一次请求（本次管道验证：订阅即推一次；周期轮询留后续）
+    for (const cap of caps) {
+      ipc.requestDataSource(cap).catch(() => { /* UtilityProcess 未就绪，静默 */ });
+    }
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.capabilities]);
 
   if (status === 'errored') {
     return (

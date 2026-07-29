@@ -33,6 +33,8 @@ const KIND_COLORS: Record<string, string> = {
   container: 'bg-blue-500/20 text-blue-400',
   db: 'bg-amber-500/20 text-amber-400',
   system: 'bg-slate-600/30 text-fg-secondary',
+  ai: 'bg-fuchsia-500/20 text-fuchsia-400',
+  'ai-ide': 'bg-violet-500/20 text-violet-400',
 };
 
 const GroupRow = memo(function GroupRow({

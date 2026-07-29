@@ -196,12 +196,70 @@ window.addEventListener('message', (e) => {
 
 ## 调试
 
-- 标签规则插件 iframe 是隐形的（`display:none`）；视图插件 iframe 在 mosaic tile 内可见。
+- 标签规则插件 iframe 是隐形的（`display:none`）；视图/数据源插件 iframe 在 mosaic tile 内可见。
 - 规则是否生效：在「进程」面板查看对应进程是否被打上你的标签。
 - 视图是否生效：添加面板后看 tile 是否渲染。
+- 数据源是否生效：声明 capabilities 的插件添加面板后，看是否收到 dataSource 消息。
 - manifest 不存在或损坏：CodeMgr 静默忽略（不报错），等价于无插件。
 - 单个插件崩溃：不影响其它插件和主窗口（崩溃隔离已验证）。
+- UtilityProcess 崩溃：自动重启（2s 延迟），主 app 不受影响；数据源请求失败静默降级。
 
-## 后续（6c）
+---
 
-- **自定义数据源**（6c）：经 UtilityProcess + 白名单 native 能力（如读 Docker 容器列表）。未实现，v2.0+ 探索项。
+## 数据源插件（6c）
+
+插件除消费内置只读快照外，还可消费经 **UtilityProcess** 采集的 native 数据源。
+
+### 工作方式
+
+- 插件在 manifest 声明 `capabilities`（如 `['demo-source']`）。
+- main 校验白名单：未识别的 capability **被剥离**（红线——插件不能自带 native 能力，所有数据源由主仓库编译进主包）。
+- 视图插件添加面板后，CodeMgr 经 **UtilityProcess（进程级隔离）** 采集数据，经 MessagePort → main → renderer → iframe 链路推送给插件。
+
+### 当前可用能力
+
+| capability | 说明 | 状态 |
+|------------|------|------|
+| `demo-source` | 模拟数据（验证管道） | ✅ 可用（6c 第一步） |
+
+> 新增真实数据源（如 Docker 容器列表）= 主仓库加 collector + addon 注册 + 加白名单 + UtilityProcess 路由（需 review）。
+
+### manifest 声明
+
+```json
+[
+  {
+    "id": "demo-viewer",
+    "name": "数据源示例",
+    "src": "C:\\...\\data-source-plugin.html",
+    "capabilities": ["demo-source"]
+  }
+]
+```
+
+### 推送的消息（宿主 → 插件）
+
+| 消息 | 时机 | 载荷 |
+|------|------|------|
+| `{ type: 'dataSource', capability, data }` | 插件面板可见时（订阅即推一次） | `capability` 为数据源名，`data` 为采集结果（形状由 capability 决定） |
+
+### 数据源插件示例
+
+见 `app/poc-plugin-sandbox/examples/data-source-plugin.html`：消费 `demo-source` 的模拟数据（两条固定记录），经 UtilityProcess 管道回流。
+
+```js
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (msg.type === 'dataSource' && msg.capability === 'demo-source') {
+    // msg.data: [{id, name, value}, ...]
+    renderYourUI(msg.data);
+  }
+});
+```
+
+### 安全约束（6c 特有）
+
+- ❌ 插件**不能**自带 `.node` 原生模块（红线）。
+- ❌ 插件**不能**直接指定要调用哪个 native 函数——只能声明 `capabilities`，由 main 白名单 + UtilityProcess 路由决定实际采集。
+- ✅ 数据源采集在 **UtilityProcess**（独立进程，崩溃隔离）内执行，不暴露 main/renderer。
+- ✅ 每个 native 能力单独白名单（`ALLOWED_CAPABILITIES`），主仓库 review 后才加入。
