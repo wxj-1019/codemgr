@@ -270,20 +270,21 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
         </thead>
         <tbody>
           {groups.map((g) => {
+            const groupKey = g.dir ?? g.name; // identity 键：规范化 dir（未分组回退 name）
             const procs = g.pids
               .map((pid) => procByPid.get(pid))
               .filter((x): x is ProcessInfo => !!x);
             return (
               <GroupRow
-                key={g.name}
+                key={groupKey}
                 name={g.name}
                 dir={g.dir}
                 pids={g.pids}
                 totalMemory={g.totalMemory}
                 procs={procs}
-                isExpanded={expandedGroups.has(g.name)}
+                isExpanded={expandedGroups.has(groupKey)}
                 cpuMap={cpuMap}
-                onToggle={() => onToggle(g.name)}
+                onToggle={() => onToggle(groupKey)}
                 onKillSingle={onKillSingle}
                 onKillGroup={() => onKillGroup(g.name, g.pids)}
                 onContextMenuRow={onContextMenuRow}
