@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { spawn } from 'node:child_process';
 import native from '../index';
 
 describe('processScan', () => {
@@ -65,6 +66,47 @@ describe('killByName guard list', () => {
     const killed = native.killByName('svchost.exe');
     // svchost.exe 在保护名单内 —— 必须返回 0（即便系统里有几十个）
     expect(killed).toBe(0);
+  });
+});
+
+describe('killTree', () => {
+  it('kills a spawned parent together with its child', async () => {
+    // 父进程：spawn 一个 node 孙进程后挂起
+    const parent = spawn(process.execPath, [
+      '-e',
+      `require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(()=>{}, 60000)'], { stdio: 'ignore' }); setTimeout(()=>{}, 60000);`,
+    ], { stdio: 'ignore' });
+
+    try {
+      // 等孙进程起来（最多 5s）
+      let childSeen = false;
+      for (let i = 0; i < 10 && !childSeen; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        childSeen = native.processScan().some((p) => p.ppid === parent.pid);
+      }
+      expect(childSeen).toBe(true);
+
+      const killed = native.killTree(parent.pid!);
+      expect(killed).toBeGreaterThanOrEqual(2); // 父 + 孙
+
+      const after = native.processScan();
+      expect(after.some((p) => p.pid === parent.pid)).toBe(false);
+    } finally {
+      // 兜底清理，避免测试失败时残留
+      try { process.kill(parent.pid!); } catch { /* 已退出 */ }
+    }
+  }, 15000);
+
+  it('never kills protected processes (services.exe root returns 0)', () => {
+    const procs = native.processScan();
+    const svc = procs.find((p) => p.name.toLowerCase() === 'services.exe');
+    expect(svc).toBeDefined();
+    // services.exe 在保护名单；其子进程是 svchost.exe 等也在名单内 → 0
+    expect(native.killTree(svc!.pid)).toBe(0);
+  });
+
+  it('returns 0 for a non-existent pid', () => {
+    expect(native.killTree(0x7ffffff0)).toBe(0);
   });
 });
 

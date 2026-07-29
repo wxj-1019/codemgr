@@ -119,3 +119,46 @@ Napi::Value KillByPidsJS(const Napi::CallbackInfo& info) {
   }
   return Napi::Number::New(env, (double)KillByPids(pids));
 }
+
+size_t KillTree(DWORD rootPid) {
+  std::vector<ProcessInfoRaw> procs;
+  std::string err;
+  if (!CollectAllProcesses(procs, err)) return 0;
+
+  // ppid -> children pids
+  std::unordered_map<DWORD, std::vector<DWORD>> children;
+  children.reserve(procs.size());
+  for (const auto& p : procs) children[(DWORD)p.ppid].push_back((DWORD)p.pid);
+
+  // 根进程在保护名单 → 整棵树拒绝。services.exe 的子树里有不在名单内的
+  // 服务进程（spoolsv/dllhost 等），按名字逐个放行会把系统服务树砍掉。
+  for (const auto& p : procs) {
+    if ((DWORD)p.pid == rootPid && IsProtected(p.name)) return 0;
+  }
+
+  // 迭代式 DFS 收集整棵子树（含根）。防御自引用：c == pid 不入栈。
+  std::vector<DWORD> pids;
+  std::vector<DWORD> stack;
+  stack.push_back(rootPid);
+  while (!stack.empty()) {
+    DWORD pid = stack.back();
+    stack.pop_back();
+    pids.push_back(pid);
+    auto it = children.find(pid);
+    if (it == children.end()) continue;
+    for (DWORD c : it->second) {
+      if (c != pid) stack.push_back(c);
+    }
+  }
+  return KillByPids(pids);
+}
+
+Napi::Value KillTreeJS(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "expected pid:number").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  DWORD pid = (DWORD)info[0].As<Napi::Number>().Int32Value();
+  return Napi::Number::New(env, (double)KillTree(pid));
+}

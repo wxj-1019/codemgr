@@ -19,6 +19,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "killProcess"), Napi::Function::New(env, KillProcess));
   exports.Set(Napi::String::New(env, "killByName"), Napi::Function::New(env, KillByName));
   exports.Set(Napi::String::New(env, "killByPids"), Napi::Function::New(env, KillByPidsJS));
+  exports.Set(Napi::String::New(env, "killTree"), Napi::Function::New(env, KillTreeJS));
   exports.Set(Napi::String::New(env, "perfCounters"), Napi::Function::New(env, PerfCounters));
   return exports;
 }

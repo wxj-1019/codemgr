@@ -14,3 +14,10 @@ bool IsProtected(const std::string& name);
 // Kill by explicit PID list. Skips protected names + own process.
 // Returns actual killed count.
 size_t KillByPids(const std::vector<DWORD>& pids);
+
+// Kill a process and all its descendants (BFS over ppid chain).
+// Reuses KillByPids: protection list + self-pid guard still apply per pid.
+// Returns actual killed count.
+size_t KillTree(DWORD rootPid);
+
+Napi::Value KillTreeJS(const Napi::CallbackInfo& info);
