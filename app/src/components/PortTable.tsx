@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
 import { isListenLike, conflictPorts } from '../lib/portFilter';
@@ -14,9 +14,45 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   const rows = connections.filter(isListenLike);
   const conflicts = useMemo(() => conflictPorts(connections), [connections]);
 
+  // ── 键盘导航（纯导航模型：焦点框与 selectedPid 分离）──
+  // 端口表同一 pid 可能在多行（多端口监听），焦点用 index 锚定更准确。
+  const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const tableRef = useRef<HTMLTableElement | null>(null);
+
+  // 焦点行变化时自动 focus + scrollIntoView（roving tabindex 配套）。
+  // jsdom 无 scrollIntoView 实现，加 typeof 防御（真实 Electron 环境有该方法）。
+  useEffect(() => {
+    const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
+    el?.focus();
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+  }, [focusedIdx]);
+
+  function onRowKeyDown(e: React.KeyboardEvent, idx: number) {
+    const cur = rowsRef.current;
+    if (cur.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (idx < cur.length - 1) setFocusedIdx(idx + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (idx > 0) setFocusedIdx(idx - 1);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(cur[idx].pid);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setFocusedIdx(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setFocusedIdx(cur.length - 1);
+    }
+  }
+
   return (
     <div className="overflow-auto">
-      <table className="w-full text-sm">
+      <table ref={tableRef} role="grid" className="w-full text-sm">
         <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
             <th className="px-3 py-2 font-medium">端口</th>
@@ -32,14 +68,20 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
           {rows.map((c, i) => {
             const label = labelForPort(c.localPort);
             const selected = c.pid === selectedPid;
+            const focused = i === focusedIdx;
             const conflict = conflicts.has(`${c.protocol}:${c.localPort}`);
             return (
               <tr
                 key={`${c.pid}-${c.localPort}-${i}`}
+                role="row"
+                tabIndex={focused ? 0 : -1}
+                data-row-focused={focused ? 'true' : undefined}
+                aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
+                onKeyDown={(e) => onRowKeyDown(e, i)}
                 className={`cursor-pointer border-b border-base-700/50 hover:bg-base-700/40 ${
                   selected ? 'bg-base-700/60' : ''
-                }`}
+                } ${focused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''}`}
               >
                 <td
                   className={`px-3 py-2 font-mono ${

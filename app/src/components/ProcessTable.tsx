@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
@@ -84,17 +84,20 @@ interface ProcessRowProps {
   hasChildren: boolean;
   isExpanded: boolean;
   isSelected: boolean;
+  isFocused: boolean;
   onToggleExpand: (pid: number) => void;
   onToggleSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
   // 右键菜单：转发客户端坐标 + proc，由父组件决定弹什么菜单
   onContextMenuRow: (e: React.MouseEvent, proc: ProcessInfo) => void;
+  // 键盘导航：透传 keydown 给父组件处理（不在 memo 内写逻辑，避免击穿 memo）
+  onRowKeyDown: (e: React.KeyboardEvent, proc: ProcessInfo) => void;
 }
 
 const ProcessRow = memo(function ProcessRow({
-  proc, depth, cpu, hasChildren, isExpanded, isSelected,
-  onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow,
+  proc, depth, cpu, hasChildren, isExpanded, isSelected, isFocused,
+  onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow, onRowKeyDown,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
   const memMB = proc.workingSetBytes / 1048576;
@@ -104,11 +107,17 @@ const ProcessRow = memo(function ProcessRow({
   return (
     <tr
       key={proc.pid}
+      role="row"
+      tabIndex={isFocused ? 0 : -1}
+      data-row-focused={isFocused ? 'true' : undefined}
       className={`border-b border-base-700/30 hover:bg-base-700/30 cursor-pointer ${
         isSelected ? 'bg-base-700/50' : ''
-      } ${memHighlight ? 'bg-yellow-900/10' : ''}`}
+      } ${memHighlight ? 'bg-yellow-900/10' : ''} ${
+        isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
+      }`}
       onClick={() => onToggleSelect(proc.pid)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
+      onKeyDown={(e) => onRowKeyDown(e, proc)}
     >
       <td className="px-1 py-1">
         <input
@@ -292,6 +301,17 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     [sortKey, setSortKey, toggleSort],
   );
 
+  // 排序表头键盘触发：Enter/Space 触发 onSort（让表头键盘可达，不依赖鼠标）
+  const onSortKeyDown = useCallback(
+    (e: React.KeyboardEvent, key: typeof sortKey) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSort(key);
+      }
+    },
+    [onSort],
+  );
+
   // ── 右键上下文菜单 ──
   // 稳定 callback：只记录坐标+proc，items 在渲染时按 proc 动态构造。
   // 用 useCallback 避免每次渲染生成新函数引用导致所有 memoized 行重渲染。
@@ -306,6 +326,46 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
   }, []);
 
+  // ── 键盘导航（纯导航模型：焦点框与 selectedPids 分离）──
+  // 焦点用 pid 锚定（非 index）：排序/折叠/过滤后行序会变，按 pid 定位才稳定。
+  // 用 ref 持有最新 rows，让 onRowKeyDown 引用稳定（不击穿 memo）。
+  const [focusedPid, setFocusedPid] = useState<number | null>(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const tableRef = useRef<HTMLTableElement | null>(null);
+
+  // 焦点行变化时，自动 focus DOM + scrollIntoView（roving tabindex 的标准配套）。
+  // 用 data 属性 + querySelector 定位，避免给 memo 的 ProcessRow 加 forwardRef。
+  // jsdom 无 scrollIntoView，加 typeof 防御（真实 Electron 环境有该方法）。
+  useEffect(() => {
+    const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
+    el?.focus();
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+  }, [focusedPid]);
+
+  const onRowKeyDown = useCallback((e: React.KeyboardEvent, proc: ProcessInfo) => {
+    const cur = rowsRef.current;
+    if (cur.length === 0) return;
+    const idx = cur.findIndex((r) => r.proc.pid === proc.pid);
+    if (idx === -1) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (idx < cur.length - 1) setFocusedPid(cur[idx + 1].proc.pid);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (idx > 0) setFocusedPid(cur[idx - 1].proc.pid);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSelect(proc.pid);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setFocusedPid(cur[0].proc.pid);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setFocusedPid(cur[cur.length - 1].proc.pid);
+    }
+  }, [toggleSelect]);
+
   // 按 menu.proc 动态构造菜单项。kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）
   const menuItems: ContextMenuItem[] = menu ? [
     { label: '结束进程', danger: true, onSelect: () => onKillSingle(menu.proc.pid, menu.proc.name) },
@@ -318,12 +378,13 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
 
   return (
     <div className="overflow-auto flex-1">
-      <table className="w-full text-sm">
+      <table ref={tableRef} role="grid" className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
             <th className="w-8 px-1 py-2">
               <input
                 type="checkbox"
+                aria-label="全选当前列表"
                 checked={allSelected}
                 onChange={() =>
                   allSelected
@@ -334,26 +395,42 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
               />
             </th>
             <th
-              className="px-2 py-2 font-medium cursor-pointer select-none"
+              tabIndex={0}
+              role="button"
+              aria-sort={sortKey === 'name' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+              className="px-2 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('name')}
+              onKeyDown={(e) => onSortKeyDown(e, 'name')}
             >
               名称 {sortKey === 'name' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right"
+              tabIndex={0}
+              role="button"
+              aria-sort={sortKey === 'cpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('cpu')}
+              onKeyDown={(e) => onSortKeyDown(e, 'cpu')}
             >
               CPU% {sortKey === 'cpu' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
-              className="w-20 px-2 py-2 font-medium cursor-pointer text-right"
+              tabIndex={0}
+              role="button"
+              aria-sort={sortKey === 'memory' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+              className="w-20 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('memory')}
+              onKeyDown={(e) => onSortKeyDown(e, 'memory')}
             >
               内存/MB {sortKey === 'memory' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
             <th
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right"
+              tabIndex={0}
+              role="button"
+              aria-sort={sortKey === 'pid' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('pid')}
+              onKeyDown={(e) => onSortKeyDown(e, 'pid')}
             >
               PID {sortKey === 'pid' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
@@ -372,11 +449,13 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
               hasChildren={childrenParentSet.has(proc.pid)}
               isExpanded={expandedPids.has(proc.pid)}
               isSelected={selectedPids.has(proc.pid)}
+              isFocused={proc.pid === focusedPid}
               onToggleExpand={onToggleExpand}
               onToggleSelect={onToggleSelect}
               onKill={onKillSingle}
               onKillTree={onKillTree}
               onContextMenuRow={onContextMenuRow}
+              onRowKeyDown={onRowKeyDown}
             />
           ))}
           {rows.length === 0 && (
