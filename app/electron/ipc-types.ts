@@ -27,7 +27,7 @@ export interface ProcessInfo {
   ppid: number;
   name: string;
   cmdline: string;
-  cwd: string;             // 当前工作目录（PEB ProcessParameters.CurrentDirectory）
+  cwd: string;             // 当前工作目录（从命令行启发式抽取，非 PEB 直读；见 process_collector.cpp）
   kernelTimeMs: number;
   userTimeMs: number;
   workingSetBytes: number;

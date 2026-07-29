@@ -10,7 +10,7 @@ struct ProcessInfoRaw {
   ULONG ppid;
   std::string name;
   std::string cmdline;
-  std::string cwd;          // 当前工作目录（PEB ProcessParameters.CurrentDirectory）
+  std::string cwd;          // 当前工作目录（从命令行启发式抽取，非 PEB 直读；见 process_collector.cpp）
   long long kernelTimeMs;
   long long userTimeMs;
   long long workingSetBytes;
