@@ -14,6 +14,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace gpu_collector {
@@ -75,6 +76,25 @@ static std::vector<std::wstring> ExpandGpuCounterPaths(LPCWSTR counterName) {
   return paths;
 }
 
+// 对展开后的实例路径做 per-pid 去重：同一 pid 只保留首个引擎实例。
+// 一个进程有多个引擎（3D/Copy/Video/Compute），全加会导致数百计数器拖慢
+// PdhCollectQueryData（实测 329 个 → ~30ms）。per-pid 取首个实例足以反映"该进程
+// 是否在用 GPU"（spec §1.2 不追求多引擎精确累加）。无 pid_ 前缀的实例（系统级）保留。
+static std::vector<std::wstring> DedupByPid(const std::vector<std::wstring>& paths) {
+  std::vector<std::wstring> out;
+  std::unordered_set<DWORD> seenPids;
+  for (const auto& p : paths) {
+    DWORD pid = ParseGpuEnginePid(p);
+    if (pid == 0) {
+      out.push_back(p);  // 系统/未知实例，保留
+    } else if (seenPids.insert(pid).second) {
+      out.push_back(p);  // 该 pid 首次出现，保留
+    }
+    // 同 pid 的后续引擎实例跳过（降计数器数量）
+  }
+  return out;
+}
+
 static void InitGpuPdh() {
   if (g_gpuPdh.initialized) return;
   g_gpuPdh.initialized = true;  // 标记已尝试（即使失败也不重试 init，仅周期重展开）
@@ -83,8 +103,9 @@ static void InitGpuPdh() {
     g_gpuPdh.query = nullptr;
     return;
   }
-  g_gpuPdh.utilPaths = ExpandGpuCounterPaths(L"Utilization Percentage");
-  g_gpuPdh.dedicatedPaths = ExpandGpuCounterPaths(L"Dedicated Usage");
+  // per-pid 去重：329 个引擎实例 → ~50 个唯一 pid，大幅降低 PdhCollectQueryData 开销
+  g_gpuPdh.utilPaths = DedupByPid(ExpandGpuCounterPaths(L"Utilization Percentage"));
+  g_gpuPdh.dedicatedPaths = DedupByPid(ExpandGpuCounterPaths(L"Dedicated Usage"));
   if (g_gpuPdh.utilPaths.empty()) return;  // 无 GPU 计数器（虚拟机等）
 
   // 逐个用 English API 加计数器（实例名路径非本地化，English API 稳定）
@@ -113,8 +134,8 @@ static void MaybeRefreshGpuPdh() {
   for (auto h : g_gpuPdh.dedicatedCounters) PdhRemoveCounter(h);
   g_gpuPdh.utilCounters.clear();
   g_gpuPdh.dedicatedCounters.clear();
-  g_gpuPdh.utilPaths = ExpandGpuCounterPaths(L"Utilization Percentage");
-  g_gpuPdh.dedicatedPaths = ExpandGpuCounterPaths(L"Dedicated Usage");
+  g_gpuPdh.utilPaths = DedupByPid(ExpandGpuCounterPaths(L"Utilization Percentage"));
+  g_gpuPdh.dedicatedPaths = DedupByPid(ExpandGpuCounterPaths(L"Dedicated Usage"));
   for (const auto& path : g_gpuPdh.utilPaths) {
     PDH_HCOUNTER h = nullptr;
     if (PdhAddEnglishCounterW(g_gpuPdh.query, path.c_str(), 0, &h) == ERROR_SUCCESS) {
@@ -130,29 +151,28 @@ static void MaybeRefreshGpuPdh() {
 }
 
 // ---------------------------------------------------------------------------
-// DXGI 显存总量/用量（第一块硬件适配器 Local 段）
+// DXGI 显存：缓存 adapter（Budget 基本不变，只需周期查 CurrentUsage）。
+// 每次都 CreateDXGIFactory1 + 枚举适配器约 5-8ms，缓存后 QueryVideoMemoryInfo <0.1ms。
 // ---------------------------------------------------------------------------
-static bool CollectVramViaDxgi(unsigned long long& used, unsigned long long& budget) {
-  used = 0; budget = 0;
+static IDXGIAdapter3* g_dxgiAdapter = nullptr;  // 进程生命周期持有
+
+static IDXGIAdapter3* GetCachedDxgiAdapter() {
+  if (g_dxgiAdapter) return g_dxgiAdapter;
   IDXGIFactory4* factory = nullptr;
-  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) || !factory) return false;
+  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) || !factory) return nullptr;
   IDXGIAdapter1* adapter1 = nullptr;
-  bool ok = false;
   for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i) {
     IDXGIAdapter3* adapter3 = nullptr;
     if (SUCCEEDED(adapter1->QueryInterface(IID_PPV_ARGS(&adapter3))) && adapter3) {
       DXGI_QUERY_VIDEO_MEMORY_INFO info{};
       if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) {
-        // 取第一块有 Budget 的硬件适配器（跳过软件适配器 Microsoft Basic Render）
         DXGI_ADAPTER_DESC1 desc{};
         adapter1->GetDesc1(&desc);
         if (info.Budget > 0 && desc.VendorId != 0x1414 /* MS Basic Render */) {
-          used = info.CurrentUsage;
-          budget = info.Budget;
-          ok = true;
-          adapter3->Release();
+          g_dxgiAdapter = adapter3;  // 缓存（进程结束自动回收）
           adapter1->Release();
-          break;
+          factory->Release();
+          return g_dxgiAdapter;
         }
       }
       adapter3->Release();
@@ -160,25 +180,52 @@ static bool CollectVramViaDxgi(unsigned long long& used, unsigned long long& bud
     adapter1->Release();
   }
   factory->Release();
-  return ok;
+  return nullptr;
+}
+
+static bool CollectVramViaDxgi(unsigned long long& used, unsigned long long& budget) {
+  used = 0; budget = 0;
+  IDXGIAdapter3* adapter = GetCachedDxgiAdapter();
+  if (!adapter) return false;
+  DXGI_QUERY_VIDEO_MEMORY_INFO info{};
+  if (FAILED(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) return false;
+  used = info.CurrentUsage;
+  budget = info.Budget;
+  return budget > 0;
 }
 
 // 模块加载时预热 PDH/DXGI：冷启动（ExpandWildCardPath + AddEnglishCounter ×N +
 // CreateDXGIFactory）约数百 ms，放在 addon 加载时（Electron 启动，用户无感），
-// 而非首次 perfCounters——避免 perfCounters p99 尖刺（spec 判据 <10ms）。
-// 失败静默（InitGpuPdh 内部已处理：无 GPU 计数器 → available=false）。
-static bool g_gpuPreheated = ([]() { InitGpuPdh(); return g_gpuPdh.initialized; })();
+// 而非首次 perfCounters——避免 perfCounters p99 尖刺。
+static bool g_gpuPreheated = ([]() { InitGpuPdh(); GetCachedDxgiAdapter(); return g_gpuPdh.initialized; })();
 
 // ---------------------------------------------------------------------------
 // 采集入口：聚合 PDH + DXGI，写入 raw
 // ---------------------------------------------------------------------------
+// GPU 采集降频：perfCounters 是 1s 节奏，但 PdhCollectQueryData 对数百个引擎实例
+// 约 12-36ms。GPU%/VRAM 变化慢，3s 足够。每 GPU_SAMPLE_INTERVAL 次 perfCounters
+// 才真正采集 GPU，其间复用上次结果。
+static constexpr int GPU_SAMPLE_INTERVAL = 3;  // 每 3 次 perfCounters 采集一次（≈3s）
+static int g_gpuSkipCount = 0;
+static GpuRaw g_lastGpu = {};  // 上次采集结果缓存
+
 void CollectGpu(GpuRaw& raw) {
   InitGpuPdh();  // 幂等：已初始化则立即返回（预热后此处为 no-op）
   // 无 GPU 计数器 → 降级
   if (!g_gpuPdh.query || g_gpuPdh.utilCounters.empty()) {
     raw.available = false;
+    g_lastGpu.available = false;
     return;
   }
+
+  // 降频：未到采集周期且已有缓存 → 复用上次结果（首次无缓存时仍采集建立基线）
+  if (g_gpuSkipCount > 0 && g_lastGpu.available) {
+    raw = g_lastGpu;
+    g_gpuSkipCount = (g_gpuSkipCount + 1) % GPU_SAMPLE_INTERVAL;
+    return;
+  }
+  g_gpuSkipCount = 1;  // 本次采集了，下次开始计数
+
   MaybeRefreshGpuPdh();
 
   // 采样：PdhCollectQueryData 后逐计数器取值
@@ -212,10 +259,10 @@ void CollectGpu(GpuRaw& raw) {
     }
   }
 
-  // 总 GPU%：所有引擎 utilization 之和 clamp 100（任务管理器近似口径，spec 不追求精确）
+  // 总 GPU%：所有引擎 utilization 之和 clamp 100（任务管理器近似口径）
   raw.totalPercent = totalUtilSum > 100.0 ? 100.0 : totalUtilSum;
 
-  // 显存总量：优先 DXGI；失败 fallback per-process dedicated 求和（budget=0 = 未知）
+  // 显存总量：优先 DXGI（缓存 adapter）；失败 fallback per-process dedicated 求和
   unsigned long long dxgiUsed = 0, dxgiBudget = 0;
   if (CollectVramViaDxgi(dxgiUsed, dxgiBudget)) {
     raw.vramUsedBytes = dxgiUsed;
@@ -231,6 +278,9 @@ void CollectGpu(GpuRaw& raw) {
   for (const auto& [pid, v] : byPid) {
     raw.perProcess.push_back({pid, v.first, v.second});
   }
+
+  // 缓存本次结果供降频复用
+  g_lastGpu = raw;
 }
 
 }  // namespace gpu_collector
