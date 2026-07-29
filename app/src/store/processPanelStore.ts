@@ -15,6 +15,10 @@ interface ProcessPanelState {
   processes: ProcessInfo[];
   cpuMap: Record<number, number>;   // pid -> cpuPercent
   procHistory: Record<number, ProcHistoryPoint[]>;  // pid -> 滚动窗口（运行时态，不持久化）
+  // 精确 cwd（PEB 直读，按需通道）旁路缓存：pid -> cwd。与 ProcessInfo.cwd（启发式）
+  // 区分。分组键优先用此值，缺失回退启发式。一旦填充即冻结，不受 processScan 刷新
+  // 影响（防分组抖动）；进程退出随 pidSet 清理一并失效（见 setProcesses prune）。
+  preciseCwdByPid: Record<number, string>;
   filter: string;
   sortKey: 'pid' | 'name' | 'cpu' | 'memory';
   sortAsc: boolean;
@@ -46,6 +50,7 @@ interface ProcessPanelState {
   setError: (e: string | null) => void;
   setSidebarProportion: (p: number) => void;
   setPollMs: (ms: number) => void;
+  setPreciseCwd: (pid: number, cwd: string) => void;
   reset: () => void;
 }
 
@@ -55,6 +60,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       processes: [],
       cpuMap: {},
       procHistory: {},
+      preciseCwdByPid: {},
       filter: '',
       sortKey: 'pid',
       sortAsc: true,
@@ -83,7 +89,13 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
           const n = Number(k);
           if (pidSet.has(n)) procHistory[n] = s.procHistory[n];
         }
-        return { processes: p, error: null, selectedPids, cpuMap, procHistory };
+        // 同步清理已退出进程的精确 cwd 缓存（防泄漏；与 cpuMap/procHistory 同 pidSet 过滤）
+        const preciseCwdByPid: Record<number, string> = {};
+        for (const k of Object.keys(s.preciseCwdByPid)) {
+          const n = Number(k);
+          if (pidSet.has(n)) preciseCwdByPid[n] = s.preciseCwdByPid[n];
+        }
+        return { processes: p, error: null, selectedPids, cpuMap, procHistory, preciseCwdByPid };
       }),
       setCpuMap: (c) => set((s) => {
         const m = { ...s.cpuMap };
@@ -133,8 +145,9 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       // 钳制到 15%-60%：太窄曲线/命令行看不清，太宽挤掉进程表
       setSidebarProportion: (p) => set({ sidebarProportion: Math.min(0.6, Math.max(0.15, p)) }),
       setPollMs: (ms) => set({ pollMs: ms }),
+      setPreciseCwd: (pid, cwd) => set((s) => ({ preciseCwdByPid: { ...s.preciseCwdByPid, [pid]: cwd } })),
       reset: () => set({
-        processes: [], cpuMap: {}, procHistory: {}, filter: '', sortKey: 'pid', sortAsc: true,
+        processes: [], cpuMap: {}, procHistory: {}, preciseCwdByPid: {}, filter: '', sortKey: 'pid', sortAsc: true,
         viewMode: 'tree', expandedPids: new Set(), expandedGroups: new Set(),
         selectedPids: new Set(), loading: false, error: null, sidebarProportion: 0.3,
         pollMs: 2000,
