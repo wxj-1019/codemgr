@@ -160,7 +160,7 @@ scope:  native | app | ci | docs（可选）
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99<30ms 判据 PASS（v1.8 IPv6 合并枚举后实测 4.7~7.9ms，随负载波动）、60s 无泄漏。注意：bench 对机器负载敏感（软 gate），processScan 的 20ms 判据在高负载机器上会环境性 FAIL，判读时先做基线对照。
-- 测试：app 235/235 + native 47/47，共 282 PASS。
+- 测试：app 252/252 + native 47/47，共 299 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
 
 ## 9. 打包与 CI 注意事项（v1.5 新增）
