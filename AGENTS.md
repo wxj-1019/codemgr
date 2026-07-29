@@ -70,6 +70,7 @@
 | 启动开发（热重载） | `pnpm dev` |
 | 生产模式启动 | `pnpm start` |
 | 全量构建（native+渲染） | `pnpm build` |
+| 打包成安装包（NSIS exe） | `pnpm dist` |
 | 仅构建渲染层 | `pnpm build:app` |
 | 跑渲染层测试 | `cd app && pnpm vitest run` |
 | 跑 native 测试 | `pnpm test:native` |
@@ -144,11 +145,22 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
+- **v1.5**（tag `v1.5`）：安装包打包（electron-builder NSIS）+ 全局 ErrorBoundary（防白屏）+ 窗口状态持久化 + 版本号显示 + bench 接入 CI + native cpuDelta/perfCounters 测试补全。
 - **v1.4**（tag `v1.4`）：标签规则导入导出（受控文件 IO 通道）+ 进程行右键菜单（ContextMenu 组件）+ 详情侧栏可拖宽（allotment 分栏，比例持久化）。
 - **v1.3**（tag `v1.3`）：自定义标签规则（数据驱动引擎 + 编辑器 + localStorage 持久化）+ 单进程 CPU/内存曲线 + 按需精确工作目录（PEB 直读，路线 A，不进热路径）+ kill 路径加固（killProcess 补保护名单）。
 - **v1.2**（tag `v1.2`）：端口雷达搜索过滤 + 冲突高亮 + 结束进程树 + 进程环境变量查看。
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
-- 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.4 未改 native）、netScan p99=6.2ms、60s 无泄漏。
-- 测试：app 110/110 + native 24/24，共 134 PASS。
+- 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99=6.2ms、60s 无泄漏。
+- 测试：app 116/116 + native 32/32，共 148 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
+
+## 9. 打包与 CI 注意事项（v1.5 新增）
+
+12. **打包命令**：`pnpm dist`（一键 build + electron-builder）。产物在 `release/`。
+13. **打包环境坑**（本机实测）：
+    - 需 `set CSC_IDENTITY_AUTO_DISCOVERY=false`（已写进 app/package.json 的 dist 脚本），跳过 winCodeSign 缓存解压——该缓存含 macOS darwin dylib 软链，非管理员账户无建符号链接权限会失败。
+    - 需 `asar: false`（已写进 electron-builder.yml）——绕过 electron-builder 25 在本环境的 `addWinAsarIntegrity` UNKNOWN 写入错误。
+    - 需关闭第三方杀软实时防护——否则打包过程中 exe 被锁。
+14. **native addon 路径**：main.ts 用 `app.isPackaged` 分流——开发 `../../codemgr-native/build/Release/...`，打包 `process.resourcesPath/codemgr-native.node`（extraResources 带入）。改 native 后打包前必须 `pnpm build:electron`（Electron ABI）。
+15. **CI bench**：continue-on-error 软 gate（runner 负载波动大，硬 gate 会误杀）。

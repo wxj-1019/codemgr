@@ -4,6 +4,29 @@
 
 ---
 
+## [v1.5] — 2026-07-29
+
+### 新增
+- **安装包打包**（核心）：新增 electron-builder 配置，`pnpm dist` 产出 NSIS 安装包（`CodeMgr Setup.exe`，带安装向导/快捷方式/卸载）。native addon 经 extraResources 打进 resources/，main.ts 按运行环境（开发/打包）分流定位。已验证成功产出 105MB 安装包。**打包注意**：需 `set CSC_IDENTITY_AUTO_DISCOVERY=false`（跳过 winCodeSign 缓存的 darwin dylib 软链，非管理员账户无建符号链接权限）+ `asar: false`（绕过 electron-builder 25 在本环境的 addWinAsarIntegrity UNKNOWN 写入错误）。
+- **错误边界**：全局 `<ErrorBoundary>` 包裹 App，子组件渲染抛错不再白屏——显示降级 UI（错误信息 + 重试 + 刷新页面）。支持自定义 fallback。
+- **窗口状态持久化**：窗口位置/大小/最大化状态跨重启保留。读取时校验 bounds 是否落在可见显示器内（防换屏/断屏后窗口跑屏外），写盘防抖 500ms。
+- **版本号显示**：导航栏右侧显示当前版本（`v{version}`，来自 `app.getVersion()`）。
+
+### 工程化
+- **bench 接入 CI**：CI 增加 Performance bench 步骤（continue-on-error 软 gate）。GitHub Actions runner 负载波动大，硬 gate 会误杀合法 PR；软报告让性能回归可见但不 block。
+- **native 测试补全**：新增 cpuDelta/perfCounters 正确性测试（cpuDelta 双快照机制 + PerfData 结构校验）。
+- **顺带修复**：postcss 版本笔误（10.5.4→8.5.24，10.x 不存在）；托盘图标缺失时降级为空图标防崩。
+
+### 已知限制
+- 窗口状态持久化依赖 electron 运行时（screen/app），无法单测，留人工验收。
+- 打包需本机关闭第三方杀软（或给项目目录加排除）+ 上述 CSC 环境变量。
+- 安装包未签名（个人项目无证书），Windows 首次运行会提示 SmartScreen 警告。
+
+### 测试
+- app 110→116（+6 ErrorBoundary），native 24→32（+8 cpu），共 148 PASS。
+
+---
+
 ## [v1.4] — 2026-07-29
 
 ### 新增

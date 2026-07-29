@@ -89,7 +89,8 @@ pnpm start            # 生产模式启动
 pnpm dev
 ```
 
-> 打包成安装包（.exe）是 v1.1 的范围，当前需从源码运行。
+> 打包成安装包：`pnpm dist` 产出 NSIS 安装包（`release/CodeMgr Setup.exe`）。
+> 注意：需关闭第三方杀软实时防护（否则打包时 exe 被锁）。
 
 ---
 
@@ -102,6 +103,7 @@ pnpm dev
 | 启动开发（热重载） | `pnpm dev` |
 | 生产模式启动 | `pnpm start` |
 | 全量构建 | `pnpm build` |
+| 打包成安装包 | `pnpm dist` |
 | 全部测试 | `pnpm test:native && cd app && pnpm vitest run` |
 | 性能基准 | `pnpm bench` |
 | 类型检查 | `cd app && pnpm typecheck` |
