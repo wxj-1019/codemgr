@@ -4,6 +4,25 @@
 
 ---
 
+## [v1.8] — 2026-07-29
+
+### 新增
+- **IPv6 连接枚举**：netScan 新增 `AF_INET6` 的 TCP/UDP 枚举（`GetExtendedTcpTable`/`GetExtendedUdpTable`，`inet_ntop` 格式化），v4/v6 合并返回。绑 `::` 的 dev server（Vite/Node 默认行为）在端口雷达不再不可见。netScan p99 无回归（4.70→4.72ms）。
+- **可调刷新间隔**：端口雷达/进程/性能三面板 header 各加间隔选择器（1s/2s/5s/暂停），默认值与 v1.7 一致（3s/2s/1s），随各面板 store 持久化，重启保留。暂停时不建 interval（可见性恢复仍补一次刷新）。
+- **进程表虚拟列表**：可见行数 >100 时启用 `@tanstack/react-virtual`（上下等高占位行撑总高，保留 table 布局/sticky 表头/ARIA grid）；≤100 保持全量渲染。与 v1.6 键盘导航共存：焦点行滚动走 `virtualizer.scrollToIndex`，roving tabindex/pid 锚定/Home/End 语义不变。
+- **ContextMenu 键盘导航**：↑/↓ 循环移动焦点（跳过禁用项）、Enter/Space 触发、Home/End 跳首末、Esc 关闭；打开时聚焦首个可用项；菜单项 roving tabindex。
+- **LabelRuleEditor 焦点陷阱**：Tab/Shift+Tab 在模态内循环不逃逸、Esc 关闭、打开时焦点落首个输入框；补 `role="dialog" aria-modal` 语义。
+- **ProcessTable 键盘导航单测**：补齐 v1.6 遗留（此前仅 PortTable 有覆盖）。
+
+### 已知限制
+- 虚拟化行高用固定 estimate（29px），不做逐行测量。
+- 2000 进程实机滚动流畅度留人工验收；`pnpm dist` 安装包构建留人工（需关第三方杀软实时防护，§9）。
+
+### 测试
+- app 130→160（+8 刷新间隔 store / +4 虚拟化 / +7 ContextMenu 键盘 / +5 焦点陷阱 / +6 进程表键盘），native 32→33（+1 IPv6），共 193 PASS。
+
+---
+
 ## [v1.7] — 2026-07-29
 
 ### 新增

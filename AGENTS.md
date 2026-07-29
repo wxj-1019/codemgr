@@ -145,7 +145,8 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
-- **v1.7**（未发版）：react-mosaic 多面板自由布局（替换 Tab，三大面板可拆分/嵌套/拖拽/关闭，二叉树持久化）+ 3 布局预设 + 面板可见性轮询节流（IntersectionObserver + visibilitychange，对策 roadmap R2）+ native 构建工具链修复（vswhere 动态发现 CMake）。
+- **v1.8**（tag `v1.8`）：IPv6 连接枚举（端口雷达不再漏绑 `::` 的 dev server）+ 三面板可调刷新间隔（1s/2s/5s/暂停，持久化）+ 进程表虚拟列表（>100 行启用，与键盘导航共存）+ ContextMenu 键盘导航 + LabelRuleEditor 焦点陷阱。
+- **v1.7**（tag `v1.7`）：react-mosaic 多面板自由布局（替换 Tab，三大面板可拆分/嵌套/拖拽/关闭，二叉树持久化）+ 3 布局预设 + 面板可见性轮询节流（IntersectionObserver + visibilitychange，对策 roadmap R2）+ native 构建工具链修复（vswhere 动态发现 CMake）。
 - **v1.6**（tag `v1.6`）：进程表 + 端口表键盘导航（纯导航模型，↑↓ 移焦点框/Enter 选中/Home-End 跳首尾/roving tabindex）+ 排序表头键盘触发 + ARIA grid 语义。
 - **v1.5**（tag `v1.5`）：安装包打包（electron-builder NSIS）+ 全局 ErrorBoundary（防白屏）+ 窗口状态持久化 + 版本号显示 + bench 接入 CI + native cpuDelta/perfCounters 测试补全。
 - **v1.4**（tag `v1.4`）：标签规则导入导出（受控文件 IO 通道）+ 进程行右键菜单（ContextMenu 组件）+ 详情侧栏可拖宽（allotment 分栏，比例持久化）。
@@ -153,8 +154,8 @@ scope:  native | app | ci | docs（可选）
 - **v1.2**（tag `v1.2`）：端口雷达搜索过滤 + 冲突高亮 + 结束进程树 + 进程环境变量查看。
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
-- 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99=6.2ms、60s 无泄漏。
-- 测试：app 130/130 + native 32/32，共 162 PASS。
+- 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99=4.72ms（v1.8 IPv6 合并枚举后实测）、60s 无泄漏。
+- 测试：app 160/160 + native 33/33，共 193 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
 
 ## 9. 打包与 CI 注意事项（v1.5 新增）
