@@ -14,13 +14,20 @@
 ### 采集层（codemgr-native）
 - `readProcessCwd(pid)`：PEB 行走（与 `readProcessEnv` 同源骨架），读 `RTL_USER_PROCESS_PARAMETERS` 偏移 0x38 的 UNICODE_STRING，剥离 `\??\` / `\\?\` NT 前缀。**不进 `processScan` 热路径**（直读 PEB cwd 每进程多 1 NtQIP + 2 ReadProcessMemory，全量采集会破 20ms 红线）。
 
+### 修复（kill 路径加固 + 轮询竞态）
+- **单进程 kill 漏保护名单**：`killProcess(pid)` 原先绕过 `IsProtected()`，现已与 `killByPids`/`killByName`/`killTree` 对齐，拒绝终止保护进程（System/svchost/electron 等）与自身。
+- **kill 连点重复触发**：端口雷达/进程面板的五条 kill 流程（单杀/批量/全 node/组杀/杀树）统一加 `killBusy` 进行中态，禁用 ConfirmDialog 按钮，避免重复 `TerminateProcess`。
+- **kill 失败静默/误判**：所有 kill 流程加 try/catch + 用户可见提示，区分「受保护进程 / 权限不足 / 已退出」三种失败；批量/组杀按 killed/总数 比例提示。
+- **ConfirmDialog 无障碍**：`role=alertdialog` + aria 标签、Esc 关闭、打开时聚焦取消按钮（降低误触结束）。
+- **首载 loading 卡死**：三个轮询 hook（usePerf/usePortRadar/useProcessPanel）的 `finally` 检查 `firstRef.current`，但成功路径已将其置 false，导致 `setLoading(false)` 永不执行——头部常驻「刷新中…」。改用 `isFirst` 快照修复。
+
 ### 性能
 - processScan p99 = 12.38 ms（396 进程，按需 cwd 通道零影响，红线 < 20ms 通过）。
 - netScan p99 = 6.20 ms（465 连接）。
 - 60s 内存泄漏检测 RSS −8.49 MB（无泄漏）。
 
 ### 测试覆盖
-- labelRules 引擎单测（include/exclude/groups/field/顺序）、processPanelStore 历史采点与裁剪、projectGroup NT 前缀剥离、readProcessCwd 正确性（自身进程/System 进程）。共 119 PASS（native 22 + app 97）。
+- labelRules 引擎单测（include/exclude/groups/field/顺序）、processPanelStore 历史采点与裁剪、projectGroup NT 前缀剥离、readProcessCwd 正确性（自身进程/System 进程）、killProcess 守卫（保护 pid / pid 0 拒绝）。共 121 PASS（native 24 + app 97）。
 
 ---
 

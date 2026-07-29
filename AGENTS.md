@@ -149,5 +149,5 @@ scope:  native | app | ci | docs（可选）
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程）、netScan p99=6.2ms、60s 无泄漏。
-- 测试：app 97/97 + native 22/22，共 119 PASS。
+- 测试：app 97/97 + native 24/24，共 121 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
