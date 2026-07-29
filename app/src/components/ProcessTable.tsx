@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
@@ -65,6 +66,11 @@ function formatMem(bytes: number): string {
   const mb = bytes / 1048576;
   return mb >= 1000 ? mb.toFixed(0) : mb.toFixed(1);
 }
+
+// 虚拟列表：可见行数超过阈值才启用（设计文档 §3.2：>100 进程启用虚拟滚动）。
+// 树形行高固定（py-1 + text-sm ≈ 29px），用固定 estimateSize，不做逐行测量。
+const VIRTUALIZE_THRESHOLD = 100;
+const ROW_HEIGHT = 29;
 
 /** Color classes for each process-label kind. */
 const KIND_COLORS: Record<string, string> = {
@@ -334,14 +340,42 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   rowsRef.current = rows;
   const tableRef = useRef<HTMLTableElement | null>(null);
 
-  // 焦点行变化时，自动 focus DOM + scrollIntoView（roving tabindex 的标准配套）。
-  // 用 data 属性 + querySelector 定位，避免给 memo 的 ProcessRow 加 forwardRef。
-  // jsdom 无 scrollIntoView，加 typeof 防御（真实 Electron 环境有该方法）。
+  // ── 虚拟列表（>VIRTUALIZE_THRESHOLD 行时启用；≤阈值保持全量渲染，避免回归）──
+  // hook 无条件调用（React 规则），仅渲染分支按 shouldVirtualize 切换。
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = rows.length > VIRTUALIZE_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+
+  // 焦点变化时滚动：虚拟化用 virtualizer.scrollToIndex（焦点行可能未渲染，
+  // scrollIntoView 找不到 DOM）；非虚拟化维持原 scrollIntoView。
+  // 只挂在 focusedPid 上——挂在 virtualItems 上会把用户滚动"拉回"焦点行。
   useEffect(() => {
+    if (focusedPid == null) return;
+    if (shouldVirtualize) {
+      const idx = rowsRef.current.findIndex((r) => r.proc.pid === focusedPid);
+      if (idx !== -1) virtualizer.scrollToIndex(idx, { align: 'auto' });
+    } else {
+      const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
+      // jsdom 无 scrollIntoView，加 typeof 防御（真实 Electron 环境有该方法）。
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focusedPid, shouldVirtualize, virtualizer]);
+
+  // 焦点行 DOM 挂载后 focus（roving tabindex 的标准配套）。
+  // 用 data 属性 + querySelector 定位，避免给 memo 的 ProcessRow 加 forwardRef。
+  // 依赖 virtualItems：虚拟化下 scrollToIndex 后焦点行才渲染，渲染后本 effect 重跑补上 focus。
+  // preventScroll：滚动由上面的 effect 负责，避免 focus 原生滚动与 virtualizer 互相打架。
+  useEffect(() => {
+    if (focusedPid == null) return;
     const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
-    el?.focus();
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
-  }, [focusedPid]);
+    el?.focus({ preventScroll: true });
+  }, [focusedPid, virtualItems]);
 
   const onRowKeyDown = useCallback((e: React.KeyboardEvent, proc: ProcessInfo) => {
     const cur = rowsRef.current;
@@ -376,8 +410,33 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     { label: '复制 PID', onSelect: () => copyText(String(menu.proc.pid)) },
   ] : [];
 
+  // 虚拟化渲染窗口：上下用等高占位 <tr> 撑出总高度（保持 <table> 布局/列宽对齐，
+  // 不切换为绝对定位）。行高固定，无需逐行测量。
+  const padTop = shouldVirtualize && virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const padBottom = shouldVirtualize && virtualItems.length > 0
+    ? virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+    : 0;
+  const renderRow = ({ proc, depth }: TreeRow) => (
+    <ProcessRow
+      key={proc.pid}
+      proc={proc}
+      depth={depth}
+      cpu={cpuMap[proc.pid] || 0}
+      hasChildren={childrenParentSet.has(proc.pid)}
+      isExpanded={expandedPids.has(proc.pid)}
+      isSelected={selectedPids.has(proc.pid)}
+      isFocused={proc.pid === focusedPid}
+      onToggleExpand={onToggleExpand}
+      onToggleSelect={onToggleSelect}
+      onKill={onKillSingle}
+      onKillTree={onKillTree}
+      onContextMenuRow={onContextMenuRow}
+      onRowKeyDown={onRowKeyDown}
+    />
+  );
+
   return (
-    <div className="overflow-auto flex-1">
+    <div ref={scrollRef} className="overflow-auto flex-1">
       <table ref={tableRef} role="grid" className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
@@ -440,24 +499,23 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ proc, depth }) => (
-            <ProcessRow
-              key={proc.pid}
-              proc={proc}
-              depth={depth}
-              cpu={cpuMap[proc.pid] || 0}
-              hasChildren={childrenParentSet.has(proc.pid)}
-              isExpanded={expandedPids.has(proc.pid)}
-              isSelected={selectedPids.has(proc.pid)}
-              isFocused={proc.pid === focusedPid}
-              onToggleExpand={onToggleExpand}
-              onToggleSelect={onToggleSelect}
-              onKill={onKillSingle}
-              onKillTree={onKillTree}
-              onContextMenuRow={onContextMenuRow}
-              onRowKeyDown={onRowKeyDown}
-            />
-          ))}
+          {shouldVirtualize ? (
+            <>
+              {padTop > 0 && (
+                <tr aria-hidden="true" data-virtual-spacer="top">
+                  <td colSpan={8} style={{ height: padTop, padding: 0, border: 0 }} />
+                </tr>
+              )}
+              {virtualItems.map((vi) => renderRow(rows[vi.index]))}
+              {padBottom > 0 && (
+                <tr aria-hidden="true" data-virtual-spacer="bottom">
+                  <td colSpan={8} style={{ height: padBottom, padding: 0, border: 0 }} />
+                </tr>
+              )}
+            </>
+          ) : (
+            rows.map(renderRow)
+          )}
           {rows.length === 0 && (
             <tr>
               <td colSpan={8} className="px-3 py-8 text-center text-fg-muted">

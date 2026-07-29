@@ -12,6 +12,7 @@
     "dist": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --config electron-builder.yml"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.14.9",
     "allotment": "^1.20.5",
     "react": "18",
     "react-dom": "18",
