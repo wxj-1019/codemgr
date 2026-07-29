@@ -105,6 +105,15 @@ ipcMain.handle(IPC.KILL_TREE, async (_evt, pid: number) => {
   }
 });
 
+ipcMain.handle(IPC.FETCH_PROCESS_ENV, async (_evt, pid: number) => {
+  try {
+    return native.readProcessEnv(pid);
+  } catch (e) {
+    console.error('readProcessEnv failed:', e);
+    return null;  // 权限不足 / 进程已退出：渲染层显示降级提示
+  }
+});
+
 ipcMain.handle(IPC.FETCH_PROCESSES, async () => {
   try {
     return native.processScan();

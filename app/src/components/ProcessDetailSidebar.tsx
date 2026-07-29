@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
+import { ipc } from '../lib/ipc';
 
 // 320px 右侧详情栏：展示当前唯一选中进程的"已采集但表格未展示"字段。
 // 未选 / 多选 / 进程已退出时显示对应提示。kill 走与表格一致的 onKill 回调
-// （由父组件 ProcessPanel 统一弹出 ConfirmDialog），故此组件不直接调 ipc。
+// （由父组件 ProcessPanel 统一弹出 ConfirmDialog），环境变量读取走 lib/ipc 封装。
 export function ProcessDetailSidebar({
   onKill,
   onKillTree,
@@ -12,6 +14,28 @@ export function ProcessDetailSidebar({
   onKillTree: (pid: number, name: string) => void;
 }) {
   const { processes, selectedPids } = useProcessPanelStore();
+  // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
+  const pid = selectedPids.size === 1 ? [...selectedPids][0] : null;
+
+  // 环境变量：按需加载，切换选中进程时重置（不做轮询，避免高频 ReadProcessMemory）
+  const [envVars, setEnvVars] = useState<Record<string, string> | null>(null);
+  const [envState, setEnvState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
+  useEffect(() => {
+    setEnvVars(null);
+    setEnvState('idle');
+  }, [pid]);
+
+  async function loadEnv() {
+    if (pid == null) return;
+    setEnvState('loading');
+    const result = await ipc.fetchProcessEnv(pid);
+    if (result === null) {
+      setEnvState('error');
+    } else {
+      setEnvVars(result);
+      setEnvState('done');
+    }
+  }
 
   if (selectedPids.size === 0) {
     return (
@@ -28,7 +52,6 @@ export function ProcessDetailSidebar({
     );
   }
 
-  const pid = [...selectedPids][0];
   const proc = processes.find((p) => p.pid === pid);
   if (!proc) {
     return (
@@ -69,6 +92,31 @@ export function ProcessDetailSidebar({
           <Row label="内存" value={formatBytes(proc.workingSetBytes)} mono />
           <Row label="线程数" value={String(proc.threadCount)} mono />
           <Row label="句柄数" value={String(proc.handleCount)} mono />
+          <div>
+            <dt className="text-fg-muted">环境变量</dt>
+            <dd className="mt-0.5">
+              {envState === 'idle' && (
+                <button onClick={loadEnv} className="text-accent hover:underline">
+                  加载环境变量
+                </button>
+              )}
+              {envState === 'loading' && <span className="text-fg-muted">读取中…</span>}
+              {envState === 'error' && (
+                <span className="text-fg-muted">读取失败：权限不足或进程已退出</span>
+              )}
+              {envState === 'done' && envVars && (
+                <div className="max-h-48 overflow-auto rounded border border-base-700 bg-base-900 p-2 font-mono text-[11px]">
+                  {Object.keys(envVars).sort().map((k) => (
+                    <div key={k} className="break-all">
+                      <span className="text-accent">{k}</span>
+                      <span className="text-fg-muted">=</span>
+                      <span className="text-fg-secondary">{envVars[k]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </dd>
+          </div>
         </dl>
       </div>
       <div className="border-t border-base-600 p-3">
