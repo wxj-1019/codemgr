@@ -4,6 +4,28 @@
 
 ---
 
+## [v1.6] — 2026-07-29
+
+### 新增
+- **进程表键盘导航**：纯导航模型（焦点框与选中态分离）。↑/↓ 移动焦点框（pid 锚定，按可见行序列定位），Enter/Space 切换选中，Home/End 跳首尾。roving tabindex（仅焦点行可 Tab 进入）+ 焦点行自动 scrollIntoView。保留鼠标多选语义。
+- **端口表键盘导航**：同纯导航模型（单选）。↑/↓ 移焦点（index 锚定），Enter/Space 选中，Home/End 跳首尾。
+- **排序表头键盘触发**：进程表 4 个可排序列（名称/CPU/内存/PID）加 `tabIndex` + `role=button` + Enter/Space 触发排序 + `aria-sort` 状态标注。全选 checkbox 加 `aria-label`。
+- ARIA grid 语义：两表加 `role=grid`，行加 `role=row"`，端口表行加 `aria-selected`。
+
+### 工程化
+- 焦点态用组件 local state（不进 store，避免轮询干扰），pid/index 锚定防排序/折叠后错位。
+- ProcessRow 的 `onRowKeyDown` 用 `useCallback` 稳定化（rows 用 ref 持有），不击穿 `React.memo`。
+- `scrollIntoView` 加 `typeof` 防御（jsdom 测试环境无该方法）。
+
+### 已知限制
+- 本次仅表格导航。App/PerfPanel 主 tab 方向键、ContextMenu 菜单项方向键、LabelRuleEditor 焦点陷阱留后续。
+- ProcessTable 键盘逻辑与 PortTable 同构但未单独单测（需 mock store），核心模式由 PortTable 6 个键盘测试覆盖。
+
+### 测试
+- app 116→122（+6 PortTable 键盘导航：ArrowDown/Up/Enter/Space/Home/End/no-wrap）。
+
+---
+
 ## [v1.5] — 2026-07-29
 
 ### 新增

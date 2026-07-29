@@ -145,6 +145,7 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
+- **v1.6**（tag `v1.6`）：进程表 + 端口表键盘导航（纯导航模型，↑↓ 移焦点框/Enter 选中/Home-End 跳首尾/roving tabindex）+ 排序表头键盘触发 + ARIA grid 语义。
 - **v1.5**（tag `v1.5`）：安装包打包（electron-builder NSIS）+ 全局 ErrorBoundary（防白屏）+ 窗口状态持久化 + 版本号显示 + bench 接入 CI + native cpuDelta/perfCounters 测试补全。
 - **v1.4**（tag `v1.4`）：标签规则导入导出（受控文件 IO 通道）+ 进程行右键菜单（ContextMenu 组件）+ 详情侧栏可拖宽（allotment 分栏，比例持久化）。
 - **v1.3**（tag `v1.3`）：自定义标签规则（数据驱动引擎 + 编辑器 + localStorage 持久化）+ 单进程 CPU/内存曲线 + 按需精确工作目录（PEB 直读，路线 A，不进热路径）+ kill 路径加固（killProcess 补保护名单）。
@@ -152,7 +153,7 @@ scope:  native | app | ci | docs（可选）
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99=6.2ms、60s 无泄漏。
-- 测试：app 116/116 + native 32/32，共 148 PASS。
+- 测试：app 122/122 + native 32/32，共 154 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
 
 ## 9. 打包与 CI 注意事项（v1.5 新增）
