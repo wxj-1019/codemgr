@@ -6,6 +6,7 @@ import { ProcessPanel } from './components/ProcessPanel';
 import { PerfPanel } from './components/PerfPanel';
 import { SnapshotPanel } from './components/SnapshotPanel';
 import { SessionPanel } from './components/SessionPanel';
+import { RunProfilesPanel } from './components/RunProfilesPanel';
 import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
 import { PluginHost } from './components/PluginHost';
@@ -30,9 +31,10 @@ const BUILTIN_TITLES: Record<BuiltInPanelId, string> = {
   perf: '性能',
   snapshot: '快照',
   sessions: 'AI 会话',
+  'run-profiles': 'Run Profiles',
 };
 
-const ALL_BUILTIN: BuiltInPanelId[] = ['port', 'process', 'perf', 'snapshot', 'sessions'];
+const ALL_BUILTIN: BuiltInPanelId[] = ['port', 'process', 'perf', 'snapshot', 'sessions', 'run-profiles'];
 
 const PRESETS: { id: PresetId; label: string }[] = [
   { id: 'classic', label: '经典' },
@@ -152,7 +154,15 @@ export function App() {
           className="px-3 py-2 text-sm text-fg-secondary hover:text-fg-primary"
           aria-label="切换主题"
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+            </svg>
+          )}
         </button>
         <AutoLaunchToggle />
         {version && (
@@ -166,7 +176,7 @@ export function App() {
       </nav>
 
       {/* 多面板布局区：react-mosaic 二叉树。拖拽标题栏移动，角落按钮拆分/关闭/展开。 */}
-      <div className="flex-1 overflow-hidden">
+      <div className={`flex-1 overflow-hidden${typeof root === 'string' ? ' single-leaf' : ''}`}>
         <Mosaic<PanelId>
           className="mosaic-theme"
           renderTile={(id: PanelId, path: MosaicBranch[]) => (
@@ -181,6 +191,7 @@ export function App() {
                 {id === 'perf' && <PerfPanel />}
                 {id === 'snapshot' && <SnapshotPanel />}
                 {id === 'sessions' && <SessionPanel />}
+                {id === 'run-profiles' && <RunProfilesPanel />}
                 {id.startsWith('plugin:') && <PluginPanel id={id} />}
               </Panel>
             </MosaicWindow>

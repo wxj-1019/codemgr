@@ -38,6 +38,13 @@ export function mockIpc(
     deleteSnapshot: vi.fn(() => Promise.resolve(true)),
     loadSnapshot: vi.fn(() => Promise.resolve(null)),
     fetchGitIdentity: vi.fn(() => Promise.resolve(null)),
+    listRunProfiles: vi.fn(() => Promise.resolve([])),
+    saveRunProfile: vi.fn(() => Promise.resolve(null)),
+    deleteRunProfile: vi.fn(() => Promise.resolve(true)),
+    startProfile: vi.fn(() => Promise.resolve(null)),
+    stopProfile: vi.fn(() => Promise.resolve(0)),
+    restartProfile: vi.fn(() => Promise.resolve(null)),
+    onRunUpdate: vi.fn(() => () => {}),
     ...overrides,
   };
   Object.defineProperty(window, 'codemgr', {
