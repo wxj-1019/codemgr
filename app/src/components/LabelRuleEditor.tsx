@@ -1,7 +1,9 @@
 // 标签规则编辑器：模态弹窗。
 // - 上半：规则列表（默认 + 用户自定义），可启用/禁用/删除（用户规则）/改 label。
 // - 下半：新增用户规则表单 + 实时预览（输入 name+cmdline 即时显示命中结果）。
-import { useState } from 'react';
+// a11y：焦点陷阱（Tab/Shift+Tab 在模态内循环，不逃逸到背景）、Esc 关闭、
+// 打开时焦点落首个文本输入框。
+import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_RULES } from '../lib/defaultRules';
 import { matchRules, type LabelRule, type MatchField } from '../lib/labelRules';
 import { labelForProcess } from '../lib/processLabels';
@@ -42,6 +44,49 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
 
   // 导入导出进行中态：禁用按钮 + 防并发
   const [ioBusy, setIoBusy] = useState(false);
+
+  // ── 焦点陷阱 ──
+  // 模态打开期间 Tab/Shift+Tab 在内部可聚焦元素间循环，不逃逸到背景；
+  // 打开时焦点落首个文本输入框（新增规则表单的 label 输入）。
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = modalRef.current?.querySelector<HTMLElement>('input:not([type="checkbox"])');
+    el?.focus();
+  }, []);
+
+  function onModalKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const root = modalRef.current;
+    if (!root) return;
+    const focusables = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey) {
+      // 首元素上 Shift+Tab（或焦点不在模态内）→ 回卷到末元素
+      if (active === first || !root.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      // 末元素上 Tab（或焦点不在模态内）→ 回卷到首元素
+      if (active === last || !root.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
 
   const parseList = (s: string): string[] =>
     s.split(',').map((x) => x.trim()).filter(Boolean);
@@ -115,8 +160,12 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
   const fullHit = labelForProcess(pName, pCmd);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose} onKeyDown={onModalKeyDown}>
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="标签规则"
         className="flex max-h-[85vh] w-[640px] flex-col rounded-lg border border-base-600 bg-base-800 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >

@@ -76,3 +76,74 @@ describe('ContextMenu', () => {
     expect(container.querySelector('hr')).toBeInTheDocument();
   });
 });
+
+describe('ContextMenu keyboard navigation', () => {
+  const threeItems = (): ContextMenuItem[] => [
+    { label: 'A', onSelect: vi.fn() },
+    { label: 'B', onSelect: vi.fn() },
+    { label: 'C', onSelect: vi.fn() },
+  ];
+  const mixedItems = (): ContextMenuItem[] => [
+    { label: 'A', onSelect: vi.fn() },
+    { label: 'B', onSelect: vi.fn(), disabled: true },
+    { label: 'C', onSelect: vi.fn() },
+  ];
+  const menuEl = () => screen.getByRole('menu');
+
+  it('打开时焦点落在第一个可用菜单项', () => {
+    render(<ContextMenu open={true} x={0} y={0} items={threeItems()} onClose={() => {}} />);
+    expect(screen.getByText('A')).toHaveFocus();
+  });
+
+  it('打开时跳过禁用项，焦点落在第一个可用项', () => {
+    const items: ContextMenuItem[] = [
+      { label: 'X', onSelect: vi.fn(), disabled: true },
+      { label: 'Y', onSelect: vi.fn() },
+    ];
+    render(<ContextMenu open={true} x={0} y={0} items={items} onClose={() => {}} />);
+    expect(screen.getByText('Y')).toHaveFocus();
+  });
+
+  it('ArrowDown 循环移动焦点并跳过禁用项', () => {
+    render(<ContextMenu open={true} x={0} y={0} items={mixedItems()} onClose={() => {}} />);
+    // A →（跳过禁用的 B）→ C
+    fireEvent.keyDown(menuEl(), { key: 'ArrowDown' });
+    expect(screen.getByText('C')).toHaveFocus();
+    // C → 回卷到 A
+    fireEvent.keyDown(menuEl(), { key: 'ArrowDown' });
+    expect(screen.getByText('A')).toHaveFocus();
+  });
+
+  it('ArrowUp 从首项循环回末项（跳过禁用）', () => {
+    render(<ContextMenu open={true} x={0} y={0} items={mixedItems()} onClose={() => {}} />);
+    fireEvent.keyDown(menuEl(), { key: 'ArrowUp' });
+    expect(screen.getByText('C')).toHaveFocus();
+  });
+
+  it('Home/End 跳到首/末可用项', () => {
+    render(<ContextMenu open={true} x={0} y={0} items={mixedItems()} onClose={() => {}} />);
+    fireEvent.keyDown(menuEl(), { key: 'End' });
+    expect(screen.getByText('C')).toHaveFocus();
+    fireEvent.keyDown(menuEl(), { key: 'Home' });
+    expect(screen.getByText('A')).toHaveFocus();
+  });
+
+  it('Enter 触发焦点菜单项并关闭', () => {
+    const onClose = vi.fn();
+    const items = threeItems();
+    render(<ContextMenu open={true} x={0} y={0} items={items} onClose={onClose} />);
+    fireEvent.keyDown(menuEl(), { key: 'ArrowDown' }); // → B
+    fireEvent.keyDown(menuEl(), { key: 'Enter' });
+    expect(items[1].onSelect).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('Space 触发焦点菜单项并关闭', () => {
+    const onClose = vi.fn();
+    const items = threeItems();
+    render(<ContextMenu open={true} x={0} y={0} items={items} onClose={onClose} />);
+    fireEvent.keyDown(menuEl(), { key: ' ' });
+    expect(items[0].onSelect).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
