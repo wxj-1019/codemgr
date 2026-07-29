@@ -20,4 +20,9 @@ describe('readProcessEnv', () => {
   it('throws for a non-existent pid', () => {
     expect(() => native.readProcessEnv(0x7ffffff0)).toThrow();
   });
+
+  it('throws for a protected system process (pid 4)', () => {
+    // System 进程：PROCESS_VM_READ 打开必 ACCESS_DENIED，锁定"系统进程→抛错→上层降级"链路
+    expect(() => native.readProcessEnv(4)).toThrow();
+  });
 });

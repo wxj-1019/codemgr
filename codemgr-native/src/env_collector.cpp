@@ -35,8 +35,20 @@ Napi::Value ReadProcessEnv(const Napi::CallbackInfo& info) {
 
   HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, FALSE, pid);
   if (!h) {
-    Napi::Error::New(env, "open process failed (access denied or exited)")
+    DWORD gle = GetLastError();  // 抛错前立即取，避免被后续 API 改写
+    Napi::Error::New(env, "open process failed for pid " + std::to_string(pid) +
+                          " gle=" + std::to_string(gle) + " (access denied or exited)")
       .ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  // 显式拒绝 WoW64：64 位进程读 32 位目标时 x64 PEB 偏移会错位，
+  // 伪指针可能落在 WoW64 低 4GB 可读空间而静默返回垃圾数据（32 位支持留作后续）。
+  BOOL wow64 = FALSE;
+  if (IsWow64Process(h, &wow64) && wow64) {
+    CloseHandle(h);
+    Napi::Error::New(env, "32-bit (WoW64) process not supported (pid " +
+                          std::to_string(pid) + ")").ThrowAsJavaScriptException();
     return env.Null();
   }
 
@@ -52,15 +64,18 @@ Napi::Value ReadProcessEnv(const Napi::CallbackInfo& info) {
   NTSTATUS st = ntqip(h, 0 /*ProcessBasicInformation*/, &pbi, sizeof(pbi), nullptr);
   if (st != 0 || !pbi.PebBaseAddress) {
     CloseHandle(h);
-    Napi::Error::New(env, "query PEB failed").ThrowAsJavaScriptException();
+    Napi::Error::New(env, "query PEB failed for pid " + std::to_string(pid) +
+                          " ntstatus=" + std::to_string(st)).ThrowAsJavaScriptException();
     return env.Null();
   }
 
   ULONG_PTR paramsAddr = 0, envAddr = 0;
   if (!ReadRemotePtr(h, (const BYTE*)pbi.PebBaseAddress + OFFSET_PEB_PROCESS_PARAMETERS, paramsAddr) ||
       !ReadRemotePtr(h, (const BYTE*)paramsAddr + OFFSET_RUPP_ENVIRONMENT, envAddr)) {
+    DWORD gle = GetLastError();
     CloseHandle(h);
-    Napi::Error::New(env, "read environment pointer failed").ThrowAsJavaScriptException();
+    Napi::Error::New(env, "read environment pointer failed for pid " + std::to_string(pid) +
+                          " gle=" + std::to_string(gle)).ThrowAsJavaScriptException();
     return env.Null();
   }
 
@@ -85,7 +100,8 @@ Napi::Value ReadProcessEnv(const Napi::CallbackInfo& info) {
   CloseHandle(h);
 
   if (block.empty()) {
-    Napi::Error::New(env, "environment block empty or unreadable").ThrowAsJavaScriptException();
+    Napi::Error::New(env, "environment block empty or unreadable for pid " +
+                          std::to_string(pid)).ThrowAsJavaScriptException();
     return env.Null();
   }
 
