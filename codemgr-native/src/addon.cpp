@@ -5,6 +5,7 @@
 #include "cpu_tracker.h"
 #include "process_ops.h"
 #include "perf_collector.h"
+#include "env_collector.h"
 
 // 占位函数：验证模块能加载
 Napi::Value Hello(const Napi::CallbackInfo& info) {
@@ -21,6 +22,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "killByPids"), Napi::Function::New(env, KillByPidsJS));
   exports.Set(Napi::String::New(env, "killTree"), Napi::Function::New(env, KillTreeJS));
   exports.Set(Napi::String::New(env, "perfCounters"), Napi::Function::New(env, PerfCounters));
+  exports.Set(Napi::String::New(env, "readProcessEnv"), Napi::Function::New(env, ReadProcessEnv));
   return exports;
 }
 
