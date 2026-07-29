@@ -23,6 +23,23 @@ describe('netScan', () => {
     expect(named.length / withPid.length).toBeGreaterThan(0.9);
   });
 
+  it('includes IPv6 connections when the machine has IPv6 listeners', () => {
+    // 本机 netstat 确认存在 [::]:* 监听（RPC、SMB、MySQL 等），
+    // 因此 netScan 必须枚举出 localAddr 为 '::' 或 '::1' 的连接。
+    const conns = native.netScan();
+    const v6 = conns.filter(
+      (c) => c.localAddr === '::' || c.localAddr === '::1'
+    );
+    expect(v6.length).toBeGreaterThan(0);
+    // IPv6 地址形如包含 ':' 的字符串
+    for (const c of v6) {
+      expect(c.localAddr).toContain(':');
+      expect(typeof c.localPort).toBe('number');
+      expect(typeof c.protocol).toBe('string');
+      expect(typeof c.pid).toBe('number');
+    }
+  });
+
   it('all TCP entries have valid fields', () => {
     const conns = native.netScan().filter(c => c.protocol === 'tcp');
     for (const c of conns) {

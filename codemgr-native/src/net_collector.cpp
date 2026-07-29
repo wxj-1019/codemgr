@@ -127,6 +127,13 @@ static std::string IpToStr(DWORD ip) {
   return std::string(buf);
 }
 
+// 把 16 字节 IPv6 地址（网络字节序）转字符串（inet_ntop 不输出 scope id 后缀）
+static std::string Ipv6ToStr(const UCHAR* addr) {
+  char buf[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, addr, buf, sizeof(buf));
+  return std::string(buf);
+}
+
 bool CollectAllConnections(std::vector<NetConnRaw>& out, std::string& errMessage) {
   // --- IPv4 TCP ---
   // 首次调用只为探测所需缓冲区大小，期望返回 ERROR_INSUFFICIENT_BUFFER；
@@ -187,11 +194,69 @@ bool CollectAllConnections(std::vector<NetConnRaw>& out, std::string& errMessage
     }
   }
 
+  // --- IPv6 TCP ---
+  // 表为空时 size 查询直接返回 NO_ERROR（与 v4 表非空时的
+  // ERROR_INSUFFICIENT_BUFFER 不同），两者都进入取数据分支。
+  size = 0;
+  rc = GetExtendedTcpTable(nullptr, &size, FALSE, AF_INET6,
+                           TCP_TABLE_OWNER_PID_ALL, 0);
+  if (rc != ERROR_INSUFFICIENT_BUFFER && rc != NO_ERROR) {
+    errMessage += "GetExtendedTcpTable6(size query) failed: " + std::to_string(rc) + "; ";
+  } else {
+    std::vector<BYTE> buf(size);
+    rc = GetExtendedTcpTable(buf.data(), &size, FALSE, AF_INET6,
+                             TCP_TABLE_OWNER_PID_ALL, 0);
+    if (rc == NO_ERROR) {
+      auto* tbl = reinterpret_cast<MIB_TCP6TABLE_OWNER_PID*>(buf.data());
+      for (DWORD i = 0; i < tbl->dwNumEntries; i++) {
+        auto& e = tbl->table[i];
+        NetConnRaw c{};
+        c.protocol = "tcp";
+        c.localAddr = Ipv6ToStr(e.ucLocalAddr);
+        c.localPort = ntohs((USHORT)e.dwLocalPort);
+        c.remoteAddr = Ipv6ToStr(e.ucRemoteAddr);
+        c.remotePort = ntohs((USHORT)e.dwRemotePort);
+        c.state = TcpStateStr(e.dwState);
+        c.pid = e.dwOwningPid;
+        out.push_back(std::move(c));
+      }
+    } else {
+      errMessage += "GetExtendedTcpTable6 failed: " + std::to_string(rc) + "; ";
+    }
+  }
+
+  // --- IPv6 UDP ---
+  size = 0;
+  rc = GetExtendedUdpTable(nullptr, &size, FALSE, AF_INET6, UDP_TABLE_OWNER_PID, 0);
+  if (rc != ERROR_INSUFFICIENT_BUFFER && rc != NO_ERROR) {
+    errMessage += "GetExtendedUdpTable6(size query) failed: " + std::to_string(rc) + "; ";
+  } else {
+    std::vector<BYTE> buf(size);
+    rc = GetExtendedUdpTable(buf.data(), &size, FALSE, AF_INET6,
+                             UDP_TABLE_OWNER_PID, 0);
+    if (rc == NO_ERROR) {
+      auto* tbl = reinterpret_cast<MIB_UDP6TABLE_OWNER_PID*>(buf.data());
+      for (DWORD i = 0; i < tbl->dwNumEntries; i++) {
+        auto& e = tbl->table[i];
+        NetConnRaw c{};
+        c.protocol = "udp";
+        c.localAddr = Ipv6ToStr(e.ucLocalAddr);
+        c.localPort = ntohs((USHORT)e.dwLocalPort);
+        c.remoteAddr = "*";
+        c.remotePort = 0;
+        c.state = "-";
+        c.pid = e.dwOwningPid;
+        out.push_back(std::move(c));
+      }
+    } else {
+      errMessage += "GetExtendedUdpTable6 failed: " + std::to_string(rc) + "; ";
+    }
+  }
+
   // --- 填充 processName：只对连接表中出现的 pid 逐个解析 ---
   // 解析失败的进程 processName 留空（降级，不影响连接列表本身）。
   FillProcessNames(out);
 
-  // v0.1 暂不做 IPv6（后续按需加 AF_INET6）
   return true;
 }
 
