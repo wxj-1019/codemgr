@@ -1,14 +1,25 @@
 import { useState } from 'react';
 import { useRunProfiles, refreshProfiles } from '../hooks/useRunProfiles';
 import { useRunProfileStore } from '../store/runProfileStore';
+import { usePortRadarStore } from '../store/portRadarStore';
 import { ipc } from '../lib/ipc';
+import { resolveServiceStatus, type ServiceStatus } from '../lib/devService';
 import { RunProfileEditor } from './RunProfileEditor';
-import type { RunProfile } from '../../electron/ipc-types';
+import type { RunProfile, RunState } from '../../electron/ipc-types';
+
+const STATUS_BADGE: Record<ServiceStatus['kind'], { text: string; cls: string }> = {
+  listening: { text: '就绪', cls: 'bg-green-500/20 text-green-400' },
+  starting: { text: '启动中…', cls: 'bg-amber-500/20 text-amber-400' },
+  conflict: { text: '端口冲突', cls: 'bg-red-500/20 text-red-400' },
+  exited: { text: '已退出', cls: 'bg-base-700 text-fg-muted' },
+  'no-ports': { text: '', cls: '' },
+};
 
 export function RunProfilesPanel() {
   useRunProfiles();
   const profiles = useRunProfileStore((s) => s.profiles);
   const runs = useRunProfileStore((s) => s.runs);
+  const connections = usePortRadarStore((s) => s.connections);
   const [editing, setEditing] = useState<RunProfile | null | undefined>(undefined); // undefined=关闭, null=新建, profile=编辑
   const [busy, setBusy] = useState<string | null>(null);  // 正在操作的 profileId
 
@@ -69,7 +80,20 @@ export function RunProfilesPanel() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-fg-primary">{p.name}</span>
-                      {run && <span className="ml-2 rounded bg-green-500/20 px-1 text-[10px] text-green-400">running · PID {run.pid}</span>}
+                      {run && <span className="ml-2 rounded bg-green-500/20 px-1 text-[10px] text-green-400">PID {run.pid}</span>}
+                      {run && (() => {
+                        const svc = resolveServiceStatus(run as RunState, p, connections);
+                        const badge = STATUS_BADGE[svc.kind];
+                        if (!badge.text) return null;
+                        const conflictInfo = svc.kind === 'conflict' && svc.ports
+                          ? ' 占用: ' + svc.ports.filter((x) => x.conflict).map((x) => `:${x.port}(PID ${x.heldBy})`).join(', ')
+                          : '';
+                        return (
+                          <span className={`ml-1 rounded px-1 text-[10px] ${badge.cls}`} title={conflictInfo || undefined}>
+                            {badge.text}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="flex gap-1">
                       {!run ? (
