@@ -1,6 +1,7 @@
 # CodeMgr Aurora UI — 视觉重设计 Spec
 
-> 版本: v1.0 | 日期: 2026-07-30 | 状态: 设计锁定
+> 版本: v1.1 | 日期: 2026-07-30 | 状态: 设计锁定
+> v1.1 修订：方向从"霓虹 aurora"收敛为**「柔光 aurora」（Soft Aurora）**——保留苹果玻璃组件骨架与 Siri 辉光 differentiator，全面降低饱和度与辉光强度、放慢动效，以长时间使用的舒适度为第一优先级。
 > 方法：遵循 frontend-design skill（锚点 + 差异化动作 + token 保真 + 内容纪律）。
 > 预览：`docs/superpowers/specs/aurora-preview.html`（浏览器直接打开）。
 
@@ -12,9 +13,9 @@
 
 选它的理由要先纠正一个直觉："仿苹果"不等于 frosted white——那是 2019 年的苹果。Apple 当下最大胆的组件语言是 **Apple Intelligence / Siri 的 aurora**：暗底、mesh 渐变、霓虹辉光描边、玻璃拟态浮层。用户的 brief 是"仿苹果的组件风格 + 大胆创新"，这两半在 Aurora 里合流——玻璃拟态圆角面板是苹果组件的骨，aurora 辉光是当代苹果的胆。而 Swiss（白底 Helvetica 网格）对开发者监控工具是安全但平庸的配对，且与暗色优先的使用场景相悖。
 
-**差异化动作（Differentiator）：「Siri 辉光」**——活动/聚焦面板边缘有一圈缓慢流转的 aurora 描边（conic-gradient border + 12s 旋转动画），像 Siri 被唤醒时的屏幕边缘光。危险操作（结束进程/批量结束）在 hover 时辉光转为 magenta-red。这是第一眼看过去就能记住的东西，且纯 CSS 可实现、零运行时开销。
+**差异化动作（Differentiator）：「Siri 辉光 · 柔光版」**——聚焦面板边缘一圈缓慢流转的 aurora 描边（conic-gradient，16s 旋转，低透明度 + 静态柔光外晕），像 Siri 被唤醒时的屏幕边缘光，但收着亮度：存在感来自"流动"而非"刺眼"。危险操作（结束进程/批量结束）hover 时描边转为柔和玫瑰色。纯 CSS、零运行时开销、支持 `prefers-reduced-motion`。
 
-**约束**：数据密度是这个应用的命。aurora 只做**环境光**（压暗至低亮度垫底），所有表格/图表内容落在 frosted glass 面板上——可读性由 glass 保证，aurora 只负责身份。
+**约束**：数据密度是这个应用的命，舒适度是这次修订的纲。aurora 只做**环境光**（压暗至更低亮度垫底），所有表格/图表内容落在 frosted glass 面板上；强调色整体从"霓虹"降到"柔光"档（cyan-300/violet-300/rose-400 量级），正文降一档亮度防眩光。
 
 ## 1. Token 系统（锚点保真）
 
@@ -22,30 +23,31 @@
 
 | 层 | Token | 值 |
 |----|-------|-----|
-| 环境底 | `--bg-base` | `#0B0817`（深紫黑，承载 mesh） |
-| mesh 层 | `.aurora-mesh` | `radial-gradient(60% 80% at 15% 0%, rgba(93,52,208,.28), transparent 60%), radial-gradient(50% 60% at 85% 15%, rgba(255,0,110,.14), transparent 55%), radial-gradient(70% 90% at 80% 90%, rgba(0,240,255,.12), transparent 60%)`——violet→magenta→cyan 三色，压暗作环境光 |
-| 玻璃面板 | `--bg-panel` | `rgba(22,19,42,.55)` + `backdrop-filter: blur(20px) saturate(1.4)` |
-| 浮层 | `--bg-elevated` | `rgba(32,28,58,.72)` + 同 blur |
-| 边框 | `--border` | `rgba(255,255,255,.08)`（1px，不用阴影做结构） |
+| 环境底 | `--bg-base` | `#100E1D`（深紫黑，比纯黑抬一档，减少明暗反差刺眼感） |
+| mesh 层 | `.aurora-mesh` | `radial-gradient(60% 80% at 15% 0%, rgba(109,76,214,.16), transparent 60%), radial-gradient(50% 60% at 85% 15%, rgba(224,80,140,.08), transparent 55%), radial-gradient(70% 90% at 80% 90%, rgba(80,200,230,.07), transparent 60%)`——三色饱和度与透明度全面减半，只作呼吸感环境光 |
+| 玻璃面板 | `--bg-panel` | `rgba(28,24,52,.55)` + `backdrop-filter: blur(20px) saturate(1.25)` |
+| 浮层 | `--bg-elevated` | `rgba(40,35,68,.70)` + 同 blur |
+| 边框 | `--border` | `rgba(255,255,255,.06)`（1px，柔和低存在） |
 | 圆角 | — | 面板 16px、控件 10px、徽章 999px（连续圆角，苹果组件特征） |
 
-### 1.2 文字与强调色
+### 1.2 文字与强调色（柔光档）
 
-| 用途 | Token | 值 |
-|------|-------|-----|
-| 主文字 | `--text-primary` | `#F2F0FA` |
-| 次文字 | `--text-secondary` | `#A9A4C4` |
-| 弱文字 | `--text-muted` | `#6E6890` |
-| 主强调 | `--accent` | `#00F0FF`（cyan，选中/链接/主按钮） |
-| 次强调 | `--accent-2` | `#A855F7`（violet，标签/图表第二序列） |
-| 警示 | `--danger` | `#FF006E`（magenta-red，kill/超限警告） |
-| 辉光 | — | `text-shadow: 0 0 20px <accent>` 仅用于强调态，不用于正文 |
+| 用途 | Token | 值 | 说明 |
+|------|-------|-----|------|
+| 主文字 | `--text-primary` | `#E9E6F5` | 降一档亮度，长时间阅读不眩光 |
+| 次文字 | `--text-secondary` | `#A39EBF` | |
+| 弱文字 | `--text-muted` | `#6E6890` | |
+| 主强调 | `--accent` | `#67E8F9`（cyan-300） | 从霓虹 `#00F0FF` 降到柔光档 |
+| 次强调 | `--accent-2` | `#C4B5FD`（violet-300） | |
+| 警示 | `--danger` | `#FB7185`（rose-400） | 从品红 `#FF006E` 降到柔和玫瑰 |
+| 警告 | `--warn` | `#FCD34D`（amber-300） | |
+| 辉光 | — | `text-shadow: 0 0 12px color-mix(in srgb, <accent> 30%, transparent)` 仅强调态；正文零辉光 | 强度减半 |
 
 ### 1.3 字体与动效
 
 - UI/正文：**Inter Variable**（`font-family: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif`），数据用 `font-variant-numeric: tabular-nums`。
 - 等宽：PID/端口/命令行保留现有 mono 栈（内容纪律：数据就是数据）。
-- 动效：`cubic-bezier(.22,1,.36,1)`（spring 感）200–300ms；辉光描边 `conic-gradient` 12s 线性无限旋转；面板 hover 上浮 `translateY(-1px)`。
+- 动效：`cubic-bezier(.22,1,.36,1)`（spring 感）**300–400ms**（放慢，动作更稳）；辉光描边 `conic-gradient` **16s** 线性无限旋转 + 静态柔光外晕（`box-shadow: 0 0 32px rgba(109,76,214,.22), 0 0 64px rgba(103,232,249,.07)`）；面板 hover **不再上浮**（减少视觉噪动，保留背景色变化）。
 - 尊重 `prefers-reduced-motion`：关闭描边旋转与上浮。
 
 ### 1.4 亮主题（工程权衡）
@@ -62,7 +64,7 @@
 | nav 工具栏 | glass 条 + 主按钮 accent 实色 + 其余 ghost |
 | 表格 | 表头弱文字小写非全大写（不 filler）、行 hover `--bg-elevated`、选中行左侧 2px accent 光条、斑马纹不用 |
 | 标签徽章 | kind 色保留语义（dev/db/ai…），样式统一为 `color-mix(in srgb, <kind> 18%, transparent)` 底 + `<kind>` 字色 + 999px 圆角；`ai` 品红、GPU 列 cyan |
-| 危险按钮 | `--danger` 实色 + hover 辉光 `0 0 16px rgba(255,0,110,.5)` |
+| 危险按钮 | `--danger` 实色 + hover 柔光 `0 0 14px rgba(251,113,133,.35)` |
 | 图表（Recharts） | 主序列 cyan、次序列 violet、网格线 `rgba(255,255,255,.06)`、tooltip glass |
 | 滚动条 | 8px 细轨，thumb `rgba(255,255,255,.14)` hover 提亮 |
 

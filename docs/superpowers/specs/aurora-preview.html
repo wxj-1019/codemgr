@@ -5,21 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CodeMgr · Aurora UI 设计预览</title>
 <style>
-  /* ── Aurora UI tokens（与 spec §1 一致）── */
+  /* ── Aurora UI tokens 柔光版（spec v1.1）── */
   :root {
-    --bg-base: #0B0817;
-    --bg-panel: rgba(22, 19, 42, .55);
-    --bg-elevated: rgba(32, 28, 58, .72);
-    --border: rgba(255, 255, 255, .08);
-    --text-primary: #F2F0FA;
-    --text-secondary: #A9A4C4;
+    --bg-base: #100E1D;
+    --bg-panel: rgba(28, 24, 52, .55);
+    --bg-elevated: rgba(40, 35, 68, .70);
+    --border: rgba(255, 255, 255, .06);
+    --text-primary: #E9E6F5;
+    --text-secondary: #A39EBF;
     --text-muted: #6E6890;
-    --accent: #00F0FF;
-    --accent-2: #A855F7;
-    --danger: #FF006E;
-    --kind-dev: #34d399;
-    --kind-db: #fbbf24;
-    --kind-ai: #e879f9;
+    --accent: #67E8F9;
+    --accent-2: #C4B5FD;
+    --danger: #FB7185;
+    --warn: #FCD34D;
+    --kind-dev: #6EE7B7;
+    --kind-db: #FCD34D;
+    --kind-ai: #F0ABFC;
     --spring: cubic-bezier(.22, 1, .36, 1);
   }
   * { box-sizing: border-box; margin: 0; }
@@ -31,13 +32,13 @@
     font-variant-numeric: tabular-nums;
     overflow: hidden;
   }
-  /* mesh 环境光：violet→magenta→cyan，压暗垫底 */
+  /* mesh 环境光：柔光版——饱和度/透明度减半，只作呼吸感底光 */
   .aurora-mesh {
     position: fixed; inset: 0; z-index: -1;
     background:
-      radial-gradient(60% 80% at 15% 0%, rgba(93, 52, 208, .28), transparent 60%),
-      radial-gradient(50% 60% at 85% 15%, rgba(255, 0, 110, .14), transparent 55%),
-      radial-gradient(70% 90% at 80% 90%, rgba(0, 240, 255, .12), transparent 60%);
+      radial-gradient(60% 80% at 15% 0%, rgba(109, 76, 214, .16), transparent 60%),
+      radial-gradient(50% 60% at 85% 15%, rgba(224, 80, 140, .08), transparent 55%),
+      radial-gradient(70% 90% at 80% 90%, rgba(80, 200, 230, .07), transparent 60%);
   }
   .glass {
     background: var(--bg-panel);
@@ -47,22 +48,21 @@
     border-radius: 16px;
   }
 
-  /* ── Siri 辉光：聚焦面板的流转描边（differentiator）──
-     关键：conic 渐变必须用 mask 裁成 2px 描边环，否则整张渐变会透过玻璃面板渗入内容区。 */
+  /* ── Siri 辉光 · 柔光版：存在感来自流动，不来自刺眼 ── */
   .panel-focus { position: relative;
-    box-shadow: 0 0 24px rgba(93, 52, 208, .30), 0 0 48px rgba(0, 240, 255, .10);
+    box-shadow: 0 0 32px rgba(109, 76, 214, .22), 0 0 64px rgba(103, 232, 249, .07);
   }
   .panel-focus::before {
     content: ''; position: absolute; inset: -1px; border-radius: 17px; z-index: 1;
     padding: 2px; pointer-events: none;
     background: conic-gradient(from var(--glow-angle, 0deg),
-      #5D34D0, #FF006E, #00F0FF, #A855F7, #5D34D0);
+      #6D4CD6, #E0508C, #50C8E6, #8B7CE8, #6D4CD6);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
             mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
-    opacity: .8;
-    animation: glow-spin 12s linear infinite;
+    opacity: .5;
+    animation: glow-spin 16s linear infinite;
   }
   @property --glow-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
   @keyframes glow-spin { to { --glow-angle: 360deg; } }
@@ -78,20 +78,19 @@
     padding: 10px 16px;
   }
   nav .brand { font-weight: 650; font-size: 15px; letter-spacing: .01em; }
-  nav .brand b { color: var(--accent); text-shadow: 0 0 20px rgba(0, 240, 255, .45); font-weight: 650; }
+  nav .brand b { color: var(--accent); text-shadow: 0 0 12px rgba(103, 232, 249, .30); font-weight: 650; }
   nav .spacer { flex: 1; }
   .ghost-btn {
     padding: 5px 12px; border-radius: 10px; border: 1px solid var(--border);
     background: transparent; color: var(--text-secondary); font-size: 12.5px;
-    cursor: default; transition: all .22s var(--spring);
+    cursor: default; transition: all .3s var(--spring);
   }
   .ghost-btn:hover { color: var(--text-primary); border-color: rgba(255,255,255,.18); }
-  .ghost-btn.active { color: var(--accent); border-color: rgba(0,240,255,.35); }
+  .ghost-btn.active { color: var(--accent); border-color: rgba(103,232,249,.30); }
   .ver { color: var(--text-muted); font-size: 12px; }
 
   main { flex: 1; display: grid; grid-template-columns: 1.7fr 1fr; gap: 12px; min-height: 0; }
-  .panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; transition: transform .25s var(--spring); }
-  .panel:hover { transform: translateY(-1px); }
+  .panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; transition: background .3s var(--spring); }
   .panel-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 16px; border-bottom: 1px solid var(--border);
@@ -112,9 +111,9 @@
   td.name { color: var(--text-primary); font-weight: 550; }
   tbody tr { transition: background .18s var(--spring); cursor: default; position: relative; }
   tbody tr:hover { background: var(--bg-elevated); }
-  tbody tr.selected { box-shadow: inset 2px 0 0 var(--accent); background: rgba(0,240,255,.06); }
+  tbody tr.selected { box-shadow: inset 2px 0 0 var(--accent); background: rgba(103,232,249,.05); }
   .mono { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 11.5px; }
-  .warn { color: #fbbf24; } .crit { color: var(--danger); text-shadow: 0 0 12px rgba(255,0,110,.4); }
+  .warn { color: var(--warn); } .crit { color: var(--danger); }
 
   .badge {
     display: inline-block; padding: 2px 9px; border-radius: 999px;
@@ -126,21 +125,21 @@
 
   .kill-btn {
     padding: 3px 10px; border-radius: 8px; border: none;
-    background: color-mix(in srgb, var(--danger) 80%, black); color: #fff;
+    background: color-mix(in srgb, var(--danger) 70%, black); color: #fff;
     font-size: 11px; font-weight: 600; cursor: default;
-    transition: all .22s var(--spring);
+    transition: all .3s var(--spring);
   }
-  .kill-btn:hover { background: var(--danger); box-shadow: 0 0 16px rgba(255,0,110,.5); }
+  .kill-btn:hover { background: var(--danger); box-shadow: 0 0 14px rgba(251, 113, 133, .35); }
 
   /* ── 右侧 GPU 面板 ── */
   .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 6px; }
   .stat-row .k { color: var(--text-muted); font-size: 12px; }
   .stat-row .v { font-size: 13px; font-weight: 600; }
-  .stat-row .v.cyan { color: var(--accent); text-shadow: 0 0 14px rgba(0,240,255,.4); }
+  .stat-row .v.cyan { color: var(--accent); text-shadow: 0 0 12px rgba(103,232,249,.30); }
   .vram-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; margin: 8px 6px; }
   .vram-fill { height: 100%; width: 62%; border-radius: 999px;
     background: linear-gradient(90deg, var(--accent-2), var(--accent));
-    box-shadow: 0 0 12px rgba(0,240,255,.35); }
+    box-shadow: 0 0 12px rgba(103,232,249,.30); }
   .chart { margin: 6px; border-radius: 12px; background: rgba(255,255,255,.03); }
   .top5 td { border-bottom: none; padding: 5px 10px; }
 
@@ -229,12 +228,12 @@
         <svg class="chart" width="100%" height="86" viewBox="0 0 300 86" preserveAspectRatio="none">
           <defs>
             <linearGradient id="gpuFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#00F0FF" stop-opacity=".35"/>
-              <stop offset="1" stop-color="#00F0FF" stop-opacity="0"/>
+              <stop offset="0" stop-color="#67E8F9" stop-opacity=".35"/>
+              <stop offset="1" stop-color="#67E8F9" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <path d="M0,60 L25,55 L50,62 L75,40 L100,48 L125,30 L150,44 L175,26 L200,38 L225,22 L250,34 L275,28 L300,36 L300,86 L0,86 Z" fill="url(#gpuFill)"/>
-          <path d="M0,60 L25,55 L50,62 L75,40 L100,48 L125,30 L150,44 L175,26 L200,38 L225,22 L250,34 L275,28 L300,36" fill="none" stroke="#00F0FF" stroke-width="1.6"/>
+          <path d="M0,60 L25,55 L50,62 L75,40 L100,48 L125,30 L150,44 L175,26 L200,38 L225,22 L250,34 L275,28 L300,36" fill="none" stroke="#67E8F9" stroke-width="1.6"/>
         </svg>
         <div class="stat-row"><span class="k">显存</span><span class="v">4.5 / 7.3 GiB</span></div>
         <div class="vram-bar"><div class="vram-fill"></div></div>
@@ -249,6 +248,6 @@
   </main>
 </div>
 
-<div class="watermark">设计预览 · 样例数据 · aurora-ui spec v1.0</div>
+<div class="watermark">设计预览 · 样例数据 · aurora-ui spec v1.1 柔光版</div>
 </body>
 </html>
