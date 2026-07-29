@@ -166,4 +166,5 @@ scope:  native | app | ci | docs（可选）
     - 需 `asar: false`（已写进 electron-builder.yml）——绕过 electron-builder 25 在本环境的 `addWinAsarIntegrity` UNKNOWN 写入错误。
     - 需关闭第三方杀软实时防护——否则打包过程中 exe 被锁。
 14. **native addon 路径**：main.ts 用 `app.isPackaged` 分流——开发 `../../codemgr-native/build/Release/...`，打包 `process.resourcesPath/codemgr-native.node`（extraResources 带入）。改 native 后打包前必须 `pnpm build:electron`（Electron ABI）。
-15. **CI bench**：continue-on-error 软 gate（runner 负载波动大，硬 gate 会误杀）。
+15. **图标资产**：`app/build/icon.ico`（多尺寸 256/128/64/48/32/16，electron-builder 按约定自动采用）、`icon.png`（256）、`tray-icon.png`（32，透明底）。由 `app/build/gen_icon.py` 生成（`py app/build/gen_icon.py`，依赖 Pillow），改设计改脚本重跑即可，勿手改位图。
+16. **CI bench**：continue-on-error 软 gate（runner 负载波动大，硬 gate 会误杀）。
