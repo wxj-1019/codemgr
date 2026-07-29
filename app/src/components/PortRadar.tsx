@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePortRadar } from '../hooks/usePortRadar';
 import { usePortRadarStore } from '../store/portRadarStore';
+import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
 import { filterConnections, isListenLike } from '../lib/portFilter';
 import { PortTable } from './PortTable';
@@ -15,6 +16,7 @@ export function PortRadar() {
     connections, loading, error, selectedPid, select, filter, setFilter,
     pollMs, setPollMs, staleAt,
   } = usePortRadarStore();
+  const focus = useFocusStore((s) => s.focus);
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
 
@@ -96,7 +98,7 @@ export function PortRadar() {
           <PortTable
             connections={visible}
             selectedPid={selectedPid}
-            onSelect={(pid) => select(pid)}
+            onSelect={(pid) => { select(pid); focus(pid, 'port'); }}
             onKill={(pid, name) => setPendingKill({ pid, name })}
           />
         )}

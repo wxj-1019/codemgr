@@ -12,6 +12,7 @@ import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
+import { useFocusStore } from '../store/focusStore';
 import { formatBytesPerSec, formatRelativeTime } from '../lib/format';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network' | 'gpu';
@@ -327,6 +328,7 @@ function GpuView({
   history: PerfHistoryPoint[];
 }) {
   const gpu = current.gpu;
+  const focus = useFocusStore((s) => s.focus);
   // 降级：无 GPU 计数器（虚拟机/远程桌面）
   if (!gpu.available) {
     return (
@@ -402,7 +404,12 @@ function GpuView({
             </thead>
             <tbody>
               {top5.map((p) => (
-                <tr key={p.pid} className="border-t border-base-700/30">
+                <tr
+                  key={p.pid}
+                  onClick={() => focus(p.pid, 'perf')}
+                  className="cursor-pointer border-t border-base-700/30 hover:bg-base-700/30"
+                  title="点击在进程表定位此进程"
+                >
                   <td className="py-1.5 font-mono text-fg-primary">{p.pid}</td>
                   <td className="py-1.5 text-right font-mono text-accent">{p.gpuPercent.toFixed(1)}%</td>
                   <td className="py-1.5 text-right font-mono text-fg-secondary">{fmtBytes(p.vramBytes)}</td>

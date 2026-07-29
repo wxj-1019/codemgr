@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ProcessInfo, GitIdentity } from '../../electron/ipc-types';
+import { useFocusStore } from './focusStore';
 
 // 单进程历史曲线滚动窗口长度。进程面板轮询 2s → 60 点 ≈ 120s 窗口。
 export const PROC_HIST_LEN = 60;
@@ -107,6 +108,11 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
         for (const k of Object.keys(s.gitIdentityByPid)) {
           const n = Number(k);
           if (pidSet.has(n)) gitIdentityByPid[n] = s.gitIdentityByPid[n];
+        }
+        // 全局聚焦清理（C）：focusedPid 指向的进程已退出 → 清空，防指向幽灵
+        const curFocus = useFocusStore.getState().focusedPid;
+        if (curFocus != null && !pidSet.has(curFocus)) {
+          useFocusStore.getState().focus(null);
         }
         return { processes: p, error: null, staleAt: null, selectedPids, cpuMap, procHistory, preciseCwdByPid, gitIdentityByPid };
       }),

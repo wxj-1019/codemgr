@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import type { SnapshotEntry, ProcessSnapshot } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
+import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
@@ -500,6 +501,17 @@ function EntryGroupList({
                       <td className="px-2 py-1 font-mono text-xs text-fg-muted truncate max-w-[300px]" title={e.cmdline}>
                         {e.cmdline || '—'}
                       </td>
+                      {mode === 'added' && (
+                        <td className="w-12 px-2 py-1 text-right">
+                          <button
+                            onClick={() => useFocusStore.getState().focus(e.pid, 'snapshot')}
+                            className="text-accent hover:underline text-xs"
+                            title="在进程表定位此进程（若仍存活）"
+                          >
+                            定位
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

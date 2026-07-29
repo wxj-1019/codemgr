@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GitIdentity, ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePortRadarStore } from '../store/portRadarStore';
+import { useFocusStore } from '../store/focusStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
 import { MiniChart } from './MiniChart';
 import { ipc } from '../lib/ipc';
@@ -21,8 +22,10 @@ export function ProcessDetailSidebar({
   const { processes, selectedPids, procHistory, cpuMap, preciseCwdByPid, setPreciseCwd: setStoreCwd,
     gitIdentityByPid, setGitIdentity } = useProcessPanelStore();
   const connections = usePortRadarStore((s) => s.connections);
+  const focusedPid = useFocusStore((s) => s.focusedPid);
   // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
-  const pid = selectedPids.size === 1 ? [...selectedPids][0] : null;
+  // 优先级：单选态 > 全局聚焦。无单选时侧栏跟随全局聚焦（C）。
+  const pid = selectedPids.size === 1 ? [...selectedPids][0] : focusedPid;
 
   // 环境变量：按需加载，切换选中进程时重置（不做轮询，避免高频 ReadProcessMemory）
   const [envVars, setEnvVars] = useState<Record<string, string> | null>(null);
