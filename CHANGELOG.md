@@ -4,6 +4,38 @@
 
 ---
 
+## [v2.3] — 2026-07-30
+
+本版本把 CodeMgr 从「进程观察 + 清理工具」升级为「AI 开发者工作台」：补齐 workspace 身份、跨面板聚焦、诊断导出、AI 会话图谱、受控启动与服务健康检测，形成完整闭环。同时完成 Aurora 视觉重设计。
+
+### 新增 — AI 开发工作流闭环（A1–F2）
+
+- **A1 bug 修复包**（4 个纯前端 bug）：进程排序被 buildTree 覆盖失效；全选误选折叠隐藏的子进程（数据损失风险）；同名 worktree key 冲突；快照 changed 被内存波动淹没。全部 TDD 修复。
+- **A2 采集失败语义**：轮询采集（进程/端口/性能）引入 `CollectResult<T>` 判别联合，取代"失败返回空数组"的降级。失败时**保留上次成功数据**并标注"数据陈旧（N 秒前）"，不再清空表格误导用户。
+- **B Workspace Git 身份**：进程详情侧栏「解析 Git 身份」按钮，从 cwd 向上找 `.git`，解析 branch/HEAD/worktree。纯 fs 文件解析（不 spawn git、不进 native、不进热路径）。非 git 目录显示"非 Git 仓库"。
+- **C 全局聚焦上下文**：新增全局 `focusedPid`，端口行/GPU Top5/快照 diff 项点击后定位到进程表（高亮 + 滚动），详情侧栏跟随焦点。与进程表多选（批量结束）独立共存。聚焦进程退出自动清空。
+- **D 诊断上下文导出**：进程详情侧栏「复制诊断上下文」一键聚合脱敏 Markdown（进程身份/cwd/Git/端口/资源/父进程链/环境变量 key），预览后复制到剪贴板，便于粘贴给 AI 助手排障。环境变量值统一掩码（敏感 key `[REDACTED]`，其余 `***`），**永不泄露原值**。
+- **E1 Session 归属算法**：`buildSessions` 纯函数从瞬时进程快照识别 AI 会话——AI 种子（labelForProcess kind=ai/ai-ide）→ ppid 反向邻接 DFS 收集后代（visited 防环 + claimed 去重，首种子优先）。Session identity = `rootPid:createTimeMs`。单快照 MVP。
+- **E2 SessionPanel**：新 mosaic 面板「AI 会话」，列出活跃会话 + 聚合资源（进程数/CPU/内存/监听端口）。点击聚焦联动（进程表定位 + 侧栏跟随）；「停止」按钮 `killTree` 整体结束会话。无新轮询器（订阅 processPanelStore）。
+- **F1 Run Profiles**：main 进程受控 spawn/stop/restart 开发服务。安全模型：**白名单可执行名**（node/npm/pnpm/yarn/python/git）+ `execFile`（无 shell）+ args 数组，命令注入面最小。profile 持久化（`userData/run-profiles.json`），run 状态经 IPC 事件推送。停止复用 native `killTree`。新 mosaic 面板「Run Profiles」+ 编辑器。
+- **F2 Dev Service 健康检测**：`resolveServiceStatus` 纯函数消费 profile 的 `expectedPorts` + 端口雷达连接 → 就绪/启动中/端口冲突/已退出状态徽章。MVP 用端口监听判定（不做 HTTP 健康检测）。
+
+### 新增 — Aurora 视觉重设计
+
+- **token 层（P1）**：明度阶梯中性黑、Linear 三级灰文字、1px hairline、品牌柔紫 + 图表柔青、aurora 环境光 mesh。
+- **组件换肤（P2）**：浮层毛玻璃 `backdrop-blur(20px)`；危险按钮"安静危险"风格；徽章降饱和；图表色全走 CSS 变量。
+- **Siri 辉光（P3）**：活跃面板边缘流转 aurora 描边（conic-gradient + 16s，`prefers-reduced-motion` 下静止）。
+- mosaic 窗口控制按钮改为 CSS 绘制极简图标。
+
+### 修复
+- mosaic 白底渗入玻璃面板（库 CSS 写死 `background:white`，玻璃半透明后渗成灰雾）。
+- 同名 worktree 共享展开状态 + React key 冲突（A1）。
+
+### 测试
+- app 225→308（+83：A1/A2/B/C/D/E1/E2/F1/F2 纯函数与 store TDD）；native 47/47 不变。共 **355 PASS**。
+
+---
+
 ## [v2.1] — 2026-07-30
 
 ### 新增
@@ -21,27 +53,6 @@
 
 ### 测试
 - app 197→225（+11 defaultRules AI 标签 +5 AutoLaunch +9 native gpu 结构断言[计入 native] +28 快照 diff/store）；native 38→47（+9 gpu.test.ts）。
-
----
-
-## [v2.3] — 2026-07-30
-
-### 新增
-- **Aurora UI 视觉重设计**（spec：`docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md` v1.2，"Linear 纪律 × Apple 毛玻璃"）：
-  - **token 层（P1）**：明度阶梯中性黑（`#08090C` 底 → 玻璃面板 → 浮层）、Linear 三级灰文字、1px hairline、品牌柔紫 `#8B93E8`（全场一处）+ 图表专用柔青、8px 细滚动条、aurora 环境光 mesh（呼吸感底光）。
-  - **组件换肤（P2）**：全部浮层（Dialog/ContextMenu/下拉）上 `backdrop-blur(20px)` 毛玻璃；危险按钮 Linear 式"安静危险"（透明细边，hover 填实）；徽章降饱和（14%）；图表色全走 CSS 变量；tooltip 玻璃化。修复 Tailwind v3 对 `var()` 颜色不生成透明度修饰类的隐患（改 channel 写法）。
-  - **Siri 辉光（P3）**：点击面板即成为活跃面板，边缘流转 aurora 描边（conic-gradient mask 2px 环 + 静态柔光外晕，16s，`prefers-reduced-motion` 下静止）。
-- **mosaic 窗口控制按钮图标**：库依赖的 Blueprint 图标字体从未引入，按钮文字（ReplaceSplitExpandClose）自 v1.7 起挤成一串；改为 CSS 绘制的极简图标（replace/split/expand/close）。
-
-### 修复
-- **mosaic 白底渗入玻璃面板**：库 CSS 给 toolbar/body 写死 `background:white`，v1.7 时被实色 Panel 盖住；玻璃面板半透明后白底渗上成灰雾。改三层选择器（0,3,0）压过库默认并把 mosaic 实底全改透明。
-
-### 已知限制
-- 亮主题为 frosted white glass 变体（spec §1.4 工程权衡），人工验收项。
-- 选中行 2px accent 光条未实现（`<tr>` inset box-shadow 在 border-collapse 下不渲染，需改结构，留后续评估）。
-
-### 测试
-- app 252→256（+4 activePanelStore：聚焦唯一性/替换/重置）。
 
 ---
 

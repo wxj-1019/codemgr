@@ -58,6 +58,15 @@ Windows 自带任务管理器对开发者不友好：找端口占用要 `netstat
 - **内存**：使用率曲线 + 已用/总量
 - **磁盘**：空间占用条（>70% 琥珀、>90% 红色）+ 每盘读/写速率与活动时间%
 - **网络**：活跃网卡实时收发速率
+- **GPU/显存**：总使用率曲线 + 显存条 + per-process Top5（无 GPU 环境降级，不报错）
+
+### AI 开发工作流（v2.3 新增）
+- **AI 会话图谱**：自动识别 AI 工具（Claude/Codex/Aider/Cursor/Ollama）及其子进程，聚合为一个「会话」，显示进程数/CPU/内存/端口，一键整体停止
+- **Workspace Git 身份**：进程详情侧栏解析所属 Git 仓库的 branch/HEAD/worktree
+- **跨面板聚焦**：点端口/GPU Top/快照项 → 进程表自动定位高亮 + 详情侧栏跟随
+- **诊断上下文导出**：一键复制脱敏 Markdown（进程/Git/端口/父链/环境变量 key），粘贴给 AI 助手排障；环境变量值自动掩码
+- **Run Profiles**：受控启动/停止/重启开发服务（如 `pnpm dev`），白名单命令 + 无 shell spawn，端口就绪/冲突状态实时显示
+- **进程快照对比**：拍快照对比"前后多了哪些进程"，AI agent 残留清理利器
 
 ### 系统
 - 托盘常驻 + 全局快捷键 `Ctrl+Shift+M` 唤出
@@ -181,11 +190,11 @@ pnpm dev
 
 | 层 | 工具 | 规模 |
 |----|------|------|
-| 渲染层（store/组件/纯函数） | Vitest + jsdom | 20 文件 / 160 用例 |
-| native 采集 | Vitest | 5 文件 / 33 用例 |
+| 渲染层（store/组件/纯函数） | Vitest + jsdom | 39 文件 / 308 用例 |
+| native 采集 | Vitest | 5 文件 / 47 用例 |
 | native 性能 | bench 脚本 | Go/No-Go 基准（process/net/leak） |
 
-共 **193 PASS**。纯逻辑（store/labels/分组/格式化）一律 TDD，UI 人工验收。
+共 **355 PASS**。纯逻辑（store/labels/分组/格式化/session 归属/诊断脱敏/profile 校验）一律 TDD，UI 人工验收。
 
 ```bash
 pnpm test:native && cd app && pnpm vitest run   # 全部测试
@@ -211,14 +220,15 @@ fix(native): correct cmdline PEB offset for Win11
 
 ## 📋 Roadmap
 
-v1.0 ~ v1.8 已交付（端口雷达 / 项目分组 / 环境变量查看 / 标签规则引擎 / 安装包 / mosaic 布局 / IPv6 / 虚拟列表 / 键盘导航等），完整变更见 [`CHANGELOG.md`](./CHANGELOG.md)。
+v1.0 ~ v2.3 已交付，CodeMgr 现已形成 AI 开发者工作流完整闭环：
 
-### v2.0（远期）
-- [ ] 远程连接（查看其他机器）
-- [ ] 插件系统
-- [ ] 进程快照对比
+- **v1.x**：端口雷达 / 项目分组 / 环境变量查看 / 标签规则引擎 / 安装包 / mosaic 布局 / IPv6 / 虚拟列表 / 键盘导航
+- **v2.0**：插件系统（iframe 沙箱 + 数据源管道）
+- **v2.1**：AI 工具标签 / 开机自启 / GPU 监控
+- **v2.2**：进程快照对比
+- **v2.3**：采集失败语义 / Workspace Git 身份 / 跨面板聚焦 / 诊断导出 / AI 会话图谱 / Run Profiles / Dev Service 健康 / Aurora 视觉重设计
 
-完整 roadmap 见 [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)。
+完整变更见 [`CHANGELOG.md`](./CHANGELOG.md)。
 
 ---
 
