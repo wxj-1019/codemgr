@@ -174,6 +174,13 @@ export interface PerfData {
     vramUsedBytes: number;
     vramBudgetBytes: number;
     perProcess: Array<{ pid: number; gpuPercent: number; vramBytes: number }>;
+    adapters: Array<{
+      name: string;
+      totalPercent: number;
+      vramUsedBytes: number;
+      vramBudgetBytes: number;
+      perProcess: Array<{ pid: number; gpuPercent: number; vramBytes: number }>;
+    }>;
   };
   timestamp: number;
 }

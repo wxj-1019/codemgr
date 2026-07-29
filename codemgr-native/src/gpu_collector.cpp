@@ -39,6 +39,35 @@ static DWORD ParseGpuEnginePid(const std::wstring& instance) {
 }
 
 // ---------------------------------------------------------------------------
+// 纯函数：从 GPU Engine 实例名解析 luid 段（适配器标识）。
+// 实例名形如 pid_1234_luid_0x00000000_0x00004501_phys_0_eng_2_engtype_3D
+// 提取 "0x00000000_0x00004501" 部分（luid Low_High）。找不到返空串。
+// 用于多适配器分组聚合：同 luid 的引擎属于同一 GPU。
+// ---------------------------------------------------------------------------
+static std::wstring ParseGpuEngineLuid(const std::wstring& instance) {
+  const std::wstring marker = L"luid_";
+  size_t pos = instance.find(marker);
+  if (pos == std::wstring::npos) return L"";
+  size_t start = pos + marker.size();
+  // luid 段格式：0xHHHHHHHH_0xHHHH（两个 hex 段，中间一个 _）
+  // 宽松取到下一个非 hex/下划线字符为止
+  size_t end = start;
+  int underscoreSeen = 0;
+  while (end < instance.size()) {
+    wchar_t c = instance[end];
+    if ((c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') ||
+        (c >= L'A' && c <= L'F') || c == L'x' || c == L'X') {
+      ++end;
+    } else if (c == L'_' && underscoreSeen == 0) {
+      ++end; ++underscoreSeen;  // luid 内部的 Low_High 分隔符
+    } else {
+      break;  // phys_ 等后续段的下划线，停止
+    }
+  }
+  return (end > start) ? instance.substr(start, end - start) : L"";
+}
+
+// ---------------------------------------------------------------------------
 // PDH 状态（照 disk PDH 模式：静态、进程生命周期持有、周期重展开）
 // ---------------------------------------------------------------------------
 struct GpuPdhState {
@@ -151,53 +180,66 @@ static void MaybeRefreshGpuPdh() {
 }
 
 // ---------------------------------------------------------------------------
-// DXGI 显存：缓存 adapter（Budget 基本不变，只需周期查 CurrentUsage）。
-// 每次都 CreateDXGIFactory1 + 枚举适配器约 5-8ms，缓存后 QueryVideoMemoryInfo <0.1ms。
+// DXGI 显存：枚举所有硬件适配器（缓存），各取 name + luid + vram。
+// 过滤虚拟显示适配器（Microsoft Basic Render + 无 VRAM 的 Idd 类驱动）。
 // ---------------------------------------------------------------------------
-static IDXGIAdapter3* g_dxgiAdapter = nullptr;  // 进程生命周期持有
+struct DxgiAdapterInfo {
+  IDXGIAdapter3* adapter;       // 缓存引用（进程生命周期持有，不释放）
+  std::wstring name;            // Description
+  std::wstring luidKey;         // "0x00000000_0x00004501"（关联 PDH 实例名 luid 段）
+};
+static std::vector<DxgiAdapterInfo> g_dxgiAdapters;
+static bool g_dxgiEnumerated = false;
 
-static IDXGIAdapter3* GetCachedDxgiAdapter() {
-  if (g_dxgiAdapter) return g_dxgiAdapter;
+// LUID → "0x{Low:08x}_0x{High:04x}"（与 PDH 实例名 luid_ 段格式对齐）
+static std::wstring LuidToKey(LUID luid) {
+  wchar_t buf[32];
+  swprintf(buf, 32, L"0x%08x_0x%04x", luid.LowPart, (unsigned)luid.HighPart);
+  return buf;
+}
+
+static void EnumerateDxgiAdapters() {
+  if (g_dxgiEnumerated) return;
+  g_dxgiEnumerated = true;
   IDXGIFactory4* factory = nullptr;
-  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) || !factory) return nullptr;
+  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) || !factory) return;
   IDXGIAdapter1* adapter1 = nullptr;
   for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i) {
+    DXGI_ADAPTER_DESC1 desc{};
+    adapter1->GetDesc1(&desc);
+    // 跳过 Microsoft Basic Render（VendorId 0x1414）。
+    if (desc.VendorId == 0x1414) {
+      adapter1->Release();
+      continue;
+    }
     IDXGIAdapter3* adapter3 = nullptr;
     if (SUCCEEDED(adapter1->QueryInterface(IID_PPV_ARGS(&adapter3))) && adapter3) {
-      DXGI_QUERY_VIDEO_MEMORY_INFO info{};
-      if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) {
-        DXGI_ADAPTER_DESC1 desc{};
-        adapter1->GetDesc1(&desc);
-        if (info.Budget > 0 && desc.VendorId != 0x1414 /* MS Basic Render */) {
-          g_dxgiAdapter = adapter3;  // 缓存（进程结束自动回收）
-          adapter1->Release();
-          factory->Release();
-          return g_dxgiAdapter;
-        }
+      std::wstring luidKey = LuidToKey(desc.AdapterLuid);
+      // 按 name 去重：核显可能为每个输出/复制源枚举出多个不同 LUID 的副本
+      // （Intel UHD Graphics 出现 3 次），按 Description 去重保留首个。
+      bool dup = false;
+      for (const auto& existing : g_dxgiAdapters) {
+        if (existing.name == desc.Description) { dup = true; break; }
       }
-      adapter3->Release();
+      if (dup) {
+        adapter3->Release();
+      } else {
+        DxgiAdapterInfo info;
+        info.adapter = adapter3;  // 缓存引用，不释放
+        info.name = desc.Description;
+        info.luidKey = luidKey;
+        g_dxgiAdapters.push_back(info);
+      }
     }
     adapter1->Release();
   }
   factory->Release();
-  return nullptr;
 }
 
-static bool CollectVramViaDxgi(unsigned long long& used, unsigned long long& budget) {
-  used = 0; budget = 0;
-  IDXGIAdapter3* adapter = GetCachedDxgiAdapter();
-  if (!adapter) return false;
-  DXGI_QUERY_VIDEO_MEMORY_INFO info{};
-  if (FAILED(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) return false;
-  used = info.CurrentUsage;
-  budget = info.Budget;
-  return budget > 0;
-}
-
-// 模块加载时预热 PDH/DXGI：冷启动（ExpandWildCardPath + AddEnglishCounter ×N +
-// CreateDXGIFactory）约数百 ms，放在 addon 加载时（Electron 启动，用户无感），
-// 而非首次 perfCounters——避免 perfCounters p99 尖刺。
-static bool g_gpuPreheated = ([]() { InitGpuPdh(); GetCachedDxgiAdapter(); return g_gpuPdh.initialized; })();
+// 模块加载时预热 PDH（ExpandWildCardPath + AddEnglishCounter ×N 冷启动）。
+// DXGI 枚举不放静态初始化器（CreateDXGIFactory1 在 DLL 加载时可能失败），
+// 改在首次 CollectGpu 时懒初始化。
+static bool g_gpuPreheated = ([]() { InitGpuPdh(); return g_gpuPdh.initialized; })();
 
 // ---------------------------------------------------------------------------
 // 采集入口：聚合 PDH + DXGI，写入 raw
@@ -211,6 +253,7 @@ static GpuRaw g_lastGpu = {};  // 上次采集结果缓存
 
 void CollectGpu(GpuRaw& raw) {
   InitGpuPdh();  // 幂等：已初始化则立即返回（预热后此处为 no-op）
+  EnumerateDxgiAdapters();  // DXGI 懒初始化（首次 CollectGpu 时枚举适配器）
   // 无 GPU 计数器 → 降级
   if (!g_gpuPdh.query || g_gpuPdh.utilCounters.empty()) {
     raw.available = false;
@@ -235,49 +278,73 @@ void CollectGpu(GpuRaw& raw) {
   }
   raw.available = true;
 
-  // 聚合 per-pid：pid → {gpuPercent 累加, vramBytes 累加}
-  std::unordered_map<DWORD, std::pair<double, unsigned long long>> byPid;
-  double totalUtilSum = 0.0;
-  unsigned long long dedicatedSum = 0;
+  // 聚合：按 luid（适配器）分组，每组内按 pid 聚合。
+  // luid → (pid → {gpuPercent, vramBytes})
+  struct AdapterAgg {
+    double totalUtilSum = 0;
+    unsigned long long dedicatedSum = 0;
+    std::unordered_map<DWORD, std::pair<double, unsigned long long>> byPid;
+  };
+  std::unordered_map<std::wstring, AdapterAgg> byLuid;
 
   for (size_t i = 0; i < g_gpuPdh.utilCounters.size() && i < g_gpuPdh.utilPaths.size(); ++i) {
     PDH_FMT_COUNTERVALUE val{};
     if (PdhGetFormattedCounterValue(g_gpuPdh.utilCounters[i], PDH_FMT_DOUBLE, nullptr, &val) == ERROR_SUCCESS) {
       double util = val.doubleValue;
-      totalUtilSum += util;
+      std::wstring luid = ParseGpuEngineLuid(g_gpuPdh.utilPaths[i]);
+      auto& agg = byLuid[luid];
+      agg.totalUtilSum += util;
       DWORD pid = ParseGpuEnginePid(g_gpuPdh.utilPaths[i]);
-      if (pid > 0) byPid[pid].first += util;
+      if (pid > 0) agg.byPid[pid].first += util;
     }
   }
   for (size_t i = 0; i < g_gpuPdh.dedicatedCounters.size() && i < g_gpuPdh.dedicatedPaths.size(); ++i) {
     PDH_FMT_COUNTERVALUE val{};
     if (PdhGetFormattedCounterValue(g_gpuPdh.dedicatedCounters[i], PDH_FMT_LARGE, nullptr, &val) == ERROR_SUCCESS) {
       unsigned long long bytes = (unsigned long long)val.largeValue;
-      dedicatedSum += bytes;
+      std::wstring luid = ParseGpuEngineLuid(g_gpuPdh.dedicatedPaths[i]);
+      auto& agg = byLuid[luid];
+      agg.dedicatedSum += bytes;
       DWORD pid = ParseGpuEnginePid(g_gpuPdh.dedicatedPaths[i]);
-      if (pid > 0) byPid[pid].second += bytes;
+      if (pid > 0) agg.byPid[pid].second += bytes;
     }
   }
 
-  // 总 GPU%：所有引擎 utilization 之和 clamp 100（任务管理器近似口径）
-  raw.totalPercent = totalUtilSum > 100.0 ? 100.0 : totalUtilSum;
-
-  // 显存总量：优先 DXGI（缓存 adapter）；失败 fallback per-process dedicated 求和
-  unsigned long long dxgiUsed = 0, dxgiBudget = 0;
-  if (CollectVramViaDxgi(dxgiUsed, dxgiBudget)) {
-    raw.vramUsedBytes = dxgiUsed;
-    raw.vramBudgetBytes = dxgiBudget;
-  } else {
-    raw.vramUsedBytes = dedicatedSum;
-    raw.vramBudgetBytes = 0;  // 未知
-  }
-
-  // perProcess 数组
+  // 构建 adapters 数组：DXGI 适配器（有 name/vram）+ PDH 聚合（有 utilization/perpid）
+  // 按 DXGI 枚举顺序（硬件适配器在前），用 luidKey 关联 PDH 聚合
+  raw.adapters.clear();
+  raw.totalPercent = 0;
+  raw.vramUsedBytes = 0;
+  raw.vramBudgetBytes = 0;
   raw.perProcess.clear();
-  raw.perProcess.reserve(byPid.size());
-  for (const auto& [pid, v] : byPid) {
-    raw.perProcess.push_back({pid, v.first, v.second});
+
+  for (const auto& dxgi : g_dxgiAdapters) {
+    GpuRaw::AdapterRaw a;
+    a.name = dxgi.name;
+    // DXGI 显存（每适配器）
+    DXGI_QUERY_VIDEO_MEMORY_INFO info{};
+    if (SUCCEEDED(dxgi.adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) {
+      a.vramUsedBytes = info.CurrentUsage;
+      a.vramBudgetBytes = info.Budget;
+    }
+    // PDH 聚合（按 luid 匹配）
+    auto it = byLuid.find(dxgi.luidKey);
+    if (it != byLuid.end()) {
+      a.totalPercent = it->second.totalUtilSum > 100.0 ? 100.0 : it->second.totalUtilSum;
+      for (const auto& [pid, v] : it->second.byPid) {
+        a.perProcess.push_back({pid, v.first, v.second});
+      }
+    }
+    raw.adapters.push_back(std::move(a));
+
+    // 累加到顶层总计
+    raw.totalPercent += a.totalPercent;
+    raw.vramUsedBytes += a.vramUsedBytes;
+    raw.vramBudgetBytes += a.vramBudgetBytes;
+    for (const auto& p : a.perProcess) raw.perProcess.push_back(p);
   }
+  // 顶层总 GPU% clamp 100
+  raw.totalPercent = raw.totalPercent > 100.0 ? 100.0 : raw.totalPercent;
 
   // 缓存本次结果供降频复用
   g_lastGpu = raw;

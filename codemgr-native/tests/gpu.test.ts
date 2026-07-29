@@ -52,4 +52,23 @@ describe('perfCounters GPU 字段（v2.1）', () => {
       expect(typeof p.vramBytes).toBe('number');
     }
   });
+
+  // v2.x 多适配器明细
+  it('adapters 是数组', () => {
+    expect(Array.isArray(gpu.adapters)).toBe(true);
+  });
+
+  it('available=true 时 adapters 每项有 name + 合法字段', () => {
+    if (gpu.available) {
+      for (const a of gpu.adapters) {
+        expect(typeof a.name).toBe('string');
+        expect(a.name.length).toBeGreaterThan(0);
+        expect(typeof a.totalPercent).toBe('number');
+        expect(a.totalPercent).toBeGreaterThanOrEqual(0);
+        expect(a.totalPercent).toBeLessThanOrEqual(100);
+        expect(typeof a.vramUsedBytes).toBe('number');
+        expect(typeof a.vramBudgetBytes).toBe('number');
+      }
+    }
+  });
 });

@@ -397,6 +397,32 @@ function GpuView({
           </table>
         </div>
       )}
+      {/* v2.x 多适配器明细（核显+独显分卡；仅 >1 时显示，单卡时上层总览已够） */}
+      {gpu.adapters.length > 1 && (
+        <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+          <div className="mb-3 text-sm text-fg-secondary">适配器明细</div>
+          <div className="space-y-3">
+            {gpu.adapters.map((a, i) => {
+              const pct = a.vramBudgetBytes > 0 ? (a.vramUsedBytes / a.vramBudgetBytes) * 100 : 0;
+              const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-accent';
+              return (
+                <div key={i}>
+                  <div className="mb-1 flex justify-between text-sm">
+                    <span className="font-mono text-fg-primary">{a.name}</span>
+                    <span className="text-fg-muted">
+                      {a.totalPercent.toFixed(0)}% · {fmtBytes(a.vramUsedBytes)}
+                      {a.vramBudgetBytes > 0 ? ' / ' + fmtBytes(a.vramBudgetBytes) : ''}
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded bg-base-700">
+                    <div className={`h-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
