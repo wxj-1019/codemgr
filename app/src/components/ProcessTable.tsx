@@ -22,6 +22,7 @@ interface TreeRow {
  *
  * Root nodes are processes whose ppid is 0 or whose parent is not in the list.
  * Children are only recursed into when the parent PID is present in `expandedPids`.
+ * 顺序由调用方传入的 procs（已排序）决定；本函数只建立父子关系与 DFS 遍历，不重排。
  */
 function buildTree(procs: ProcessInfo[], expandedPids: Set<number>): TreeRow[] {
   // Group children by parent PID
@@ -36,7 +37,6 @@ function buildTree(procs: ProcessInfo[], expandedPids: Set<number>): TreeRow[] {
 
   function walk(pid: number, depth: number) {
     const children = pidMap.get(pid) || [];
-    children.sort((a, b) => a.pid - b.pid);
     for (const c of children) {
       // Guard against self-parenting edge case
       if (c.pid === pid) continue;
@@ -50,7 +50,6 @@ function buildTree(procs: ProcessInfo[], expandedPids: Set<number>): TreeRow[] {
   // Identify roots: ppid === 0 or ppid not present in the list
   const pidSet = new Set(procs.map((p) => p.pid));
   const roots = procs.filter((p) => p.ppid === 0 || !pidSet.has(p.ppid));
-  roots.sort((a, b) => a.pid - b.pid);
 
   for (const r of roots) {
     result.push({ proc: r, depth: 0 });
