@@ -14,6 +14,14 @@ export interface LabelRuleOverride {
   enabled?: boolean;
 }
 
+/** 导入/导出的载荷形状（与 ipc-types 的 LabelRulesPayload 对齐，但用本包的 LabelRule 类型）。 */
+export interface LabelRulesSnapshot {
+  version: 1;
+  userRules: LabelRule[];
+  disabledDefaultIds: string[];
+  overrides: Record<string, LabelRuleOverride>;
+}
+
 interface LabelRulesState {
   /** 用户自定义规则（始终排在默认规则之后） */
   userRules: LabelRule[];
@@ -28,6 +36,8 @@ interface LabelRulesState {
   toggleDefault: (id: string, enabled: boolean) => void;
   setDefaultOverride: (id: string, patch: LabelRuleOverride) => void;
   resetAll: () => void;
+  /** 导入：整体替换现有规则（语义=替换，非合并）。返回替换的规则条数，便于 UI 提示。 */
+  replaceAll: (snapshot: LabelRulesSnapshot) => number;
 }
 
 /** 计算合并后的规则（默认去 disabled + 应用 override + 追加 userRules）。 */
@@ -96,6 +106,19 @@ export const useLabelRulesStore = create<LabelRulesState>()(
         resetAll: () => {
           set({ userRules: [], disabledDefaultIds: [], overrides: {} });
           refreshActive(get());
+        },
+        // 导入=替换：整体覆盖三个字段。深拷贝避免外部对象后续被改动污染 store。
+        // 返回 userRules 条数供 UI 提示（"已导入 N 条自定义规则"）。
+        replaceAll: (snapshot) => {
+          set({
+            userRules: snapshot.userRules.map((r) => ({ ...r })),
+            disabledDefaultIds: [...snapshot.disabledDefaultIds],
+            overrides: Object.fromEntries(
+              Object.entries(snapshot.overrides).map(([k, v]) => [k, { ...v }]),
+            ),
+          });
+          refreshActive(get());
+          return get().userRules.length;
         },
       };
       refreshActive(initial);

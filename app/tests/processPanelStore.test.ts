@@ -139,14 +139,34 @@ describe('processPanelStore', () => {
     st.toggleSort(); // sortAsc -> false
     st.setFilter('node');
     st.setViewMode('project');
-    // partialize must produce exactly { sortKey, sortAsc, filter, viewMode } — no
-    // processes/cpuMap/selectedPids/etc. The store exposes its persist API.
+    // partialize must produce exactly { sortKey, sortAsc, filter, viewMode, sidebarProportion } —
+    // no processes/cpuMap/selectedPids/etc. The store exposes its persist API.
     const api = (useProcessPanelStore as unknown as {
       persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
     }).persist;
     const opts = api.getOptions();
     const persisted = opts.partialize(useProcessPanelStore.getState());
-    expect(persisted).toEqual({ sortKey: 'cpu', sortAsc: false, filter: 'node', viewMode: 'project' });
+    expect(persisted).toEqual({
+      sortKey: 'cpu', sortAsc: false, filter: 'node', viewMode: 'project',
+      sidebarProportion: 0.3,
+    });
+  });
+
+  it('setSidebarProportion clamps to 0.15-0.6', () => {
+    const st = useProcessPanelStore.getState();
+    st.setSidebarProportion(0.5);
+    expect(useProcessPanelStore.getState().sidebarProportion).toBe(0.5);
+    // 过小 → 钳到 0.15
+    st.setSidebarProportion(0.01);
+    expect(useProcessPanelStore.getState().sidebarProportion).toBe(0.15);
+    // 过大 → 钳到 0.6
+    st.setSidebarProportion(0.99);
+    expect(useProcessPanelStore.getState().sidebarProportion).toBe(0.6);
+    // 边界值原样保留
+    st.setSidebarProportion(0.15);
+    expect(useProcessPanelStore.getState().sidebarProportion).toBe(0.15);
+    st.setSidebarProportion(0.6);
+    expect(useProcessPanelStore.getState().sidebarProportion).toBe(0.6);
   });
 
   it('toggleViewMode switches tree <-> project', () => {

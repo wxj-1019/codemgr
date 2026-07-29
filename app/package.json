@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "allotment": "^1.20.5",
     "react": "18",
     "react-dom": "18",
     "recharts": "2",

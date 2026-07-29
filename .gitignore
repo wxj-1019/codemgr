@@ -8,3 +8,4 @@ dist-electron/
 *.log
 .vscode/
 .idea/
+.zcode/

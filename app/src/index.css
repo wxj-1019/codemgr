@@ -32,3 +32,20 @@ body {
   color: var(--text-primary);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
+
+/* ── allotment 主题适配 ──
+   allotment 默认分割条是蓝色（VS Code 风），覆盖成项目语义色。
+   类名带 CSS-module hash，用属性子串选择器匹配，避免依赖具体 hash。
+   hover/active 时用 text-muted 提亮，与亮/暗主题双适配。 */
+[class*='sash-container'] [class*='sash'] {
+  background: transparent;
+}
+[class*='sash-container'] [class*='sash']:hover,
+[class*='sash-container'] [class*='sash'].active {
+  background: var(--text-muted);
+  opacity: 0.35;
+}
+/* allotment 面板间默认分隔线 */
+[class*='split-view-container'] [class*='split-view-view'] + [class*='split-view-view'] {
+  border-left: 1px solid var(--border);
+}

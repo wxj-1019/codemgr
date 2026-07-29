@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Allotment } from 'allotment';
+import 'allotment/dist/style.css';
 import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
@@ -9,12 +11,29 @@ import { ProcessDetailSidebar } from './ProcessDetailSidebar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 
+// Tailwind 的 lg 断点 = 1024px。侧栏仅 lg+ 显示（与原 hidden lg:block 一致），
+// 用 matchMedia 判断，避免 allotment 在小屏仍给侧栏 pane 分配空间。
+function useIsLg(): boolean {
+  const [lg, setLg] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setLg(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return lg;
+}
+
 export function ProcessPanel() {
   useProcessPanel(); // Start polling (2s interval)
 
+  const isLg = useIsLg();
+
   const {
     processes, loading, error, selectedPids, filter, setFilter, clearSelection,
-    viewMode, toggleViewMode,
+    viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
   } = useProcessPanelStore();
 
   const [pendingKill, setPendingKill] = useState<{
@@ -231,36 +250,27 @@ export function ProcessPanel() {
         </div>
       )}
 
-      {/* 加载/错误/空状态，或进程表 */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {showLoadState ? (
-            <LoadState
-              loading={loading}
-              error={error}
-              empty={false}
-              isFirstLoad={isFirstLoad}
-            />
-          ) : viewMode === 'project' ? (
-            <ProjectGroupView
-              onKillSingle={(pid, name) => setPendingKill({ pid, name })}
-              onKillGroup={(name, pids) => setGroupKill({ name, pids })}
-            />
-          ) : (
-            <ProcessTable
-              onKillSingle={(pid, name) => setPendingKill({ pid, name })}
-              onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
-            />
-          )}
-        </div>
-        {/* 详情侧栏：lg+ 屏才显示，kill 复用与表格同一套 pendingKill 流程 */}
-        {!showLoadState && (
-          <ProcessDetailSidebar
-            onKill={(pid, name) => setPendingKill({ pid, name })}
-            onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
+      {/* 加载/错误/空状态，或进程表 + 可拖宽侧栏 */}
+      {showLoadState ? (
+        <div className="flex flex-1 overflow-hidden">
+          <LoadState
+            loading={loading}
+            error={error}
+            empty={false}
+            isFirstLoad={isFirstLoad}
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <ProcessTableArea
+          isLg={isLg}
+          sidebarProportion={sidebarProportion}
+          onSidebarResize={setSidebarProportion}
+          viewMode={viewMode}
+          onKillSingle={(pid, name) => setPendingKill({ pid, name })}
+          onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
+          onKillGroup={(name, pids) => setGroupKill({ name, pids })}
+        />
+      )}
 
       {/* Single-kill confirmation */}
       <ConfirmDialog
@@ -322,6 +332,110 @@ export function ProcessPanel() {
         onConfirm={doKillTree}
         onCancel={() => { if (!killBusy) setPendingKillTree(null); }}
       />
+    </div>
+  );
+}
+
+/**
+ * 表格 + 可拖宽侧栏的容器。lg+ 屏用 Allotment 分栏（拖动分割条改变比例并持久化），
+ * 小屏只渲染表格（侧栏隐藏）。Allotment 的 sizes 是像素，用容器宽度把比例换算成
+ * 像素初始化；onChange 时把侧栏像素转回比例存 store。proportionalLayout 默认 true，
+ * 窗口缩放时按比例自动跟随。
+ */
+function ProcessTableArea({
+  isLg,
+  sidebarProportion,
+  onSidebarResize,
+  viewMode,
+  onKillSingle,
+  onKillTree,
+  onKillGroup,
+}: {
+  isLg: boolean;
+  sidebarProportion: number;
+  onSidebarResize: (p: number) => void;
+  viewMode: 'tree' | 'project';
+  onKillSingle: (pid: number, name: string) => void;
+  onKillTree: (pid: number, name: string) => void;
+  onKillGroup: (name: string, pids: number[]) => void;
+}) {
+  const tableOrGroup = viewMode === 'project' ? (
+    <ProjectGroupView
+      onKillSingle={onKillSingle}
+      onKillGroup={onKillGroup}
+      onKillTree={onKillTree}
+    />
+  ) : (
+    <ProcessTable onKillSingle={onKillSingle} onKillTree={onKillTree} />
+  );
+
+  // 小屏：无侧栏，直接铺满
+  if (!isLg) {
+    return <div className="flex flex-1 overflow-hidden">{tableOrGroup}</div>;
+  }
+
+  // lg+：Allotment 分栏。用 ResizeObserver 测容器宽度，把 sidebarProportion 换算成
+  // 像素作为 defaultSizes（allotment 只在首次生效，之后由 proportionalLayout 按比例保持）。
+  // 容器宽度未就绪（0）时不渲染 Allotment，避免 defaultSizes 全 0 的退化布局。
+  return (
+    <ResizableSplit
+      proportion={sidebarProportion}
+      onResize={onSidebarResize}
+      left={tableOrGroup}
+      right={
+        <ProcessDetailSidebar
+          onKill={onKillSingle}
+          onKillTree={onKillTree}
+        />
+      }
+    />
+  );
+}
+
+/** 测量容器宽度 → 比例换像素初始化 Allotment，onChange 把像素转回比例上报。 */
+function ResizableSplit({
+  proportion,
+  onResize,
+  left,
+  right,
+}: {
+  proportion: number;
+  onResize: (p: number) => void;
+  left: React.ReactNode;
+  right: React.ReactNode;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setWidth(e.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const sidebarPx = Math.round(width * proportion);
+  // 宽度未就绪前给 Allotment 一个占位 defaultSizes，就绪后用真实像素。
+  // key=width 让 allotment 在宽度首次确定时重算 defaultSizes（仅一次，之后比例化）。
+  return (
+    <div ref={containerRef} className="flex flex-1 overflow-hidden">
+      {width > 0 && (
+        <Allotment
+          key={width}
+          defaultSizes={[width - sidebarPx, sidebarPx]}
+          onChange={(sizes) => {
+            // sizes = [tablePx, sidebarPx]，total 容差防除零
+            const total = sizes[0] + sizes[1];
+            if (total > 0) onResize(sizes[1] / total);
+          }}
+        >
+          <Allotment.Pane minSize={200}>{left}</Allotment.Pane>
+          <Allotment.Pane minSize={240} preferredSize={sidebarPx}>{right}</Allotment.Pane>
+        </Allotment>
+      )}
     </div>
   );
 }

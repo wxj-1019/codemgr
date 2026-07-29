@@ -1,7 +1,8 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
 interface ProcessTableProps {
   onKillSingle: (pid: number, name: string) => void;
@@ -87,11 +88,13 @@ interface ProcessRowProps {
   onToggleSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
+  // 右键菜单：转发客户端坐标 + proc，由父组件决定弹什么菜单
+  onContextMenuRow: (e: React.MouseEvent, proc: ProcessInfo) => void;
 }
 
 const ProcessRow = memo(function ProcessRow({
   proc, depth, cpu, hasChildren, isExpanded, isSelected,
-  onToggleExpand, onToggleSelect, onKill, onKillTree,
+  onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
   const memMB = proc.workingSetBytes / 1048576;
@@ -105,6 +108,7 @@ const ProcessRow = memo(function ProcessRow({
         isSelected ? 'bg-base-700/50' : ''
       } ${memHighlight ? 'bg-yellow-900/10' : ''}`}
       onClick={() => onToggleSelect(proc.pid)}
+      onContextMenu={(e) => onContextMenuRow(e, proc)}
     >
       <td className="px-1 py-1">
         <input
@@ -288,6 +292,30 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     [sortKey, setSortKey, toggleSort],
   );
 
+  // ── 右键上下文菜单 ──
+  // 稳定 callback：只记录坐标+proc，items 在渲染时按 proc 动态构造。
+  // 用 useCallback 避免每次渲染生成新函数引用导致所有 memoized 行重渲染。
+  const [menu, setMenu] = useState<{ x: number; y: number; proc: ProcessInfo } | null>(null);
+  const onContextMenuRow = useCallback((e: React.MouseEvent, proc: ProcessInfo) => {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, proc });
+  }, []);
+
+  // 复制到剪贴板：失败静默（与侧栏 copyCmd 一致，clipboard 可能被环境阻断）
+  const copyText = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
+  }, []);
+
+  // 按 menu.proc 动态构造菜单项。kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）
+  const menuItems: ContextMenuItem[] = menu ? [
+    { label: '结束进程', danger: true, onSelect: () => onKillSingle(menu.proc.pid, menu.proc.name) },
+    ...(childrenParentSet.has(menu.proc.pid) && menu.proc.pid > 4
+      ? [{ label: '结束进程树', danger: true, onSelect: () => onKillTree(menu.proc.pid, menu.proc.name) }]
+      : []),
+    { label: '复制命令行', dividerBefore: true, onSelect: () => copyText(menu.proc.cmdline), disabled: !menu.proc.cmdline },
+    { label: '复制 PID', onSelect: () => copyText(String(menu.proc.pid)) },
+  ] : [];
+
   return (
     <div className="overflow-auto flex-1">
       <table className="w-full text-sm">
@@ -348,6 +376,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
               onToggleSelect={onToggleSelect}
               onKill={onKillSingle}
               onKillTree={onKillTree}
+              onContextMenuRow={onContextMenuRow}
             />
           ))}
           {rows.length === 0 && (
@@ -359,6 +388,13 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
           )}
         </tbody>
       </table>
+      <ContextMenu
+        open={menu !== null}
+        x={menu?.x ?? 0}
+        y={menu?.y ?? 0}
+        items={menuItems}
+        onClose={() => setMenu(null)}
+      />
     </div>
   );
 }

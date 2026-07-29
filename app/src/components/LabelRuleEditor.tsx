@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { DEFAULT_RULES } from '../lib/defaultRules';
 import { matchRules, type LabelRule, type MatchField } from '../lib/labelRules';
 import { labelForProcess } from '../lib/processLabels';
-import { useLabelRulesStore, newRuleId } from '../store/labelRulesStore';
+import { ipc } from '../lib/ipc';
+import { useLabelRulesStore, newRuleId, type LabelRulesSnapshot } from '../store/labelRulesStore';
 
 const KIND_COLORS: Record<string, string> = {
   dev: 'bg-accent/20 text-accent',
@@ -26,7 +27,7 @@ function badge(kind: string, label: string) {
 
 export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
   const { userRules, disabledDefaultIds, overrides,
-    addUserRule, removeUserRule, toggleDefault, setDefaultOverride } = useLabelRulesStore();
+    addUserRule, removeUserRule, toggleDefault, setDefaultOverride, replaceAll } = useLabelRulesStore();
 
   // 新增表单草稿
   const [dLabel, setDLabel] = useState('');
@@ -38,6 +39,9 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
   // 预览
   const [pName, setPName] = useState('node.exe');
   const [pCmd, setPCmd] = useState('node vite');
+
+  // 导入导出进行中态：禁用按钮 + 防并发
+  const [ioBusy, setIoBusy] = useState(false);
 
   const parseList = (s: string): string[] =>
     s.split(',').map((x) => x.trim()).filter(Boolean);
@@ -58,6 +62,51 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
     setDLabel(''); setDInclude(''); setDExclude('');
   }
 
+  // 导出当前规则集（userRules + 禁用的默认 id + overrides）为 JSON 文件。
+  // 文件路径由 main 的保存对话框决定，渲染层不持有路径（红线）。
+  async function handleExport() {
+    if (ioBusy) return;
+    setIoBusy(true);
+    try {
+      const snapshot: LabelRulesSnapshot = {
+        version: 1,
+        userRules,
+        disabledDefaultIds,
+        overrides,
+      };
+      const ok = await ipc.exportLabelRules(snapshot);
+      if (!ok) {
+        alert('导出失败或已取消');
+      }
+    } catch (e) {
+      alert(`导出失败：${String(e)}`);
+    } finally {
+      setIoBusy(false);
+    }
+  }
+
+  // 从 JSON 文件导入（语义=替换）。导入前二次确认，避免误覆盖现有规则。
+  async function handleImport() {
+    if (ioBusy) return;
+    if (userRules.length > 0 || disabledDefaultIds.length > 0 || Object.keys(overrides).length > 0) {
+      if (!confirm('导入将替换现有规则，确定继续吗？')) return;
+    }
+    setIoBusy(true);
+    try {
+      const snapshot = await ipc.importLabelRules();
+      if (snapshot === null) {
+        alert('导入失败：文件无效或已取消');
+        return;
+      }
+      const n = replaceAll(snapshot);
+      alert(`已导入规则（${n} 条自定义 + ${snapshot.disabledDefaultIds.length} 个默认开关变更）`);
+    } catch (e) {
+      alert(`导入失败：${String(e)}`);
+    } finally {
+      setIoBusy(false);
+    }
+  }
+
   // 用当前表单规则做预览命中（不污染 store）
   const previewRule: LabelRule | null = canAdd
     ? { id: '__preview__', label: dLabel.trim(), kind: dKind.trim() || 'dev', field: dField, enabled: true, groups: [{ include: parseList(dInclude), exclude: parseList(dExclude) }] }
@@ -73,7 +122,25 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between border-b border-base-700 px-5 py-3">
           <h3 className="text-base font-semibold text-fg-primary">标签规则</h3>
-          <button onClick={onClose} className="text-fg-muted hover:text-fg-primary" aria-label="关闭">✕</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              disabled={ioBusy}
+              title="导出规则到 JSON 文件（含自定义规则 + 默认开关/覆盖）"
+              className="rounded px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              导出
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={ioBusy}
+              title="从 JSON 文件导入规则（替换现有规则）"
+              className="rounded px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              导入
+            </button>
+            <button onClick={onClose} className="text-fg-muted hover:text-fg-primary" aria-label="关闭">✕</button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto px-5 py-4 text-sm">

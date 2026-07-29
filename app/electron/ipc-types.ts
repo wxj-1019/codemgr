@@ -10,7 +10,37 @@ export const IPC = {
   FETCH_PROCESSES: 'proc:fetchProcesses',
   FETCH_CPU: 'proc:fetchCpu',
   FETCH_PERF: 'perf:fetch',
+  // 标签规则导入导出：文件 IO 必须封在 main（红线），渲染层只拿数据/布尔
+  EXPORT_LABEL_RULES: 'config:exportLabelRules',
+  IMPORT_LABEL_RULES: 'config:importLabelRules',
 } as const;
+
+/**
+ * 标签规则的导出/导入载荷。结构与 labelRulesStore persist 的 partialize 一致，
+ * 便于「导出即持久化切片、导入即替换」语义。version 预留后续 schema 迁移。
+ */
+export interface LabelRulesPayload {
+  version: 1;
+  userRules: LabelRule[];
+  disabledDefaultIds: string[];
+  overrides: Record<string, LabelRuleOverride>;
+}
+
+// 导入导出用到的本地类型（与 labelRules.ts / labelRulesStore.ts 对齐，避免渲染层跨包依赖）
+export interface LabelRule {
+  id: string;
+  label: string;
+  kind: string;
+  field: 'name' | 'cmdline' | 'both';
+  groups: { include: string[]; exclude?: string[] }[];
+  enabled: boolean;
+}
+
+export interface LabelRuleOverride {
+  label?: string;
+  kind?: string;
+  enabled?: boolean;
+}
 
 // 与 codemgr-native 的 NetConnection 一致（重新声明，避免渲染层直接依赖 native 包）
 export interface NetConnection {
@@ -75,4 +105,8 @@ export interface ExposedApi {
   fetchProcesses(): Promise<ProcessInfo[]>;
   fetchCpu(): Promise<CpuUsage[]>;
   fetchPerf(): Promise<PerfData | null>;
+  // 标签规则导入导出。文件路径由 main 的对话框决定，渲染层拿不到路径（红线）。
+  // 导出返回是否成功（用户取消对话框也算 false）；导入返回载荷或 null（取消/损坏）。
+  exportLabelRules(payload: LabelRulesPayload): Promise<boolean>;
+  importLabelRules(): Promise<LabelRulesPayload | null>;
 }

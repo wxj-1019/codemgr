@@ -1,12 +1,14 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
 import { groupByProject } from '../lib/projectGroup';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
 interface ProjectGroupViewProps {
   onKillSingle: (pid: number, name: string) => void;
   onKillGroup: (name: string, pids: number[]) => void;
+  onKillTree: (pid: number, name: string) => void;
 }
 
 /** Format working-set bytes as a human-readable MB string. */
@@ -36,6 +38,7 @@ const GroupRow = memo(function GroupRow({
   onToggle,
   onKillSingle,
   onKillGroup,
+  onContextMenuRow,
 }: {
   name: string;
   dir: string | null;
@@ -47,6 +50,7 @@ const GroupRow = memo(function GroupRow({
   onToggle: () => void;
   onKillSingle: (pid: number, name: string) => void;
   onKillGroup: () => void;
+  onContextMenuRow: (e: React.MouseEvent, proc: ProcessInfo) => void;
 }) {
   return (
     <>
@@ -93,6 +97,7 @@ const GroupRow = memo(function GroupRow({
             <tr
               key={proc.pid}
               className="border-b border-base-700/30 hover:bg-base-700/30"
+              onContextMenu={(e) => onContextMenuRow(e, proc)}
             >
               <td className="px-2 py-1" />
               <td className="px-2 py-1">
@@ -144,7 +149,7 @@ const GroupRow = memo(function GroupRow({
   );
 });
 
-export function ProjectGroupView({ onKillSingle, onKillGroup }: ProjectGroupViewProps) {
+export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: ProjectGroupViewProps) {
   const {
     processes,
     cpuMap,
@@ -176,6 +181,24 @@ export function ProjectGroupView({ onKillSingle, onKillGroup }: ProjectGroupView
   }, [filtered]);
 
   const onToggle = useCallback((name: string) => toggleGroup(name), [toggleGroup]);
+
+  // ── 右键上下文菜单（与 ProcessTable 同构，但项目视图无树信息，结束进程树按 pid>4 放行） ──
+  const [menu, setMenu] = useState<{ x: number; y: number; proc: ProcessInfo } | null>(null);
+  const onContextMenuRow = useCallback((e: React.MouseEvent, proc: ProcessInfo) => {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, proc });
+  }, []);
+  const copyText = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
+  }, []);
+  const menuItems: ContextMenuItem[] = menu ? [
+    { label: '结束进程', danger: true, onSelect: () => onKillSingle(menu.proc.pid, menu.proc.name) },
+    ...(menu.proc.pid > 4
+      ? [{ label: '结束进程树', danger: true, onSelect: () => onKillTree(menu.proc.pid, menu.proc.name) }]
+      : []),
+    { label: '复制命令行', dividerBefore: true, onSelect: () => copyText(menu.proc.cmdline), disabled: !menu.proc.cmdline },
+    { label: '复制 PID', onSelect: () => copyText(String(menu.proc.pid)) },
+  ] : [];
 
   return (
     <div className="overflow-auto flex-1">
@@ -210,6 +233,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup }: ProjectGroupView
                 onToggle={() => onToggle(g.name)}
                 onKillSingle={onKillSingle}
                 onKillGroup={() => onKillGroup(g.name, g.pids)}
+                onContextMenuRow={onContextMenuRow}
               />
             );
           })}
@@ -222,6 +246,13 @@ export function ProjectGroupView({ onKillSingle, onKillGroup }: ProjectGroupView
           )}
         </tbody>
       </table>
+      <ContextMenu
+        open={menu !== null}
+        x={menu?.x ?? 0}
+        y={menu?.y ?? 0}
+        items={menuItems}
+        onClose={() => setMenu(null)}
+      />
     </div>
   );
 }

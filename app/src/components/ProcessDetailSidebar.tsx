@@ -72,14 +72,14 @@ export function ProcessDetailSidebar({
 
   if (selectedPids.size === 0) {
     return (
-      <aside className="hidden w-80 shrink-0 border-l border-base-600 bg-base-800 p-4 lg:block">
+      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:block">
         <p className="text-sm text-fg-muted">选中一个进程查看详情</p>
       </aside>
     );
   }
   if (selectedPids.size > 1) {
     return (
-      <aside className="hidden w-80 shrink-0 border-l border-base-600 bg-base-800 p-4 lg:block">
+      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:block">
         <p className="text-sm text-fg-muted">已选 {selectedPids.size} 个进程。选择单个查看详情。</p>
       </aside>
     );
@@ -88,7 +88,7 @@ export function ProcessDetailSidebar({
   const proc = processes.find((p) => p.pid === pid);
   if (!proc) {
     return (
-      <aside className="hidden w-80 shrink-0 border-l border-base-600 bg-base-800 p-4 lg:block">
+      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:block">
         <p className="text-sm text-fg-muted">进程已退出</p>
       </aside>
     );
@@ -104,7 +104,7 @@ export function ProcessDetailSidebar({
   }
 
   return (
-    <aside className="hidden w-80 shrink-0 flex-col border-l border-base-600 bg-base-800 lg:flex">
+    <aside className="hidden h-full flex-col border-l border-base-600 bg-base-800 lg:flex">
       <div className="border-b border-base-600 px-4 py-3">
         <h3 className="text-sm font-semibold text-fg-primary">{proc.name}</h3>
         <p className="text-xs text-fg-muted">PID {proc.pid}</p>

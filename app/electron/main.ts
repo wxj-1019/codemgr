@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog } from 'electron';
 import path from 'node:path';
-import { IPC } from './ipc-types';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { IPC, type LabelRulesPayload, type LabelRule } from './ipc-types';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -146,6 +147,64 @@ ipcMain.handle(IPC.FETCH_PERF, async () => {
     return native.perfCounters();
   } catch (e) {
     console.error('perfCounters failed:', e);
+    return null;
+  }
+});
+
+// ── 标签规则导入导出（文件 IO 封在 main，渲染层只拿数据/布尔，守红线） ──
+
+// 校验导入载荷的结构合法性。任何字段缺失/类型不符 → 抛错（上层 catch 返 null）。
+function validateLabelRulesPayload(x: unknown): LabelRulesPayload {
+  if (typeof x !== 'object' || x === null) throw new Error('not an object');
+  const o = x as Record<string, unknown>;
+  if (o.version !== 1) throw new Error('unsupported version');
+  if (!Array.isArray(o.userRules)) throw new Error('userRules must be array');
+  if (!Array.isArray(o.disabledDefaultIds)) throw new Error('disabledDefaultIds must be array');
+  if (typeof o.overrides !== 'object' || o.overrides === null) {
+    throw new Error('overrides must be object');
+  }
+  // 逐条校验 userRules 形状，防止脏数据让 store 崩
+  for (const r of o.userRules as unknown[]) {
+    if (typeof r !== 'object' || r === null) throw new Error('rule not an object');
+    const rule = r as LabelRule;
+    if (typeof rule.id !== 'string' || typeof rule.label !== 'string' ||
+        typeof rule.kind !== 'string' || typeof rule.enabled !== 'boolean' ||
+        !Array.isArray(rule.groups) || typeof rule.field !== 'string') {
+      throw new Error('rule missing required fields');
+    }
+  }
+  return o as unknown as LabelRulesPayload;
+}
+
+ipcMain.handle(IPC.EXPORT_LABEL_RULES, async (_evt, payload: LabelRulesPayload) => {
+  try {
+    const res = await dialog.showSaveDialog({
+      title: '导出标签规则',
+      defaultPath: 'codemgr-label-rules.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (res.canceled || !res.filePath) return false; // 用户取消
+    writeFileSync(res.filePath, JSON.stringify(payload, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('exportLabelRules failed:', e);
+    return false;
+  }
+});
+
+ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
+  try {
+    const res = await dialog.showOpenDialog({
+      title: '导入标签规则',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (res.canceled || res.filePaths.length === 0) return null; // 用户取消
+    const raw = readFileSync(res.filePaths[0], 'utf8');
+    const parsed = JSON.parse(raw);              // 损坏 JSON → throw → null
+    return validateLabelRulesPayload(parsed);    // schema 不符 → throw → null
+  } catch (e) {
+    console.error('importLabelRules failed:', e);
     return null;
   }
 });
