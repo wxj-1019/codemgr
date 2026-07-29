@@ -37,6 +37,12 @@ export function ProcessPanel() {
   // killByPids. We hold the group name + pid count for the confirm dialog copy.
   const [groupKill, setGroupKill] = useState<{ name: string; pids: number[] } | null>(null);
 
+  // 结束进程树：native 按 ppid 链收集所有子孙后批量结束（保护名单逐 pid 生效）
+  const [pendingKillTree, setPendingKillTree] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
+
   async function doKillSingle() {
     if (!pendingKill) return;
     const ok = await ipc.killProcess(pendingKill.pid);
@@ -67,6 +73,14 @@ export function ProcessPanel() {
     const name = groupKill.name;
     setGroupKill(null);
     alert(`已结束 ${name} 组内 ${killed} 个进程`);
+  }
+
+  async function doKillTree() {
+    if (!pendingKillTree) return;
+    const killed = await ipc.killTree(pendingKillTree.pid);
+    setPendingKillTree(null);
+    clearSelection();
+    alert(`已结束进程树，共 ${killed} 个进程`);
   }
 
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留进程表，仅在表头下挂一条
@@ -173,12 +187,16 @@ export function ProcessPanel() {
           ) : (
             <ProcessTable
               onKillSingle={(pid, name) => setPendingKill({ pid, name })}
+              onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
             />
           )}
         </div>
         {/* 详情侧栏：lg+ 屏才显示，kill 复用与表格同一套 pendingKill 流程 */}
         {!showLoadState && (
-          <ProcessDetailSidebar onKill={(pid, name) => setPendingKill({ pid, name })} />
+          <ProcessDetailSidebar
+            onKill={(pid, name) => setPendingKill({ pid, name })}
+            onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
+          />
         )}
       </div>
 
@@ -224,6 +242,16 @@ export function ProcessPanel() {
         confirmLabel="结束本组"
         onConfirm={doKillGroup}
         onCancel={() => setGroupKill(null)}
+      />
+
+      {/* Kill-tree confirmation — native collects all descendants via ppid chain */}
+      <ConfirmDialog
+        open={pendingKillTree !== null}
+        title="结束进程树"
+        message={`确定结束 ${pendingKillTree?.name}（PID ${pendingKillTree?.pid}）及其所有子进程吗？`}
+        confirmLabel="结束进程树"
+        onConfirm={doKillTree}
+        onCancel={() => setPendingKillTree(null)}
       />
     </div>
   );

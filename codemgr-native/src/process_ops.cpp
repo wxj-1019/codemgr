@@ -5,13 +5,15 @@
 #include <algorithm>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Protection list (case-insensitive). Never kill these.
 bool IsProtected(const std::string& name) {
   static const char* protectedNames[] = {
     "System", "Registry", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
-    "services.exe", "lsass.exe", "svchost.exe", "CodeMgr.exe", "electron.exe", nullptr
+    "services.exe", "lsass.exe", "svchost.exe", "CodeMgr.exe", "electron.exe",
+    "Idle", nullptr
   };
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -118,4 +120,51 @@ Napi::Value KillByPidsJS(const Napi::CallbackInfo& info) {
     pids.push_back((DWORD)arr.Get(i).As<Napi::Number>().Int32Value());
   }
   return Napi::Number::New(env, (double)KillByPids(pids));
+}
+
+size_t KillTree(DWORD rootPid) {
+  std::vector<ProcessInfoRaw> procs;
+  std::string err;
+  if (!CollectAllProcesses(procs, err)) return 0;
+
+  // ppid -> children pids
+  std::unordered_map<DWORD, std::vector<DWORD>> children;
+  children.reserve(procs.size());
+  for (const auto& p : procs) children[(DWORD)p.ppid].push_back((DWORD)p.pid);
+
+  // 根进程在保护名单 → 整棵树拒绝。services.exe 的子树里有不在名单内的
+  // 服务进程（spoolsv/dllhost 等），按名字逐个放行会把系统服务树砍掉。
+  for (const auto& p : procs) {
+    if ((DWORD)p.pid == rootPid && IsProtected(p.name)) return 0;
+  }
+  if (rootPid == 0) return 0; // Idle：其子树是整个用户态
+
+  // 迭代式 DFS 收集整棵子树（含根）。visited 防环 + 防自引用。
+  std::vector<DWORD> pids;
+  std::vector<DWORD> stack;
+  std::unordered_set<DWORD> visited;
+  visited.insert(rootPid);
+  stack.push_back(rootPid);
+  while (!stack.empty()) {
+    DWORD pid = stack.back();
+    stack.pop_back();
+    pids.push_back(pid);
+    auto it = children.find(pid);
+    if (it == children.end()) continue;
+    for (DWORD c : it->second) {
+      // visited 防环：PID 复用可造成 A.ppid==B.pid && B.ppid==A.pid 的快照环
+      if (visited.insert(c).second) stack.push_back(c);
+    }
+  }
+  return KillByPids(pids);
+}
+
+Napi::Value KillTreeJS(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "expected pid:number").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  DWORD pid = (DWORD)info[0].As<Napi::Number>().Int32Value();
+  return Napi::Number::New(env, (double)KillTree(pid));
 }

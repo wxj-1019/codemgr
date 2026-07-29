@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
+import { isListenLike, conflictPorts } from '../lib/portFilter';
 
 interface PortTableProps {
   connections: NetConnection[];
@@ -8,14 +10,9 @@ interface PortTableProps {
   onKill: (pid: number, name: string) => void;
 }
 
-// 只显示监听/占用端口（LISTENING 的 TCP + 全部 UDP），过滤掉大量瞬态连接
-function isListenLike(c: NetConnection): boolean {
-  if (c.protocol === 'udp') return true;
-  return c.state === 'LISTENING';
-}
-
 export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTableProps) {
   const rows = connections.filter(isListenLike);
+  const conflicts = useMemo(() => conflictPorts(connections), [connections]);
 
   return (
     <div className="overflow-auto">
@@ -35,6 +32,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
           {rows.map((c, i) => {
             const label = labelForPort(c.localPort);
             const selected = c.pid === selectedPid;
+            const conflict = conflicts.has(`${c.protocol}:${c.localPort}`);
             return (
               <tr
                 key={`${c.pid}-${c.localPort}-${i}`}
@@ -43,7 +41,15 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                   selected ? 'bg-base-700/60' : ''
                 }`}
               >
-                <td className="px-3 py-2 font-mono text-accent">{c.localPort}</td>
+                <td
+                  className={`px-3 py-2 font-mono ${
+                    conflict ? 'text-red-400' : 'text-accent'
+                  }`}
+                  title={conflict ? '端口冲突：多个进程监听同一端口' : undefined}
+                >
+                  {conflict && <span aria-label="端口冲突">⚠ </span>}
+                  {c.localPort}
+                </td>
                 <td className="px-3 py-2 uppercase text-fg-secondary">{c.protocol}</td>
                 <td className="px-3 py-2 text-fg-primary">{c.processName || '—'}</td>
                 <td className="px-3 py-2 font-mono text-fg-secondary">{c.pid}</td>

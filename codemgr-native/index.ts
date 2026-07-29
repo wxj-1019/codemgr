@@ -4,7 +4,7 @@ export interface ProcessInfo {
   ppid: number;            // 父进程 PID
   name: string;            // 进程名，如 "node.exe"
   cmdline: string;         // 完整命令行
-  cwd: string;             // 当前工作目录（PEB ProcessParameters.CurrentDirectory）
+  cwd: string;             // 当前工作目录（从命令行启发式抽取，非 PEB 直读；见 process_collector.cpp）
   kernelTimeMs: number;    // 内核态时间（毫秒）
   userTimeMs: number;      // 用户态时间（毫秒）
   workingSetBytes: number; // 工作集（内存）
@@ -31,14 +31,33 @@ export interface CpuUsage {
   cpuPercent: number;      // 0-100，相对于单核
 }
 
+// 系统性能计数器快照
+export interface PerfData {
+  cpu: { totalPercent: number; perCore: number[] };
+  memory: { totalBytes: number; availableBytes: number; usedPercent: number };
+  disks: Array<{
+    name: string;
+    totalBytes: number;
+    freeBytes: number;
+    readBytesPerSec: number;
+    writeBytesPerSec: number;
+    activePercent: number;
+  }>;
+  networks: Array<{ name: string; recvBytesPerSec: number; sendBytesPerSec: number }>;
+  timestamp: number;
+}
+
 export interface NativeBindings {
   hello(): string;
   processScan(): ProcessInfo[];
   netScan(): NetConnection[];
   cpuDelta(): CpuUsage[];
+  perfCounters(): PerfData;
   killProcess(pid: number): boolean;
   killByName(name: string): number;
   killByPids(pids: number[]): number;
+  killTree(pid: number): number;
+  readProcessEnv(pid: number): Record<string, string>;
 }
 
 // 加载编译产物（index.ts 位于包根，build/ 在同级）

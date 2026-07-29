@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { usePortRadar } from '../hooks/usePortRadar';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { ipc } from '../lib/ipc';
+import { filterConnections, isListenLike } from '../lib/portFilter';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
-  const { connections, loading, error, selectedPid, select } = usePortRadarStore();
+  const { connections, loading, error, selectedPid, select, filter, setFilter } = usePortRadarStore();
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
 
   async function doKill() {
@@ -20,9 +21,8 @@ export function PortRadar() {
     setPendingKill(null);
   }
 
-  const listenCount = connections.filter(
-    (c) => c.protocol === 'udp' || c.state === 'LISTENING'
-  ).length;
+  const visible = filterConnections(connections, filter);
+  const listenCount = visible.filter(isListenLike).length;
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留表格，仅在表头下挂一条
   // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
   const hasData = connections.length > 0;
@@ -40,6 +40,13 @@ export function PortRadar() {
             {error && ' · 上次刷新出错'}
           </p>
         </div>
+        <input
+          type="text"
+          placeholder="搜索端口/进程/PID/地址…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-56 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
+        />
       </header>
 
       {showErrorBanner && (
@@ -69,7 +76,7 @@ export function PortRadar() {
           />
         ) : (
           <PortTable
-            connections={connections}
+            connections={visible}
             selectedPid={selectedPid}
             onSelect={(pid) => select(pid)}
             onKill={(pid, name) => setPendingKill({ pid, name })}

@@ -77,8 +77,8 @@ Windows 自带任务管理器对开发者不友好：找端口占用要 `netstat
 | Visual Studio Build Tools | 2022（含 **C++ 桌面开发** + **CMake** 组件） |
 
 ```bash
-git clone https://github.com/wxj-1019/zenjiro-await.git
-cd zenjiro-await
+git clone https://github.com/wxj-1019/codemgr.git
+cd codemgr
 pnpm install          # 安装依赖 + 编译 native（Node 目标）+ 软链 pre-commit hook
 pnpm build:electron   # 为 Electron 重编译 native（首次必跑）
 pnpm start            # 生产模式启动

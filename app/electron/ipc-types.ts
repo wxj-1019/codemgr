@@ -4,6 +4,8 @@ export const IPC = {
   KILL_PROCESS: 'proc:killProcess',
   KILL_BY_NAME: 'proc:killByName',
   KILL_BY_PIDS: 'proc:killByPids',
+  KILL_TREE: 'proc:killTree',
+  FETCH_PROCESS_ENV: 'proc:fetchEnv',
   FETCH_PROCESSES: 'proc:fetchProcesses',
   FETCH_CPU: 'proc:fetchCpu',
   FETCH_PERF: 'perf:fetch',
@@ -27,7 +29,7 @@ export interface ProcessInfo {
   ppid: number;
   name: string;
   cmdline: string;
-  cwd: string;             // 当前工作目录（PEB ProcessParameters.CurrentDirectory）
+  cwd: string;             // 当前工作目录（从命令行启发式抽取，非 PEB 直读；见 process_collector.cpp）
   kernelTimeMs: number;
   userTimeMs: number;
   workingSetBytes: number;
@@ -64,6 +66,9 @@ export interface ExposedApi {
   killProcess(pid: number): Promise<boolean>;
   killByName(name: string): Promise<number>;
   killByPids(pids: number[]): Promise<number>;
+  killTree(pid: number): Promise<number>;
+  // null = 读取失败：权限不足或进程已退出，UI 据此降级提示
+  fetchProcessEnv(pid: number): Promise<Record<string, string> | null>;
   fetchProcesses(): Promise<ProcessInfo[]>;
   fetchCpu(): Promise<CpuUsage[]>;
   fetchPerf(): Promise<PerfData | null>;

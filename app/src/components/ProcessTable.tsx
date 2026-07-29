@@ -5,6 +5,7 @@ import { labelForProcess } from '../lib/processLabels';
 
 interface ProcessTableProps {
   onKillSingle: (pid: number, name: string) => void;
+  onKillTree: (pid: number, name: string) => void;
 }
 
 /** A single row in the display tree with its indentation depth. */
@@ -85,11 +86,12 @@ interface ProcessRowProps {
   onToggleExpand: (pid: number) => void;
   onToggleSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
+  onKillTree: (pid: number, name: string) => void;
 }
 
 const ProcessRow = memo(function ProcessRow({
   proc, depth, cpu, hasChildren, isExpanded, isSelected,
-  onToggleExpand, onToggleSelect, onKill,
+  onToggleExpand, onToggleSelect, onKill, onKillTree,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
   const memMB = proc.workingSetBytes / 1048576;
@@ -181,12 +183,24 @@ const ProcessRow = memo(function ProcessRow({
         >
           结束
         </button>
+        {hasChildren && proc.pid > 4 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onKillTree(proc.pid, proc.name);
+            }}
+            className="ml-1 rounded bg-orange-600/80 px-1.5 py-0.5 text-[10px] text-white hover:bg-orange-500"
+            title="结束该进程及其所有子进程"
+          >
+            树
+          </button>
+        )}
       </td>
     </tr>
   );
 });
 
-export function ProcessTable({ onKillSingle }: ProcessTableProps) {
+export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   const {
     processes,
     cpuMap,
@@ -333,6 +347,7 @@ export function ProcessTable({ onKillSingle }: ProcessTableProps) {
               onToggleExpand={onToggleExpand}
               onToggleSelect={onToggleSelect}
               onKill={onKillSingle}
+              onKillTree={onKillTree}
             />
           ))}
           {rows.length === 0 && (
