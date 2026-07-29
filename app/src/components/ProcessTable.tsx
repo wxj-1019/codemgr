@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePerfStore } from '../store/perfStore';
+import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
@@ -94,6 +95,7 @@ interface ProcessRowProps {
   isExpanded: boolean;
   isSelected: boolean;
   isFocused: boolean;
+  isFocusedGlobal?: boolean;  // 全局聚焦高亮（C），与多选选中态视觉区分
   onToggleExpand: (pid: number) => void;
   onToggleSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
@@ -105,7 +107,7 @@ interface ProcessRowProps {
 }
 
 const ProcessRow = memo(function ProcessRow({
-  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, isFocused,
+  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, isFocused, isFocusedGlobal,
   onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow, onRowKeyDown,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
@@ -120,11 +122,12 @@ const ProcessRow = memo(function ProcessRow({
       role="row"
       tabIndex={isFocused ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
+      data-pid={proc.pid}
       className={`border-b border-base-700/30 hover:bg-base-700 cursor-pointer ${
         isSelected ? 'bg-base-700/50' : ''
       } ${memHighlight ? 'bg-warn/10' : ''} ${
         isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
-      }`}
+      } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
       onClick={() => onToggleSelect(proc.pid)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
       onKeyDown={(e) => onRowKeyDown(e, proc)}
@@ -257,6 +260,15 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   // Stable callbacks so memoized rows don't re-render on every parent render.
   const onToggleExpand = useCallback((pid: number) => toggleExpand(pid), [toggleExpand]);
   const onToggleSelect = useCallback((pid: number) => toggleSelect(pid), [toggleSelect]);
+
+  // 全局聚焦（C）：focusedPid 来自任意面板点击，驱动行高亮 + 滚动定位。
+  const focusedPid = useFocusStore((s) => s.focusedPid);
+  const focus = useFocusStore((s) => s.focus);
+  // 点击进程行：多选 + 设全局聚焦（侧栏跟随）
+  const onRowClick = useCallback((pid: number) => {
+    toggleSelect(pid);
+    focus(pid, 'process');
+  }, [toggleSelect, focus]);
 
   // ---- Filter ----
   const filtered = useMemo(() => {
@@ -399,6 +411,20 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     el?.focus({ preventScroll: true });
   }, [navFocusPid, virtualItems]);
 
+  // 全局聚焦（C）：focusedPid 变化时滚动到该行（外部面板点击触发）。
+  // 与 navFocusPid（键盘焦点）滚动分开：全局聚焦来自端口/GPU/快照面板。
+  useEffect(() => {
+    if (focusedPid == null) return;
+    const idx = rowsRef.current.findIndex((r) => r.proc.pid === focusedPid);
+    if (idx === -1) return;  // 进程不在当前列表（已退出/被过滤）：不滚动
+    if (shouldVirtualize) {
+      virtualizer.scrollToIndex(idx, { align: 'auto' });
+    } else {
+      const el = tableRef.current?.querySelector<HTMLTableRowElement>(`[data-pid="${focusedPid}"]`);
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focusedPid, shouldVirtualize, virtualizer]);
+
   const onRowKeyDown = useCallback((e: React.KeyboardEvent, proc: ProcessInfo) => {
     const cur = rowsRef.current;
     if (cur.length === 0) return;
@@ -449,8 +475,9 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       isExpanded={expandedPids.has(proc.pid)}
       isSelected={selectedPids.has(proc.pid)}
       isFocused={proc.pid === navFocusPid}
+      isFocusedGlobal={proc.pid === focusedPid}
       onToggleExpand={onToggleExpand}
-      onToggleSelect={onToggleSelect}
+      onToggleSelect={onRowClick}
       onKill={onKillSingle}
       onKillTree={onKillTree}
       onContextMenuRow={onContextMenuRow}
