@@ -7,30 +7,129 @@ html, body, #root {
   margin: 0;
 }
 
+/* ── Aurora UI v1.2 tokens：Linear 纪律 × Apple 毛玻璃 ──
+   设计依据：docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md */
 :root {
-  --bg-base: #0f1419;
-  --bg-panel: #1a2028;
-  --bg-elevated: #242c38;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --border: #2f3947;
+  /* 明度阶梯（Linear）：抬一格的黑 → 面板 → 浮层 */
+  --bg-base: #08090c;
+  --bg-panel: rgba(15, 17, 21, 0.72);
+  --bg-elevated: rgba(24, 26, 32, 0.8);
+  /* 三级灰文字（Linear） */
+  --text-primary: #f7f8f8;
+  --text-secondary: #8a8f98;
+  --text-muted: #62666d;
+  /* 1px hairline */
+  --border: rgba(255, 255, 255, 0.07);
+  /* 品牌柔紫（全场只用一处）+ 图表专用柔青 */
+  --accent: #8b93e8;
+  --accent-data: #67e8f9;
+  --danger: #fb7185;
+  --warn: #fcd34d;
 }
 
 :root.light {
-  --bg-base: #f5f5f5;
-  --bg-panel: #ffffff;
-  --bg-elevated: #e5e7eb;
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --border: #d1d5db;
+  --bg-base: #f4f3fa;
+  --bg-panel: rgba(255, 255, 255, 0.65);
+  --bg-elevated: rgba(255, 255, 255, 0.85);
+  --text-primary: #1b1d23;
+  --text-secondary: #5a5f6a;
+  --text-muted: #9aa0ab;
+  --border: rgba(20, 16, 40, 0.08);
 }
 
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.011em;
+}
+
+/* ── aurora 环境光：只余呼吸感的 mesh（App.tsx 根节点第一个子元素）── */
+.aurora-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 80% at 15% 0%, rgba(109, 76, 214, 0.1), transparent 60%),
+    radial-gradient(50% 60% at 85% 15%, rgba(224, 80, 140, 0.05), transparent 55%),
+    radial-gradient(70% 90% at 80% 90%, rgba(80, 200, 230, 0.04), transparent 60%);
+}
+:root.light .aurora-mesh {
+  background:
+    radial-gradient(60% 80% at 15% 0%, rgba(109, 76, 214, 0.07), transparent 60%),
+    radial-gradient(50% 60% at 85% 15%, rgba(224, 80, 140, 0.04), transparent 55%),
+    radial-gradient(70% 90% at 80% 90%, rgba(80, 200, 230, 0.03), transparent 60%);
+}
+
+/* ── Apple 毛玻璃：面板材质工具类 ── */
+.glass {
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border: 1px solid var(--border);
+}
+
+/* ── Siri 辉光（differentiator）：聚焦面板的流转描边。
+   关键：conic 渐变必须用 mask 裁成 2px 描边环，否则整张渐变会透过玻璃渗入内容区。 ── */
+.panel-active {
+  position: relative;
+  box-shadow:
+    0 0 32px rgba(139, 147, 232, 0.18),
+    0 0 64px rgba(103, 232, 249, 0.05);
+}
+.panel-active::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  z-index: 1;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--glow-angle, 0deg),
+    #5e6ad2, #8b93e8, #67e8f9, #7c6fd6, #5e6ad2
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask-composite: exclude;
+  opacity: 0.4;
+  animation: glow-spin 16s linear infinite;
+}
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes glow-spin {
+  to { --glow-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-active::before { animation: none; }
+}
+
+/* ── 滚动条：8px 细轨（Linear 纪律）── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+:root.light ::-webkit-scrollbar-thumb {
+  background: rgba(20, 16, 40, 0.14);
+}
+:root.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 16, 40, 0.26);
 }
 
 /* ── allotment 主题适配 ──

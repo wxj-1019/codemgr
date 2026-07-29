@@ -93,6 +93,8 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col bg-base-900">
+      {/* aurora 环境光（v1.2 token 层，z-index:-1 垫底） */}
+      <div className="aurora-mesh" aria-hidden="true" />
       {/* 工具栏：预设切换 + 标签规则 + 主题 + 版本 */}
       <nav className="flex border-b border-base-700 bg-base-900 px-2" aria-label="布局预设">
         <span className="px-2 py-2 text-[11px] text-fg-muted self-center mr-1">布局</span>

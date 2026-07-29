@@ -19,8 +19,15 @@ export default {
           secondary: 'var(--text-secondary)',
           muted: 'var(--text-muted)',
         },
-        // 青绿强调
-        accent: { DEFAULT: '#2dd4bf', hover: '#14b8a6', muted: '#0d9488' },
+        // 品牌柔紫（Linear 纪律：全场一处）+ 图表专用柔青 + 语义色
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover: 'color-mix(in srgb, var(--accent) 85%, white)',
+          muted: 'color-mix(in srgb, var(--accent) 70%, black)',
+          data: 'var(--accent-data)',
+        },
+        danger: 'var(--danger)',
+        warn: 'var(--warn)',
       },
       fontFamily: {
         mono: ['ui-monospace', 'Cascadia Code', 'Consolas', 'monospace'],
