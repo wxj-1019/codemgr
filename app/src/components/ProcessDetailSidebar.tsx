@@ -78,12 +78,14 @@ export function ProcessDetailSidebar({
         >
           结束进程
         </button>
-        <button
-          onClick={() => onKillTree(proc.pid, proc.name)}
-          className="mt-2 w-full rounded bg-orange-600/80 px-3 py-1.5 text-sm text-white hover:bg-orange-500"
-        >
-          结束进程树
-        </button>
+        {proc.pid > 4 && (
+          <button
+            onClick={() => onKillTree(proc.pid, proc.name)}
+            className="mt-2 w-full rounded bg-orange-600/80 px-3 py-1.5 text-sm text-white hover:bg-orange-500"
+          >
+            结束进程树
+          </button>
+        )}
       </div>
     </aside>
   );
