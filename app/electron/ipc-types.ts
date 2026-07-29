@@ -15,6 +15,10 @@ export const IPC = {
   IMPORT_LABEL_RULES: 'config:importLabelRules',
   // 插件 manifest：main 读 userData/plugins.json，渲染层只拿校验过的条目列表（红线）
   LIST_PLUGINS: 'config:listPlugins',
+  // 插件数据源（6c）：renderer 请求某 capability 的数据，main 转发 UtilityProcess 采集
+  REQUEST_DATA_SOURCE: 'plugin:requestDataSource',
+  // 插件数据源（6c）：main 把 UtilityProcess 采集结果推回 renderer（事件，非 invoke）
+  DATA_SOURCE_RESULT: 'plugin:dataSource',
   // 应用版本号：渲染层显示当前版本（来自 package.json，经 app.getVersion()）
   APP_VERSION: 'app:getVersion',
 } as const;
@@ -52,12 +56,24 @@ export interface LabelRuleOverride {
  * - id：稳定唯一标识，用于 pluginRules 前缀（`plugin:<id>-`）和卸载清理。
  * - name：人类可读名称（未来视图嵌入时作 mosaic tile 标题）。
  * - src：插件 HTML 的路径。相对路径相对 userData 解析（main 侧）。
+ * - capabilities：插件要消费的 native 数据源能力（6c）。每项必须在 ALLOWED_CAPABILITIES
+ *   白名单内，否则 main 校验时剥离（红线：插件不能自带 .node，能力由主仓库编译进主包）。
  */
 export interface PluginManifestEntry {
   id: string;
   name: string;
   src: string;
+  capabilities?: string[];
 }
+
+/**
+ * 插件数据源能力白名单（6c）。每个能力对应主仓库编译进 native addon 的一个 collector。
+ * 插件 manifest 声明的 capabilities 只能在此集合内，未识别项被 main 剥离。
+ * 新增能力 = 加 collector + addon 注册 + 加此白名单 + UtilityProcess 路由（主仓库 review）。
+ *
+ * 当前只含 demo-source（模拟数据源，验证 UtilityProcess + MessagePort 管道）。
+ */
+export const ALLOWED_CAPABILITIES: ReadonlySet<string> = new Set(['demo-source']);
 
 // 与 codemgr-native 的 NetConnection 一致（重新声明，避免渲染层直接依赖 native 包）
 export interface NetConnection {
@@ -128,6 +144,10 @@ export interface ExposedApi {
   importLabelRules(): Promise<LabelRulesPayload | null>;
   // 插件 manifest：返回校验过的条目列表（文件不存在/损坏 → 空数组，绝不抛错）
   listPlugins(): Promise<PluginManifestEntry[]>;
+  // 插件数据源（6c）：请求某 capability 的数据。结果经 DATA_SOURCE_RESULT 事件异步推回。
+  requestDataSource(capability: string): Promise<void>;
+  // 数据源结果事件订阅（6c）。返回取消订阅函数。
+  onDataSourceResult(cb: (capability: string, data: unknown) => void): () => void;
   // 应用版本号（来自 package.json，经 app.getVersion()）
   getAppVersion(): Promise<string>;
 }

@@ -1,0 +1,60 @@
+<!doctype html>
+<!--
+  CodeMgr 示例数据源插件（6c）：消费 UtilityProcess 采集的数据源。
+
+  与 view-plugin.html（消费内置快照）不同——本插件消费的是 UtilityProcess 经
+  MessagePort 回流的 native 数据源（本次为 demo-source 模拟数据）。
+
+  manifest 需声明 capabilities: ['demo-source']，main 白名单校验通过后才会推送数据。
+-->
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <style>
+    body { margin: 0; font-family: system-ui; background: var(--bg-panel, #1a2028); color: var(--text-primary, #e2e8f0); }
+    .title { padding: 8px 12px; font-size: 11px; color: var(--text-muted, #64748b); border-bottom: 1px solid var(--border, #2f3947); }
+    .row { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--border, #2f3947); }
+    .value { color: var(--accent, #2dd4bf); font-variant-numeric: tabular-nums; }
+    .empty { padding: 24px; text-align: center; color: var(--text-muted, #64748b); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const { useState, useEffect } = React;
+
+    function DataSourceView() {
+      const [items, setItems] = useState([]);
+
+      useEffect(() => {
+        window.addEventListener('message', (e) => {
+          const msg = e.data;
+          if (!msg || typeof msg !== 'object') return;
+          // 消费数据源消息（6c）：UtilityProcess 采集的 demo-source 数据
+          if (msg.type === 'dataSource' && msg.capability === 'demo-source') {
+            setItems(msg.data || []);
+          } else if (msg.type === 'theme') {
+            for (const [k, v] of Object.entries(msg.vars)) document.documentElement.style.setProperty(k, v);
+          }
+        });
+      }, []);
+
+      return React.createElement('div', null,
+        React.createElement('div', { className: 'title' }, '数据源 demo-source（UtilityProcess）'),
+        items.length === 0
+          ? React.createElement('div', { className: 'empty' }, '等待数据源…')
+          : items.map((item) =>
+              React.createElement('div', { className: 'row', key: item.id },
+                React.createElement('span', null, item.name),
+                React.createElement('span', { className: 'value' }, String(item.value)),
+              ),
+            ),
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(DataSourceView));
+  </script>
+</body>
+</html>

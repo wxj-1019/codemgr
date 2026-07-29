@@ -48,6 +48,74 @@ export const DEFAULT_RULES: LabelRule[] = [
     groups: [{ include: ['docker'] }, { include: ['containerd'] }],
   },
 
+  // ── AI 开发工具（必须在 generic node app 之前；claude/kimi 等 CLI 本体都是 node 进程）──
+  {
+    id: 'default-ai-claude',
+    label: 'Claude Code',
+    kind: 'ai',
+    field: 'both',
+    enabled: true,
+    groups: [{ include: ['claude'] }],
+  },
+  {
+    id: 'default-ai-kimi',
+    label: 'Kimi Code',
+    kind: 'ai',
+    field: 'both',
+    enabled: true,
+    // 'kimi' 是短词，裸 contains 会误伤 'C:\Users\kimiko\...' 这类路径；
+    // 用可执行文件名 / 路径边界片段规避（引擎只有子串匹配，无 regex/word-boundary）。
+    groups: [
+      { include: ['kimi.exe'] },
+      { include: ['kimi.cmd'] },
+      { include: ['kimi.ps1'] },
+      { include: ['\\kimi\\'] },
+      { include: ['/kimi/'] },
+      { include: ['kimi-code'] },
+      { include: ['kimi code'] },
+    ],
+  },
+  {
+    id: 'default-ai-aider',
+    label: 'Aider',
+    kind: 'ai',
+    field: 'both',
+    enabled: true,
+    groups: [{ include: ['aider'] }],
+  },
+  {
+    id: 'default-ai-codex',
+    label: 'Codex CLI',
+    kind: 'ai',
+    field: 'both',
+    enabled: true,
+    groups: [{ include: ['codex'] }],
+  },
+  {
+    id: 'default-ai-cursor',
+    label: 'Cursor',
+    kind: 'ai-ide',
+    field: 'name', // 只看进程名：cmdline 里出现 'cursor' 字样（脚本名/参数）不算
+    enabled: true,
+    groups: [{ include: ['cursor'] }],
+  },
+  {
+    id: 'default-ai-ollama',
+    label: 'Ollama (local LLM)',
+    kind: 'ai',
+    field: 'both', // ollama.exe 本体与 'ollama serve' 子进程都覆盖
+    enabled: true,
+    groups: [{ include: ['ollama'] }],
+  },
+  {
+    id: 'default-ai-lmstudio',
+    label: 'LM Studio',
+    kind: 'ai',
+    field: 'both',
+    enabled: true,
+    groups: [{ include: ['lmstudio'] }, { include: ['lm studio'] }],
+  },
+
   // ── 构建（必须在 generic vite 之前，以捕获 'vite build'）──
   {
     id: 'default-build',

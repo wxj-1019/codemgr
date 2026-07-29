@@ -1,7 +1,7 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog, utilityProcess, MessageChannelMain } from 'electron';
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry } from './ipc-types';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 
 // 开发时加载 vite dev server，生产时加载打包产物
@@ -224,6 +224,7 @@ ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
 
 // ── 插件 manifest（文件 IO 封在 main，渲染层只拿校验过的条目，守红线） ──
 // 读 userData/plugins.json（不存在 → 空数组）。逐条校验 schema，坏条目跳过、整体不崩。
+// capabilities 经白名单过滤：未识别项剥离（不整个丢弃插件，只剥离非法能力）。
 ipcMain.handle(IPC.LIST_PLUGINS, (): PluginManifestEntry[] => {
   try {
     const file = path.join(app.getPath('userData'), 'plugins.json');
@@ -231,12 +232,19 @@ ipcMain.handle(IPC.LIST_PLUGINS, (): PluginManifestEntry[] => {
     const parsed = JSON.parse(readFileSync(file, 'utf8'));
     if (!Array.isArray(parsed)) return [];
     // 逐条校验：id/name/src 必须是非空字符串，否则跳过（防脏 manifest 让渲染层崩）
-    return parsed.filter((e): e is PluginManifestEntry =>
-      e != null && typeof e === 'object' &&
-      typeof e.id === 'string' && e.id.trim() !== '' &&
-      typeof e.name === 'string' && e.name.trim() !== '' &&
-      typeof e.src === 'string' && e.src.trim() !== ''
-    );
+    return parsed
+      .filter((e): e is PluginManifestEntry =>
+        e != null && typeof e === 'object' &&
+        typeof e.id === 'string' && e.id.trim() !== '' &&
+        typeof e.name === 'string' && e.name.trim() !== '' &&
+        typeof e.src === 'string' && e.src.trim() !== ''
+      )
+      .map((e) => {
+        // capabilities 白名单过滤：只保留 ALLOWED_CAPABILITIES 内的项（红线：插件不能自带 .node）
+        if (!Array.isArray(e.capabilities)) return e;
+        const allowed = e.capabilities.filter((c) => typeof c === 'string' && ALLOWED_CAPABILITIES.has(c));
+        return allowed.length > 0 ? { ...e, capabilities: allowed } : { ...e, capabilities: undefined };
+      });
   } catch (e) {
     console.error('listPlugins failed:', e);
     return [];
@@ -246,8 +254,84 @@ ipcMain.handle(IPC.LIST_PLUGINS, (): PluginManifestEntry[] => {
 // 应用版本号（来自 package.json，经 app.getVersion()）。渲染层用于显示当前版本。
 ipcMain.handle(IPC.APP_VERSION, () => app.getVersion());
 
+// ── 插件数据源 UtilityProcess（6c）──
+// UtilityProcess 承载 native 数据源采集，进程级隔离。主进程经 MessagePort 与之通信。
+// 这是可选增强——崩溃时重新 fork，不影响主功能（主 app 不依赖它）。
+let utilityChild: Electron.UtilityProcess | null = null;
+let utilityPort: Electron.MessagePortMain | null = null;
+let requestCounter = 0;
+const pendingRequests = new Map<number, { capability: string; resolve: (data: unknown) => void; reject: (e: Error) => void }>();
+
+function startUtilityProcess() {
+  // 开发态 __dirname=app/electron（源是 .mjs）；打包态 __dirname=dist-electron（vite 产物是 .js）
+  const hostPath = path.join(__dirname, app.isPackaged ? 'utility-host.js' : 'utility-host.mjs');
+  if (!existsSync(hostPath)) return;  // 脚本缺失（开发态构建问题）静默跳过
+  try {
+    const child = utilityProcess.fork(hostPath, [], {
+      env: { ...process.env, CODEMGR_NATIVE_PATH: NATIVE_PATH },
+    });
+    // 建 MessageChannel，port 一端发子进程，main 持有另一端收回复
+    const { port1, port2 } = new MessageChannelMain();
+    child.postMessage({ type: 'init' }, [port2]);
+    utilityPort = port1;
+    const port = port1;
+    port.on('message', (e) => {
+      const msg = e.data;
+      if (!msg || typeof msg !== 'object') return;
+      // 匹配待处理请求，resolve/reject
+      const pending = typeof msg.id === 'number' ? pendingRequests.get(msg.id) : undefined;
+      if (pending) {
+        pendingRequests.delete(msg.id);
+        if (msg.error) pending.reject(new Error(String(msg.error)));
+        else pending.resolve(msg.data);
+      }
+    });
+    port.start();
+    child.on('exit', (code) => {
+      console.error(`[utility] 进程退出 code=${code}`);
+      utilityChild = null;
+      utilityPort = null;
+      // 拒绝所有待处理请求，防 renderer 卡死
+      for (const p of pendingRequests.values()) p.reject(new Error('UtilityProcess 退出'));
+      pendingRequests.clear();
+      // 崩溃恢复：延迟重启（避免崩溃循环）
+      setTimeout(startUtilityProcess, 2000);
+    });
+    utilityChild = child;
+  } catch (e) {
+    console.error('[utility] fork 失败:', e);
+  }
+}
+
+// renderer 请求某 capability 数据 → 转发 UtilityProcess 采集 → 结果推回 renderer
+ipcMain.handle(IPC.REQUEST_DATA_SOURCE, async (_evt, capability: string) => {
+  if (!utilityPort || !utilityChild) {
+    throw new Error('UtilityProcess 未就绪');
+  }
+  const id = ++requestCounter;
+  return new Promise<void>((resolve, reject) => {
+    pendingRequests.set(id, {
+      capability,
+      resolve: (data) => {
+        // 推回 renderer（事件 DATA_SOURCE_RESULT）
+        win?.webContents.send(IPC.DATA_SOURCE_RESULT, { capability, data });
+        resolve();
+      },
+      reject: (e) => reject(e),
+    });
+    try {
+      utilityPort!.postMessage({ id, capability });
+    } catch (e) {
+      pendingRequests.delete(id);
+      reject(e as Error);
+    }
+  });
+});
+
 app.whenReady().then(() => {
   createWindow();
+  // 启动 UtilityProcess（6c 数据源）。延迟到窗口就绪后，避免影响启动速度。
+  startUtilityProcess();
 
   // 系统托盘图标：开发态在 app/build/，打包态在 resources/（extraResources）。
   // 图标文件缺失时降级为空图标，避免 createFromPath 返回空对象导致 Tray 崩。

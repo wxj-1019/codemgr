@@ -11,7 +11,18 @@ export default defineConfig({
       main: {
         entry: 'electron/main.ts',
         vite: {
-          build: { outDir: 'dist-electron' },
+          build: {
+            outDir: 'dist-electron',
+            // utility-host.mjs（UtilityProcess 入口，6c）作为额外入口一起打包，
+            // main.ts 用 path.join(__dirname, 'utility-host.mjs') 引用它。
+            rollupOptions: {
+              input: {
+                main: path.join(__dirname, 'electron/main.ts'),
+                'utility-host': path.join(__dirname, 'electron/utility-host.mjs'),
+              },
+              output: { entryFileNames: '[name].js' },
+            },
+          },
         },
       },
       preload: {

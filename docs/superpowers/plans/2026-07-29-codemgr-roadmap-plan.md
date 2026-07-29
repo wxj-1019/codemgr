@@ -183,9 +183,12 @@ v1.1（已完成，当前 main）
 > Worker 降级为标签规则正则匹配 offload 的纯逻辑执行环境，不作为主沙箱。
 > **PoC 4 项全过**（Electron 43 实测）：① iframe 内 React 渲染快照 ② `require`/`codemgr`/`process` 全 undefined（红线结构保证）③ CSS 变量主题 postMessage 同步 ④ iframe 崩溃不波及主窗口。F1 门禁通过，可进入 F2-F4。
 
-#### 任务 W2.0-C：方案 6c — 插件贡献数据源（远期）
+#### 任务 W2.0-C：方案 6c — 插件贡献数据源
 
-依赖 6b 稳定后，开放受控的 native 能力白名单。**不在本计划排期内**，作为 v2.0+ 探索项。
+依赖 6b 稳定后，开放受控的 native 能力白名单。
+
+> **6c 第一步（管道）已完成（v2.0）**：UtilityProcess（`utility-host.mjs`，进程级隔离 + 崩溃自恢复）+ MessagePort 多跳链路（UtilityProcess → main → renderer → iframe）+ 白名单机制（`ALLOWED_CAPABILITIES` + manifest `capabilities` 校验，非法项剥离）+ `dataSource` 协议消息。用模拟数据源（demo-source）跑通端到端，验证架构。
+> **6c 第二步（真实数据源）待做**：接入真实 native collector（如 docker/git），每个能力加白名单 + UtilityProcess 路由。需主仓库 review。
 
 ---
 

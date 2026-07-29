@@ -19,9 +19,13 @@
   - **只读快照推送**：可见 tile 每 2s 推送脱敏快照（进程 pid/name/mem + 端口 port/state/pid/进程名，无 cwd/cmdline）+ 主题 CSS 变量。不可见停推（visibilityStore 节流）。
   - **悬空清理**：插件从 manifest 移除后，启动时自动清理布局树中的悬空 `plugin:*` 叶子（`prunePluginLeaves`），提升存活子树。
   - 视图插件与隐形规则注册 iframe 并存（同一插件 src 可被两种方式加载）。
-
-### 测试
-- app 165→179（+8 pluginRules + 6 prunePluginLeaves）。
+- **插件数据源管道（6c 第一步：UtilityProcess + MessagePort）**：插件可消费经 UtilityProcess 采集的 native 数据源。本次搭通端到端管道（模拟数据源），验证架构后再接真实 collector。
+  - **UtilityProcess**：`utility-host.mjs` 子进程承载 native 采集（进程级隔离，崩溃自动重启，主 app 不依赖）。验证"同一 .node 可在子进程 require"。
+  - **MessagePort 多跳链路**：UtilityProcess → main（MessagePort）→ renderer（webContents.send）→ plugin iframe（postMessage）。从零搭建。
+  - **白名单机制**：manifest 加 `capabilities`，main `ALLOWED_CAPABILITIES` 校验，未识别项剥离（红线：插件不能自带 .node）。当前白名单含 `demo-source`（模拟数据源）。
+  - **协议扩展**：`HostToPluginMsg` 加 `dataSource` 消息；PluginPanel 按 capabilities 订阅并转发。
+  - 本次**不含**真实 native collector（demo-source 是固定模拟数据，留 TODO 接真 collector）。
+- app 165→181（+8 pluginRules + 6 prunePluginLeaves + 3 pluginCapabilities 白名单）。
 
 ---
 

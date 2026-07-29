@@ -42,6 +42,14 @@ export const ipc = {
   async listPlugins(): Promise<PluginManifestEntry[]> {
     return window.codemgr.listPlugins();
   },
+  // 插件数据源（6c）：请求某 capability 数据（结果经 onDataSourceResult 异步回调推回）
+  async requestDataSource(capability: string): Promise<void> {
+    return window.codemgr.requestDataSource(capability);
+  },
+  // 数据源结果事件订阅（6c）。返回取消订阅函数。
+  onDataSourceResult(cb: (capability: string, data: unknown) => void): () => void {
+    return window.codemgr.onDataSourceResult(cb);
+  },
   async getAppVersion(): Promise<string> {
     return window.codemgr.getAppVersion();
   },
