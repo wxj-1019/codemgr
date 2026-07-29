@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
 import { ipc } from '../lib/ipc';
@@ -24,16 +24,25 @@ export function ProcessDetailSidebar({
     setEnvVars(null);
     setEnvState('idle');
   }, [pid]);
+  // 比对 in-flight 请求是否已陈旧（native 调用不可中断，故不用 AbortController）
+  const pidRef = useRef(pid);
+  pidRef.current = pid;
 
   async function loadEnv() {
     if (pid == null) return;
     setEnvState('loading');
-    const result = await ipc.fetchProcessEnv(pid);
-    if (result === null) {
-      setEnvState('error');
-    } else {
-      setEnvVars(result);
-      setEnvState('done');
+    try {
+      const result = await ipc.fetchProcessEnv(pid);
+      if (pidRef.current !== pid) return; // 选中已切换，丢弃陈旧结果
+      if (result === null) {
+        setEnvState('error');
+      } else {
+        setEnvVars(result);
+        setEnvState('done');
+      }
+    } catch {
+      if (pidRef.current !== pid) return; // 同上：陈旧请求的 rejection 也丢弃
+      setEnvState('error'); // invoke reject（通道缺失/热更新错配）：避免卡在"读取中…"
     }
   }
 
