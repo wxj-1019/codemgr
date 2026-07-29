@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog } from 'electron';
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { IPC, type LabelRulesPayload, type LabelRule } from './ipc-types';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 
 // 开发时加载 vite dev server，生产时加载打包产物
@@ -219,6 +219,27 @@ ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
   } catch (e) {
     console.error('importLabelRules failed:', e);
     return null;
+  }
+});
+
+// ── 插件 manifest（文件 IO 封在 main，渲染层只拿校验过的条目，守红线） ──
+// 读 userData/plugins.json（不存在 → 空数组）。逐条校验 schema，坏条目跳过、整体不崩。
+ipcMain.handle(IPC.LIST_PLUGINS, (): PluginManifestEntry[] => {
+  try {
+    const file = path.join(app.getPath('userData'), 'plugins.json');
+    if (!existsSync(file)) return [];
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    if (!Array.isArray(parsed)) return [];
+    // 逐条校验：id/name/src 必须是非空字符串，否则跳过（防脏 manifest 让渲染层崩）
+    return parsed.filter((e): e is PluginManifestEntry =>
+      e != null && typeof e === 'object' &&
+      typeof e.id === 'string' && e.id.trim() !== '' &&
+      typeof e.name === 'string' && e.name.trim() !== '' &&
+      typeof e.src === 'string' && e.src.trim() !== ''
+    );
+  } catch (e) {
+    console.error('listPlugins failed:', e);
+    return [];
   }
 });
 

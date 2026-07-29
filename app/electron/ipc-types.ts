@@ -13,6 +13,8 @@ export const IPC = {
   // 标签规则导入导出：文件 IO 必须封在 main（红线），渲染层只拿数据/布尔
   EXPORT_LABEL_RULES: 'config:exportLabelRules',
   IMPORT_LABEL_RULES: 'config:importLabelRules',
+  // 插件 manifest：main 读 userData/plugins.json，渲染层只拿校验过的条目列表（红线）
+  LIST_PLUGINS: 'config:listPlugins',
   // 应用版本号：渲染层显示当前版本（来自 package.json，经 app.getVersion()）
   APP_VERSION: 'app:getVersion',
 } as const;
@@ -42,6 +44,19 @@ export interface LabelRuleOverride {
   label?: string;
   kind?: string;
   enabled?: boolean;
+}
+
+/**
+ * 插件 manifest 条目。plugins.json 是一个 PluginManifestEntry[] 数组，
+ * 存于 userData（main 读，渲染层不碰文件系统，守红线）。
+ * - id：稳定唯一标识，用于 pluginRules 前缀（`plugin:<id>-`）和卸载清理。
+ * - name：人类可读名称（未来视图嵌入时作 mosaic tile 标题）。
+ * - src：插件 HTML 的路径。相对路径相对 userData 解析（main 侧）。
+ */
+export interface PluginManifestEntry {
+  id: string;
+  name: string;
+  src: string;
 }
 
 // 与 codemgr-native 的 NetConnection 一致（重新声明，避免渲染层直接依赖 native 包）
@@ -111,6 +126,8 @@ export interface ExposedApi {
   // 导出返回是否成功（用户取消对话框也算 false）；导入返回载荷或 null（取消/损坏）。
   exportLabelRules(payload: LabelRulesPayload): Promise<boolean>;
   importLabelRules(): Promise<LabelRulesPayload | null>;
+  // 插件 manifest：返回校验过的条目列表（文件不存在/损坏 → 空数组，绝不抛错）
+  listPlugins(): Promise<PluginManifestEntry[]>;
   // 应用版本号（来自 package.json，经 app.getVersion()）
   getAppVersion(): Promise<string>;
 }

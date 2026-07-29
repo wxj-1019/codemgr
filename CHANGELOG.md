@@ -4,6 +4,22 @@
 
 ---
 
+## [v2.0] — 2026-07-29
+
+### 新增
+- **插件系统（6b 第一步：标签规则注册）**：第三方插件可经 iframe 沙箱注册自定义标签规则。完成 roadmap 方案 6b 的 F2-F4（F1 沙箱选型 + PoC 已于前序完成）。
+  - **安全模型**：插件运行在 `iframe sandbox="allow-scripts"`（**无** allow-same-origin），结构上无法访问 Node/Electron/ipcRenderer（F1 PoC ② 实证全 undefined）。唯一能力出口是 `postMessage`。
+  - **加载源**：本地 manifest（`userData/plugins.json`，main 读文件系统，渲染层只拿校验过的数据）。逐条 schema 校验，坏条目跳过。
+  - **规则接入**：插件规则进独立 `pluginRules` 层（不污染 userRules，不持久化，启动由 PluginHost 重注）。优先级固定末位（内置 > 用户 > 插件）。卸载即清理。
+  - **崩溃隔离**：iframe 崩溃不波及主窗口（F1 PoC ④ 验证）+ PluginFrame 加载失败熔断。
+  - **文档**：`docs/PLUGINS.md` 插件开发指南 + 可运行示例（`app/poc-plugin-sandbox/examples/`）。
+  - 本次**不含**视图嵌入 mosaic（6b 第二步，需改 PanelId 闭合类型，单独立项）。
+
+### 测试
+- app 165→173（+8 pluginRules：注入生效 / 立即生效 / 优先级末位 / 低于用户规则 / 清空 / 替换语义 / 不持久化 / resetAll）。
+
+---
+
 ## [v1.9] — 2026-07-29
 
 ### 新增

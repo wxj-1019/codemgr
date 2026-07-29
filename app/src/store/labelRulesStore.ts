@@ -29,18 +29,26 @@ interface LabelRulesState {
   disabledDefaultIds: string[];
   /** 对默认规则的部分覆盖（如改 label） */
   overrides: Record<string, LabelRuleOverride>;
+  /**
+   * 插件注册的规则，按插件 id 分组存储（运行时态，**不持久化**——每次启动由
+   * PluginHost 重新注入）。合并时排在最后（优先级最低：内置 > 用户 > 插件）。
+   * 插件卸载时整体清空对应分组（setPluginRules(id, [])）。
+   */
+  pluginRules: Record<string, LabelRule[]>;
   // actions
   addUserRule: (r: LabelRule) => void;
   updateUserRule: (id: string, patch: Partial<LabelRule>) => void;
   removeUserRule: (id: string) => void;
   toggleDefault: (id: string, enabled: boolean) => void;
   setDefaultOverride: (id: string, patch: LabelRuleOverride) => void;
+  /** 插件注册/替换/清空规则：整体替换某插件的规则组。 */
+  setPluginRules: (pluginId: string, rules: LabelRule[]) => void;
   resetAll: () => void;
   /** 导入：整体替换现有规则（语义=替换，非合并）。返回替换的规则条数，便于 UI 提示。 */
   replaceAll: (snapshot: LabelRulesSnapshot) => number;
 }
 
-/** 计算合并后的规则（默认去 disabled + 应用 override + 追加 userRules）。 */
+/** 计算合并后的规则（默认去 disabled + 应用 override + 追加 userRules + 追加 pluginRules）。 */
 export function mergeRules(s: LabelRulesState): LabelRule[] {
   const result: LabelRule[] = [];
   for (const d of DEFAULT_RULES) {
@@ -54,6 +62,10 @@ export function mergeRules(s: LabelRulesState): LabelRule[] {
     });
   }
   for (const u of s.userRules) result.push(u);
+  // 插件规则追加在最末（优先级最低）；按 pluginId 字典序展开保证稳定顺序
+  for (const pluginId of Object.keys(s.pluginRules).sort()) {
+    for (const r of s.pluginRules[pluginId]) result.push(r);
+  }
   return result;
 }
 
@@ -79,6 +91,7 @@ export const useLabelRulesStore = create<LabelRulesState>()(
         userRules: [],
         disabledDefaultIds: [],
         overrides: {},
+        pluginRules: {},
         addUserRule: (r) => {
           set((s) => ({ userRules: [...s.userRules, r] }));
           refreshActive(get());
@@ -103,8 +116,18 @@ export const useLabelRulesStore = create<LabelRulesState>()(
           set((s) => ({ overrides: { ...s.overrides, [id]: { ...s.overrides[id], ...patch } } }));
           refreshActive(get());
         },
+        setPluginRules: (pluginId, rules) => {
+          set((s) => {
+            // 空规则组时删除该 key（保持 pluginRules 干净，且不影响 mergeRules 的字典序展开）
+            const pluginRules = { ...s.pluginRules };
+            if (rules.length === 0) delete pluginRules[pluginId];
+            else pluginRules[pluginId] = rules;
+            return { pluginRules };
+          });
+          refreshActive(get());
+        },
         resetAll: () => {
-          set({ userRules: [], disabledDefaultIds: [], overrides: {} });
+          set({ userRules: [], disabledDefaultIds: [], overrides: {}, pluginRules: {} });
           refreshActive(get());
         },
         // 导入=替换：整体覆盖三个字段。深拷贝避免外部对象后续被改动污染 store。

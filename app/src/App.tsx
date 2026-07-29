@@ -6,6 +6,7 @@ import { ProcessPanel } from './components/ProcessPanel';
 import { PerfPanel } from './components/PerfPanel';
 import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
+import { PluginHost } from './components/PluginHost';
 import { useThemeStore } from './store/themeStore';
 import { ipc } from './lib/ipc';
 import {
@@ -125,6 +126,9 @@ export function App() {
       </div>
 
       {rulesOpen && <LabelRuleEditor onClose={() => setRulesOpen(false)} />}
+
+      {/* 插件隐形加载器：iframe sandbox 内的插件注册标签规则（6b 第一步） */}
+      <PluginHost />
     </div>
   );
 }
