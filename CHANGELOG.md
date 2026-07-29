@@ -4,6 +4,21 @@
 
 ---
 
+## [v2.1] — 2026-07-30
+
+### 新增
+- **AI 开发工具默认标签**：进程面板自动识别 AI 工具——Claude Code / Kimi Code / Aider / Codex CLI（kind `ai`，品红紫）与 Cursor（kind `ai-ide`，紫罗兰）。短词规则（如 kimi）带分隔符边界防误伤用户名路径。新增 `defaultRules.test.ts` 11 用例。
+- **开机自启开关**：nav 工具栏新增「自启」toggle（`app.setLoginItemSettings`），乐观更新 + 失败回滚。开发模式下作用于 electron.exe（Electron 已知行为），打包后对 CodeMgr.exe 生效。
+
+### 工程化
+- `AGENTS.md` 新增 §10 常见任务食谱：新增 native 函数六处接线 / 新增面板 / 标签规则 / 发版流程 checklist，降低 AI 上手成本。
+- 规划文档：GPU 监控 + 进程快照对比 spec（`docs/superpowers/specs/2026-07-30-codemgr-ai-dev-features.md`，决策 D5-D7 锁定）与 v2.1/v2.2 实现计划。
+
+### 测试
+- app 181→197（+11 defaultRules AI 标签 / +5 AutoLaunchToggle）。
+
+---
+
 ## [v2.0] — 2026-07-29
 
 ### 新增
@@ -25,7 +40,13 @@
   - **白名单机制**：manifest 加 `capabilities`，main `ALLOWED_CAPABILITIES` 校验，未识别项剥离（红线：插件不能自带 .node）。当前白名单含 `demo-source`（模拟数据源）。
   - **协议扩展**：`HostToPluginMsg` 加 `dataSource` 消息；PluginPanel 按 capabilities 订阅并转发。
   - 本次**不含**真实 native collector（demo-source 是固定模拟数据，留 TODO 接真 collector）。
-- app 165→181（+8 pluginRules + 6 prunePluginLeaves + 3 pluginCapabilities 白名单）。
+- **插件真实数据源（6c 第二步：磁盘卷列表）**：接入第一个真实 native collector，验证 UtilityProcess → native addon 真实采集链路。
+  - **disk_collector**：`GetLogicalDriveStringsW` 枚举卷 → `GetDriveTypeW` 取类型 + `GetDiskFreeSpaceExW` 取空间，返回 `DiskVolume[]`（letter/type/totalBytes/freeBytes/availableBytes）。全在 kernel32，无需改 WIN_LIBS。单卷失败（如未插入 U 盘）空间置 0 不跳过。
+  - **白名单**：`ALLOWED_CAPABILITIES` 加 `disk-volumes`；utility-host collect() 路由到 `native.diskVolumes()`。
+  - **示例插件**：`disk-volumes-plugin.html` 渲染盘符/类型/空间条。
+  - 实测：本机 5 卷（C/D/E/F/G），空间数据真实（如 C: 总 132GB / 可用 9.7GB）。
+  - **ABI 重编译**（陷阱 #1）：build:electron 后 UtilityProcess 子进程成功 require 同一 .node 并采集。
+- app 165→197（+8 pluginRules + 6 prunePluginLeaves + 3 pluginCapabilities + 新增 defaultRules 等），native 33→38（+5 disk.test.ts）。
 
 ---
 
