@@ -42,4 +42,11 @@ describe('portRadarStore', () => {
     usePortRadarStore.getState().setLoading(true);
     expect(usePortRadarStore.getState().loading).toBe(true);
   });
+
+  it('setFilter stores the query and reset clears it', () => {
+    usePortRadarStore.getState().setFilter('8080');
+    expect(usePortRadarStore.getState().filter).toBe('8080');
+    usePortRadarStore.getState().reset();
+    expect(usePortRadarStore.getState().filter).toBe('');
+  });
 });

@@ -1,17 +1,12 @@
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
+import { isListenLike } from '../lib/portFilter';
 
 interface PortTableProps {
   connections: NetConnection[];
   selectedPid: number | null;
   onSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
-}
-
-// 只显示监听/占用端口（LISTENING 的 TCP + 全部 UDP），过滤掉大量瞬态连接
-function isListenLike(c: NetConnection): boolean {
-  if (c.protocol === 'udp') return true;
-  return c.state === 'LISTENING';
 }
 
 export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTableProps) {
