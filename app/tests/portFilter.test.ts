@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterConnections, isListenLike } from '../src/lib/portFilter';
+import { filterConnections, isListenLike, conflictPorts } from '../src/lib/portFilter';
 import type { NetConnection } from '../electron/ipc-types';
 
 const conn = (over: Partial<NetConnection> = {}): NetConnection => ({
@@ -50,5 +50,34 @@ describe('filterConnections', () => {
 
   it('no match returns empty array', () => {
     expect(filterConnections(list, 'zzzz')).toEqual([]);
+  });
+});
+
+describe('conflictPorts', () => {
+  it('flags a port listened by two different pids', () => {
+    const list = [
+      conn({ localPort: 8080, pid: 100 }),
+      conn({ localPort: 8080, pid: 200 }),
+      conn({ localPort: 3000, pid: 100 }),
+    ];
+    const conflicts = conflictPorts(list);
+    expect(conflicts.has(8080)).toBe(true);
+    expect(conflicts.has(3000)).toBe(false);
+  });
+
+  it('same pid bound to multiple addresses is NOT a conflict', () => {
+    const list = [
+      conn({ localPort: 8080, pid: 100, localAddr: '0.0.0.0' }),
+      conn({ localPort: 8080, pid: 100, localAddr: '::' }),
+    ];
+    expect(conflictPorts(list).size).toBe(0);
+  });
+
+  it('ignores non-listen connections', () => {
+    const list = [
+      conn({ localPort: 8080, pid: 100, state: 'ESTABLISHED' }),
+      conn({ localPort: 8080, pid: 200 }),
+    ];
+    expect(conflictPorts(list).size).toBe(0);
   });
 });

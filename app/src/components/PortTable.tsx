@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
-import { isListenLike } from '../lib/portFilter';
+import { isListenLike, conflictPorts } from '../lib/portFilter';
 
 interface PortTableProps {
   connections: NetConnection[];
@@ -11,6 +12,7 @@ interface PortTableProps {
 
 export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTableProps) {
   const rows = connections.filter(isListenLike);
+  const conflicts = useMemo(() => conflictPorts(connections), [connections]);
 
   return (
     <div className="overflow-auto">
@@ -38,7 +40,15 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                   selected ? 'bg-base-700/60' : ''
                 }`}
               >
-                <td className="px-3 py-2 font-mono text-accent">{c.localPort}</td>
+                <td
+                  className={`px-3 py-2 font-mono ${
+                    conflicts.has(c.localPort) ? 'text-red-400' : 'text-accent'
+                  }`}
+                  title={conflicts.has(c.localPort) ? '端口冲突：多个进程监听同一端口' : undefined}
+                >
+                  {conflicts.has(c.localPort) && <span aria-label="端口冲突">⚠ </span>}
+                  {c.localPort}
+                </td>
                 <td className="px-3 py-2 uppercase text-fg-secondary">{c.protocol}</td>
                 <td className="px-3 py-2 text-fg-primary">{c.processName || '—'}</td>
                 <td className="px-3 py-2 font-mono text-fg-secondary">{c.pid}</td>
