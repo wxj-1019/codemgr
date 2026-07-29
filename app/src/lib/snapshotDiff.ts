@@ -10,11 +10,11 @@ import type { SnapshotEntry } from '../../electron/ipc-types';
  * 三组语义：
  *  - added   : current 有、base 没有（快照后新起的进程）
  *  - removed : base 有、current 没有（快照后退出的进程）
- *  - changed : identity 相同但 name/cmdline/cwd/workingSet 变化（罕见：进程重 exec）
+ *  - changed : identity 相同但 name/cmdline/cwd 变化（罕见：进程重 exec、chdir）
  *
- * changed 的判定字段：name / cmdline / cwd / workingSetBytes（不含 createTimeMs，
- * 因 createTimeMs 已用于 identity 匹配；workingSetBytes 变化几乎必然，但仍纳入
- * changed 而非 added+removed，避免噪音——内存抖动不应被当成「进程变了」）。
+ * changed 的判定字段：name / cmdline / cwd（不含 createTimeMs，因 createTimeMs
+ * 已用于 identity 匹配；不含 workingSetBytes——内存抖动是常态，纳入会淹没真正的
+ * 结构变化，见 bug #5）。进程重 exec（node→deno）会同时改 name/cmdline，仍能被捕获。
  */
 
 export interface ChangedPair {
@@ -37,15 +37,20 @@ export function snapshotIdentity(e: { pid: number; createTimeMs: number }): stri
 }
 
 /**
- * 判断两条 identity 相同的条目是否「有变化」。比较 name/cmdline/cwd/workingSetBytes。
+ * 判断两条 identity 相同的条目是否「有变化」。只比较结构字段 name/cmdline/cwd。
  * 注意 createTimeMs 已用于 identity 匹配，此处不再比较。
+ *
+ * workingSetBytes 不纳入 changed 判定（bug #5 修复）：内存抖动是存活进程的
+ * 常态，纳入会让快照「有变化」列表被内存波动淹没，淹没真正的结构变化。
+ * 进程重 exec（node→deno）会同时改 name/cmdline，仍能被捕获；
+ * 内存泄漏/资源异常检测属于「资源异常」范畴，留给后续 AI Session 资源聚合，
+ * 不塞进快照身份 diff。
  */
 function entryChanged(before: SnapshotEntry, after: SnapshotEntry): boolean {
   return (
     before.name !== after.name ||
     before.cmdline !== after.cmdline ||
-    before.cwd !== after.cwd ||
-    before.workingSetBytes !== after.workingSetBytes
+    before.cwd !== after.cwd
   );
 }
 

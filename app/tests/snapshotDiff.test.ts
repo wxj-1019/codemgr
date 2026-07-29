@@ -93,12 +93,21 @@ describe('diffSnapshots', () => {
     expect(d.removed).toEqual([]);
   });
 
-  it('workingSetBytes change alone counts as changed', () => {
+  it('workingSetBytes change alone does NOT count as changed', () => {
+    // 内存抖动是常态，不应算进程身份/配置变化（spec bug #5）
     const base = [entry({ pid: 1, workingSetBytes: 100 })];
     const cur = [entry({ pid: 1, workingSetBytes: 200 })];
     const d = diffSnapshots(base, cur);
+    expect(d.changed).toHaveLength(0);
+  });
+
+  it('structural change + workingSet change still counts as changed', () => {
+    // 结构字段（name/cmdline/cwd）变化仍进 changed，内存移出不影响其捕获
+    const base = [entry({ pid: 1, cmdline: 'node a.js', workingSetBytes: 100 })];
+    const cur = [entry({ pid: 1, cmdline: 'node b.js', workingSetBytes: 200 })];
+    const d = diffSnapshots(base, cur);
     expect(d.changed).toHaveLength(1);
-    expect(d.changed[0].after.workingSetBytes).toBe(200);
+    expect(d.changed[0].after.cmdline).toBe('node b.js');
   });
 
   it('identity collision: same pid, different createTimeMs → added + removed (NOT unchanged)', () => {
