@@ -66,4 +66,60 @@ describe('groupByProject', () => {
     ]);
     expect(groups.length).toBe(1);
   });
+
+  // ── 精确 cwd（旁路缓存）接入分组 ──
+
+  it('precise cwd rescues empty heuristic cwd out of 未分组', () => {
+    // 启发式 cwd 为空（cmdline 无绝对路径，如 npm run dev）原本落未分组；
+    // 精确 cwd（PEB 直读）应把它归到正确项目组
+    const groups = groupByProject(
+      [p({ pid: 1, cwd: '' })],
+      { 1: 'D:\\work\\app' },
+    );
+    expect(groups.length).toBe(1);
+    expect(groups[0].name).toBe('app');
+    expect(groups[0].dir).toBe('D:/work/app');
+    expect(groups[0].pids).toEqual([1]);
+  });
+
+  it('precise cwd overrides wrong heuristic cwd', () => {
+    // 启发式抽到错误目录（首个盘符路径是脚本而非 cwd）；精确值修正分组
+    const groups = groupByProject(
+      [p({ pid: 1, cwd: 'C:\\wrong' })],
+      { 1: 'C:\\work\\app' },
+    );
+    expect(groups.length).toBe(1);
+    expect(groups[0].name).toBe('app');
+    expect(groups[0].pids).toEqual([1]);
+  });
+
+  it('precise and heuristic of same value group together (no dup)', () => {
+    const groups = groupByProject(
+      [p({ pid: 1, cwd: 'C:\\proj\\app' }), p({ pid: 2, cwd: 'C:\\proj\\app' })],
+      { 2: 'C:\\proj\\app' },
+    );
+    expect(groups.length).toBe(1);
+    expect(groups[0].pids).toEqual([1, 2]);
+  });
+
+  it('precise cwd NT prefix is stripped before grouping', () => {
+    // 精确 cwd 带 \??\ 前缀，与启发式 Win32 路径应归同组
+    const groups = groupByProject(
+      [p({ pid: 1, cwd: 'C:\\proj\\app' })],
+      { 1: '\\??\\C:\\proj\\app' },
+    );
+    expect(groups.length).toBe(1);
+    expect(groups[0].pids).toEqual([1]);
+  });
+
+  it('omitting preciseCwdByPid is backward compatible', () => {
+    // 第二参数可选；不传时行为与现状完全一致（回归保护）
+    const groups = groupByProject([
+      p({ pid: 1, cwd: 'C:\\proj\\app' }),
+      p({ pid: 2, cwd: '' }),
+    ]);
+    expect(groups.length).toBe(2);
+    expect(groups[0].name).toBe('app');
+    expect(groups[groups.length - 1].name).toBe('未分组');
+  });
 });

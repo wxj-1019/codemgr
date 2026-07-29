@@ -1,9 +1,17 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
 import { groupByProject } from '../lib/projectGroup';
+import { ipc } from '../lib/ipc';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+
+const UNGROUPED = '未分组';
+// 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd（PEB 直读）。
+// 分批限流：每批最多 BATCH_SIZE 个并发 IPC + PEB 行走，批间 BATCH_DELAY_MS 间隔，
+// 避免 N 个进程瞬时并发造成 main 进程尖刺。
+const BATCH_SIZE = 5;
+const BATCH_DELAY_MS = 50;
 
 interface ProjectGroupViewProps {
   onKillSingle: (pid: number, name: string) => void;
@@ -156,6 +164,8 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     filter,
     expandedGroups,
     toggleGroup,
+    preciseCwdByPid,
+    setPreciseCwd,
   } = useProcessPanelStore();
 
   // Apply the same filter as the tree view (name/cmdline/pid).
@@ -171,7 +181,48 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     );
   }, [processes, filter]);
 
-  const groups = useMemo(() => groupByProject(filtered), [filtered]);
+  // 分组键优先用精确 cwd（旁路缓存），缺失回退启发式
+  const groups = useMemo(() => groupByProject(filtered, preciseCwdByPid), [filtered, preciseCwdByPid]);
+
+  // 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd。
+  // 精确值到达后写入 store 缓存，分组重算时这些进程会从「未分组」迁到真实组。
+  // 跟踪展开态防陈旧：组收起/组件卸载时丢弃 in-flight 结果。
+  const ungroupedExpanded = expandedGroups.has(UNGROUPED);
+  const cancelledRef = useRef(false);
+  useEffect(() => {
+    if (!ungroupedExpanded) return;
+    cancelledRef.current = false;
+    // 候选：启发式 cwd 为空 且 尚无精确缓存 的 pid
+    const candidates = processes.filter((pr) => !pr.cwd?.trim() && !(pr.pid in preciseCwdByPid));
+    if (candidates.length === 0) return;
+    let idx = 0;
+    const runBatch = async () => {
+      while (idx < candidates.length) {
+        if (cancelledRef.current) return;
+        const batch = candidates.slice(idx, idx + BATCH_SIZE);
+        idx += BATCH_SIZE;
+        // 并发拉一批，结果分别写缓存（null/失败静默跳过，保持启发式回退）
+        await Promise.all(
+          batch.map(async (pr) => {
+            try {
+              const cwd = await ipc.fetchCwd(pr.pid);
+              if (cancelledRef.current) return;
+              if (cwd) setPreciseCwd(pr.pid, cwd);
+            } catch {
+              /* 静默：受保护/已退出进程，保持启发式回退 */
+            }
+          }),
+        );
+        if (idx < candidates.length && !cancelledRef.current) {
+          await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+        }
+      }
+    };
+    runBatch();
+    return () => { cancelledRef.current = true; };
+    // processes/pr preciseCwdByPid 快照取本次展开时刻；不监听其变化避免重复触发
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ungroupedExpanded, setPreciseCwd]);
 
   // For inline pid list under each group: map pid -> process.
   const procByPid = useMemo(() => {

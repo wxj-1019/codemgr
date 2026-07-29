@@ -14,22 +14,31 @@ export function ProcessDetailSidebar({
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
 }) {
-  const { processes, selectedPids, procHistory } = useProcessPanelStore();
+  const { processes, selectedPids, procHistory, preciseCwdByPid, setPreciseCwd: setStoreCwd } =
+    useProcessPanelStore();
   // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
   const pid = selectedPids.size === 1 ? [...selectedPids][0] : null;
 
   // 环境变量：按需加载，切换选中进程时重置（不做轮询，避免高频 ReadProcessMemory）
   const [envVars, setEnvVars] = useState<Record<string, string> | null>(null);
   const [envState, setEnvState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
-  // 精确 cwd（PEB 直读）：同环境变量的按需模式，与 ProcessInfo.cwd 的启发式值区分
+  // 精确 cwd（PEB 直读）：优先复用 store 缓存（与项目分组共享），命中则不重复 IPC；
+  // 未命中才按需拉取，结果写回 store 缓存。
   const [preciseCwd, setPreciseCwd] = useState<string | null>(null);
   const [cwdState, setCwdState] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
   useEffect(() => {
     setEnvVars(null);
     setEnvState('idle');
-    setPreciseCwd(null);
-    setCwdState('idle');
-  }, [pid]);
+    // 切换选中进程时：store 缓存命中则直接展示（与分组共享同一值），否则回 idle 待拉取
+    const cached = pid != null ? preciseCwdByPid[pid] : undefined;
+    if (cached) {
+      setPreciseCwd(cached);
+      setCwdState('done');
+    } else {
+      setPreciseCwd(null);
+      setCwdState('idle');
+    }
+  }, [pid, preciseCwdByPid]);
   // 比对 in-flight 请求是否已陈旧（native 调用不可中断，故不用 AbortController）
   const pidRef = useRef(pid);
   pidRef.current = pid;
@@ -54,6 +63,13 @@ export function ProcessDetailSidebar({
 
   async function loadCwd() {
     if (pid == null) return;
+    // store 缓存命中：直接展示，不重复 IPC（与项目分组共享同一缓存）
+    const cached = preciseCwdByPid[pid];
+    if (cached) {
+      setPreciseCwd(cached);
+      setCwdState('done');
+      return;
+    }
     setCwdState('loading');
     try {
       const result = await ipc.fetchCwd(pid);
@@ -62,6 +78,7 @@ export function ProcessDetailSidebar({
         setCwdState('error');
       } else {
         setPreciseCwd(result);
+        setStoreCwd(pid, result); // 写回 store 缓存，供项目分组复用
         setCwdState('done');
       }
     } catch {

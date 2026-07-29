@@ -29,8 +29,15 @@ function lastSegment(p: string): string | null {
  * 把扁平进程列表按 cwd（项目目录）分组。同目录的进程归为一组，组名取目录最后
  * 一段；cwd 为空（打不开/受保护进程）归到「未分组」，且总是排在最后。
  * 组内按组大小降序排列（大组在前）。
+ *
+ * 精确 cwd（PEB 直读，按需通道）通过 preciseCwdByPid 旁路传入，优先于启发式
+ * ProcessInfo.cwd：能修正 cmdline 无绝对路径（如 `npm run dev`）导致的误归未分组。
+ * 缓存一旦填充即冻结（在 store 层），此处只是读取——分组键取精确值，缺失回退启发式。
  */
-export function groupByProject(procs: ProcessInfo[]): ProjectGroup[] {
+export function groupByProject(
+  procs: ProcessInfo[],
+  preciseCwdByPid?: Record<number, string>,
+): ProjectGroup[] {
   const UNGROUPED = '未分组';
   const byDir = new Map<string, ProjectGroup>();
   const ungrouped: number[] = [];
@@ -38,11 +45,13 @@ export function groupByProject(procs: ProcessInfo[]): ProjectGroup[] {
 
   for (const proc of procs) {
     const mem = proc.workingSetBytes;
-    if (proc.cwd && proc.cwd.trim()) {
-      const dir = normPath(proc.cwd);
+    // 精确 cwd 优先；缺失回退启发式
+    const cwd = preciseCwdByPid?.[proc.pid] ?? proc.cwd;
+    if (cwd && cwd.trim()) {
+      const dir = normPath(cwd);
       let g = byDir.get(dir);
       if (!g) {
-        g = { name: lastSegment(proc.cwd) || dir, dir, pids: [], totalMemory: 0 };
+        g = { name: lastSegment(cwd) || dir, dir, pids: [], totalMemory: 0 };
         byDir.set(dir, g);
       }
       g.pids.push(proc.pid);
