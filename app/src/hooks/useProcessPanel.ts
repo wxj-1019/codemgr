@@ -7,6 +7,7 @@ const POLL_MS = 2000;  // process panel refresh interval (spec 5.1)
 export function useProcessPanel() {
   const setProcesses = useProcessPanelStore((s) => s.setProcesses);
   const setCpuMap = useProcessPanelStore((s) => s.setCpuMap);
+  const appendHistory = useProcessPanelStore((s) => s.appendHistory);
   const setLoading = useProcessPanelStore((s) => s.setLoading);
   const setError = useProcessPanelStore((s) => s.setError);
   const stoppedRef = useRef(false);
@@ -31,7 +32,11 @@ export function useProcessPanel() {
         // whole panel when we already have the process list. Log and move on.
         try {
           const cpus = await ipc.fetchCpu();
-          if (!stoppedRef.current) setCpuMap(cpus);
+          if (!stoppedRef.current) {
+            setCpuMap(cpus);
+            // 同一 tick 同时有 procs（含 mem）与 cpus（含 cpu），采一条历史点
+            appendHistory(procs, cpus, Date.now());
+          }
         } catch (cpuErr) {
           console.error('fetchCpu failed:', cpuErr);
         }
@@ -46,5 +51,5 @@ export function useProcessPanel() {
     poll();
     const timer = setInterval(poll, POLL_MS);
     return () => { stoppedRef.current = true; clearInterval(timer); };
-  }, [setProcesses, setCpuMap, setLoading, setError]);
+  }, [setProcesses, setCpuMap, appendHistory, setLoading, setError]);
 }

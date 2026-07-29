@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
+import { MiniChart } from './MiniChart';
 import { ipc } from '../lib/ipc';
 
 // 320px 右侧详情栏：展示当前唯一选中进程的"已采集但表格未展示"字段。
@@ -13,7 +14,7 @@ export function ProcessDetailSidebar({
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
 }) {
-  const { processes, selectedPids } = useProcessPanelStore();
+  const { processes, selectedPids, procHistory } = useProcessPanelStore();
   // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
   const pid = selectedPids.size === 1 ? [...selectedPids][0] : null;
 
@@ -99,6 +100,27 @@ export function ProcessDetailSidebar({
           <Row label="运行时长" value={formatDuration(uptimeMs)} />
           <Row label="累计 CPU 时间" value={formatCpuTime(cpuTotalMs)} />
           <Row label="内存" value={formatBytes(proc.workingSetBytes)} mono />
+          {(procHistory[proc.pid]?.length ?? 0) > 1 && (
+            <div className="space-y-1 rounded border border-base-700 bg-base-900 p-2">
+              <p className="text-fg-muted">CPU%（近 {procHistory[proc.pid]!.length * 2}s）</p>
+              <MiniChart
+                data={procHistory[proc.pid]!}
+                dataKey="cpu"
+                color="#2dd4bf"
+                domain={[0, 100]}
+                formatValue={(v) => v.toFixed(1) + '%'}
+                idSuffix={`cpu-${proc.pid}`}
+              />
+              <p className="pt-1 text-fg-muted">内存（近 {procHistory[proc.pid]!.length * 2}s）</p>
+              <MiniChart
+                data={procHistory[proc.pid]!}
+                dataKey="mem"
+                color="#a78bfa"
+                formatValue={(v) => formatBytes(v)}
+                idSuffix={`mem-${proc.pid}`}
+              />
+            </div>
+          )}
           <Row label="线程数" value={String(proc.threadCount)} mono />
           <Row label="句柄数" value={String(proc.handleCount)} mono />
           <div>

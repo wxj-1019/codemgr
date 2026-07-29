@@ -2,9 +2,19 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ProcessInfo } from '../../electron/ipc-types';
 
+// 单进程历史曲线滚动窗口长度。进程面板轮询 2s → 60 点 ≈ 120s 窗口。
+export const PROC_HIST_LEN = 60;
+
+export interface ProcHistoryPoint {
+  ts: number;    // 客户端时间戳（CpuUsage 不带 ts）
+  cpu: number;   // cpuPercent
+  mem: number;   // workingSetBytes（来自同 tick 的 processes 快照）
+}
+
 interface ProcessPanelState {
   processes: ProcessInfo[];
   cpuMap: Record<number, number>;   // pid -> cpuPercent
+  procHistory: Record<number, ProcHistoryPoint[]>;  // pid -> 滚动窗口（运行时态，不持久化）
   filter: string;
   sortKey: 'pid' | 'name' | 'cpu' | 'memory';
   sortAsc: boolean;
@@ -17,6 +27,7 @@ interface ProcessPanelState {
 
   setProcesses: (p: ProcessInfo[]) => void;
   setCpuMap: (c: { pid: number; cpuPercent: number }[]) => void;
+  appendHistory: (procs: ProcessInfo[], cpus: { pid: number; cpuPercent: number }[], ts: number) => void;
   setFilter: (f: string) => void;
   setSortKey: (k: ProcessPanelState['sortKey']) => void;
   toggleSort: () => void;
@@ -37,6 +48,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
     (set) => ({
       processes: [],
       cpuMap: {},
+      procHistory: {},
       filter: '',
       sortKey: 'pid',
       sortAsc: true,
@@ -56,12 +68,30 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
           const n = Number(k);
           if (pidSet.has(n)) cpuMap[n] = s.cpuMap[n];
         }
-        return { processes: p, error: null, selectedPids, cpuMap };
+        // 同步清理已退出进程的历史曲线（与 cpuMap 同样的 pidSet 过滤）
+        const procHistory: Record<number, ProcHistoryPoint[]> = {};
+        for (const k of Object.keys(s.procHistory)) {
+          const n = Number(k);
+          if (pidSet.has(n)) procHistory[n] = s.procHistory[n];
+        }
+        return { processes: p, error: null, selectedPids, cpuMap, procHistory };
       }),
       setCpuMap: (c) => set((s) => {
         const m = { ...s.cpuMap };
         for (const x of c) m[x.pid] = x.cpuPercent;
         return { cpuMap: m };
+      }),
+      appendHistory: (procs, cpus, ts) => set((s) => {
+        // 在同一 tick 同时拿到 procs（含 mem）与 cpus（含 cpu）时采点。
+        const memByPid = new Map(procs.map((p) => [p.pid, p.workingSetBytes]));
+        const next: Record<number, ProcHistoryPoint[]> = {};
+        for (const k of Object.keys(s.procHistory)) next[Number(k)] = s.procHistory[Number(k)];
+        for (const x of cpus) {
+          const arr = [...(next[x.pid] ?? []), { ts, cpu: x.cpuPercent, mem: memByPid.get(x.pid) ?? 0 }];
+          if (arr.length > PROC_HIST_LEN) arr.shift();
+          next[x.pid] = arr;
+        }
+        return { procHistory: next };
       }),
       setFilter: (f) => set({ filter: f }),
       setSortKey: (k) => set({ sortKey: k }),
@@ -92,7 +122,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       setLoading: (b) => set({ loading: b }),
       setError: (e) => set({ error: e }),
       reset: () => set({
-        processes: [], cpuMap: {}, filter: '', sortKey: 'pid', sortAsc: true,
+        processes: [], cpuMap: {}, procHistory: {}, filter: '', sortKey: 'pid', sortAsc: true,
         viewMode: 'tree', expandedPids: new Set(), expandedGroups: new Set(),
         selectedPids: new Set(), loading: false, error: null,
       }),

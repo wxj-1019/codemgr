@@ -103,6 +103,35 @@ describe('processPanelStore', () => {
     expect(m[99]).toBeUndefined();
   });
 
+  it('appendHistory records a point pairing cpu + mem from same tick', () => {
+    const st = useProcessPanelStore.getState();
+    const procs = [sampleProc({ pid: 1, workingSetBytes: 200 })];
+    st.appendHistory(procs, [{ pid: 1, cpuPercent: 42 }], 1000);
+    const hist = useProcessPanelStore.getState().procHistory[1];
+    expect(hist).toHaveLength(1);
+    expect(hist[0]).toEqual({ ts: 1000, cpu: 42, mem: 200 });
+  });
+
+  it('appendHistory rolls the window at PROC_HIST_LEN', () => {
+    const st = useProcessPanelStore.getState();
+    const procs = [sampleProc({ pid: 1, workingSetBytes: 0 })];
+    for (let i = 0; i < 70; i++) st.appendHistory(procs, [{ pid: 1, cpuPercent: i }], i);
+    const hist = useProcessPanelStore.getState().procHistory[1];
+    expect(hist).toHaveLength(60); // capped
+    expect(hist[0].cpu).toBe(10);  // oldest kept (70-60=10)
+    expect(hist[59].cpu).toBe(69); // newest
+  });
+
+  it('setProcesses prunes stale procHistory entries', () => {
+    const st = useProcessPanelStore.getState();
+    st.appendHistory([sampleProc({ pid: 1 })], [{ pid: 1, cpuPercent: 5 }], 1);
+    st.appendHistory([sampleProc({ pid: 99 })], [{ pid: 99, cpuPercent: 9 }], 2);
+    st.setProcesses([sampleProc({ pid: 1 })]); // 99 gone
+    const h = useProcessPanelStore.getState().procHistory;
+    expect(h[1]).toBeDefined();
+    expect(h[99]).toBeUndefined();
+  });
+
   it('persists only sortKey/sortAsc/filter/viewMode (partialize shape)', () => {
     localStorage.clear();
     const st = useProcessPanelStore.getState();
