@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, d
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { IPC, type LabelRulesPayload, type LabelRule } from './ipc-types';
+import { loadWindowState, trackWindowState } from './window-state';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -32,9 +33,13 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 function createWindow() {
+  // 恢复上次窗口状态（位置/大小/最大化）。bounds 跑出可见显示器外则回退默认。
+  const last = loadWindowState();
   win = new BrowserWindow({
-    width: 1100,
-    height: 720,
+    width: last?.bounds.width ?? 1100,
+    height: last?.bounds.height ?? 720,
+    x: last?.bounds.x,
+    y: last?.bounds.y,
     backgroundColor: '#0f1419',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -42,6 +47,8 @@ function createWindow() {
       nodeIntegration: false,   // 安全：渲染进程无 Node
     },
   });
+  if (last?.isMaximized) win.maximize();
+  trackWindowState(win);
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
