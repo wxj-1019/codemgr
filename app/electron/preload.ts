@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry } from './ipc-types';
+import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry, type RunState } from './ipc-types';
 
 // 安全红线：只暴露封装后的方法，绝不暴露 ipcRenderer 本身
 const api: ExposedApi = {
@@ -36,6 +36,18 @@ const api: ExposedApi = {
   deleteSnapshot: (id: string) => ipcRenderer.invoke(IPC.SNAPSHOT_DELETE, id),
   loadSnapshot: (id: string) => ipcRenderer.invoke(IPC.SNAPSHOT_LOAD, id),
   fetchGitIdentity: (cwd: string) => ipcRenderer.invoke(IPC.FETCH_GIT_IDENTITY, cwd),
+  // Run Profiles（F1）：启动/停止/重启 + profile CRUD + run 状态事件订阅
+  listRunProfiles: () => ipcRenderer.invoke(IPC.RUN_PROFILE_LIST),
+  saveRunProfile: (profile) => ipcRenderer.invoke(IPC.RUN_PROFILE_SAVE, profile),
+  deleteRunProfile: (id) => ipcRenderer.invoke(IPC.RUN_PROFILE_DELETE, id),
+  startProfile: (profileId) => ipcRenderer.invoke(IPC.RUN_START, profileId),
+  stopProfile: (runId) => ipcRenderer.invoke(IPC.RUN_STOP, runId),
+  restartProfile: (runId) => ipcRenderer.invoke(IPC.RUN_RESTART, runId),
+  onRunUpdate: (cb: (update: RunState) => void) => {
+    const handler = (_e: unknown, update: RunState) => cb(update);
+    ipcRenderer.on(IPC.RUN_UPDATE, handler as never);
+    return () => ipcRenderer.removeListener(IPC.RUN_UPDATE, handler as never);
+  },
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);

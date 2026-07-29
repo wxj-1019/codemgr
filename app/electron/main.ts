@@ -2,8 +2,9 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, d
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot } from './ipc-types';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
+import { RunManager, readProfiles, writeProfiles, validateProfile } from './runProfiles';
 import { resolveGitIdentity } from './gitWorkspace';
 
 // 开发时加载 vite dev server，生产时加载打包产物
@@ -428,6 +429,62 @@ ipcMain.handle(IPC.FETCH_GIT_IDENTITY, async (_evt, cwd: string) => {
     console.error('fetchGitIdentity failed:', e);
     return null;
   }
+});
+
+// ── Run Profiles（F1）──
+// 受控启动/停止开发服务。spawn 在 main（白名单 command + execFile 无 shell），渲染层只传 profileId/runId。
+const RUN_PROFILES_FILE = () => path.join(app.getPath('userData'), 'run-profiles.json');
+const runManager = new RunManager(
+  native,  // 复用 native killTree（停止时收集后代 + 过保护名单）
+  (state) => { win?.webContents.send(IPC.RUN_UPDATE, state); },  // run 状态变更 → 推送渲染层
+);
+
+ipcMain.handle(IPC.RUN_PROFILE_LIST, (): RunProfile[] => {
+  try { return readProfiles(RUN_PROFILES_FILE()); }
+  catch (e) { console.error('run:list failed:', e); return []; }
+});
+
+ipcMain.handle(IPC.RUN_PROFILE_SAVE, (_evt, profile: Omit<RunProfile, 'id'> & { id?: string }): RunProfile | null => {
+  try {
+    const full: RunProfile = { ...profile, id: profile.id ?? randomUUID() };
+    const validated = validateProfile(full);
+    if (!validated) return null;
+    const profiles = readProfiles(RUN_PROFILES_FILE());
+    const idx = profiles.findIndex((p) => p.id === validated.id);
+    if (idx >= 0) profiles[idx] = validated; else profiles.push(validated);
+    writeProfiles(RUN_PROFILES_FILE(), profiles);
+    return validated;
+  } catch (e) { console.error('run:save failed:', e); return null; }
+});
+
+ipcMain.handle(IPC.RUN_PROFILE_DELETE, (_evt, id: string): boolean => {
+  try {
+    writeProfiles(RUN_PROFILES_FILE(), readProfiles(RUN_PROFILES_FILE()).filter((p) => p.id !== id));
+    return true;
+  } catch (e) { console.error('run:delete failed:', e); return false; }
+});
+
+ipcMain.handle(IPC.RUN_START, (_evt, profileId: string): { runId: string; pid: number } | null => {
+  try {
+    const profile = readProfiles(RUN_PROFILES_FILE()).find((p) => p.id === profileId);
+    if (!profile) return null;
+    return runManager.start(profile);
+  } catch (e) { console.error('run:start failed:', e); return null; }
+});
+
+ipcMain.handle(IPC.RUN_STOP, (_evt, runId: string): number => {
+  try { return runManager.stop(runId); }
+  catch (e) { console.error('run:stop failed:', e); return 0; }
+});
+
+ipcMain.handle(IPC.RUN_RESTART, (_evt, runId: string): { runId: string; pid: number } | null => {
+  try {
+    const state = runManager.getState(runId);
+    if (!state) return null;
+    const profile = readProfiles(RUN_PROFILES_FILE()).find((p) => p.id === state.profileId);
+    if (!profile) return null;
+    return runManager.restart(profile, runId);
+  } catch (e) { console.error('run:restart failed:', e); return null; }
 });
 
 // ── 插件数据源 UtilityProcess（6c）──

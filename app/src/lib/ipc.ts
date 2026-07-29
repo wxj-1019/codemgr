@@ -1,4 +1,4 @@
-import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot, GitIdentity } from '../../electron/ipc-types';
+import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot, GitIdentity, RunProfile, RunState } from '../../electron/ipc-types';
 
 // 渲染层统一通过此封装访问 native（绝不直接 require）
 export const ipc = {
@@ -75,5 +75,27 @@ export const ipc = {
   },
   async fetchGitIdentity(cwd: string): Promise<GitIdentity | null> {
     return window.codemgr.fetchGitIdentity(cwd);
+  },
+  // Run Profiles（F1）
+  async listRunProfiles(): Promise<RunProfile[]> {
+    return window.codemgr.listRunProfiles();
+  },
+  async saveRunProfile(profile: Omit<RunProfile, 'id'> & { id?: string }): Promise<RunProfile | null> {
+    return window.codemgr.saveRunProfile(profile);
+  },
+  async deleteRunProfile(id: string): Promise<boolean> {
+    return window.codemgr.deleteRunProfile(id);
+  },
+  async startProfile(profileId: string): Promise<{ runId: string; pid: number } | null> {
+    return window.codemgr.startProfile(profileId);
+  },
+  async stopProfile(runId: string): Promise<number> {
+    return window.codemgr.stopProfile(runId);
+  },
+  async restartProfile(runId: string): Promise<{ runId: string; pid: number } | null> {
+    return window.codemgr.restartProfile(runId);
+  },
+  onRunUpdate(cb: (update: RunState) => void): () => void {
+    return window.codemgr.onRunUpdate(cb);
   },
 };

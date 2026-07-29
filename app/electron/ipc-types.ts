@@ -34,6 +34,15 @@ export const IPC = {
   SNAPSHOT_LOAD: 'snapshot:load',
   // 工作区 Git 身份（B）：按需从 cwd 解析 git root/branch/HEAD/worktree。纯 fs，不 spawn git。
   FETCH_GIT_IDENTITY: 'git:fetchIdentity',
+  // Run Profiles（F1）：受控启动/停止开发服务。spawn 在 main，渲染层只传 profileId/runId。
+  RUN_PROFILE_LIST: 'run:list',
+  RUN_PROFILE_SAVE: 'run:save',
+  RUN_PROFILE_DELETE: 'run:delete',
+  RUN_START: 'run:start',
+  RUN_STOP: 'run:stop',
+  RUN_RESTART: 'run:restart',
+  // run 状态事件（F1）：main 推 run exit/状态变更给渲染层（事件，非 invoke）
+  RUN_UPDATE: 'run:update',
 } as const;
 
 /**
@@ -101,6 +110,26 @@ export interface GitIdentity {
   head: string;
   detached: boolean;
   isWorktree: boolean;
+}
+
+/** Run Profile（F1）：受控启动的开发服务配置。id 由 main 生成。command 限白名单。 */
+export interface RunProfile {
+  id: string;
+  name: string;
+  command: string;       // 白名单可执行名（node/npm/pnpm/yarn/python/git）
+  args: string[];        // 参数数组（execFile 无 shell，不经拼接）
+  cwd: string;           // 绝对路径
+  expectedPorts?: number[]; // 预留 F2（端口意图），F1 不消费
+}
+
+/** 一个运行中的 profile 实例（main spawn 后产生）。 */
+export interface RunState {
+  runId: string;
+  profileId: string;
+  pid: number;
+  status: 'running' | 'exited';
+  exitCode: number | null;
+  startedAt: number;
 }
 
 /**
@@ -254,4 +283,12 @@ export interface ExposedApi {
   loadSnapshot(id: string): Promise<ProcessSnapshot | null>;
   // 工作区 Git 身份（B）。接受 cwd（非 pid），main 用 fs 解析。null=非 git 目录/解析失败。
   fetchGitIdentity(cwd: string): Promise<GitIdentity | null>;
+  // Run Profiles（F1）。profile 文件 main 持有，渲染层只拿校验过的列表。
+  listRunProfiles(): Promise<RunProfile[]>;
+  saveRunProfile(profile: Omit<RunProfile, 'id'> & { id?: string }): Promise<RunProfile | null>;
+  deleteRunProfile(id: string): Promise<boolean>;
+  startProfile(profileId: string): Promise<{ runId: string; pid: number } | null>;
+  stopProfile(runId: string): Promise<number>;
+  restartProfile(runId: string): Promise<{ runId: string; pid: number } | null>;
+  onRunUpdate(cb: (update: RunState) => void): () => void;
 }
