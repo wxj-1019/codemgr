@@ -167,14 +167,19 @@ v1.1（已完成，当前 main）
 
 #### 任务 W2.0-B：方案 6b — JS 插件沙箱（需 spike 原型）
 
-| 步骤 | 内容 | 产出 |
-|:---:|------|------|
-| F1 | 安全模型 spike（iframe sandbox vs Worker+Comlink vs UtilityProcess） | 选型报告 + PoC |
-| F2 | 受控 API 设计（`window.codemgr.plugin.*`） | API 契约 spec |
-| F3 | 插件加载器 + 生命周期 | loader + 崩溃熔断 |
-| F4 | 文档：插件开发指南 | `docs/PLUGINS.md` |
+| 步骤 | 内容 | 产出 | 状态 |
+|:---:|------|------|:---:|
+| F1 | 安全模型 spike（iframe sandbox vs Worker+Comlink vs UtilityProcess） | 选型报告 + PoC | ✅ 选型报告完成（见下），PoC 4 项待实证 |
+| F2 | 受控 API 设计（postMessage 契约，沙箱下不暴露 `window.codemgr.plugin.*`） | API 契约 spec | 待做 |
+| F3 | 插件加载器（`<PluginFrame>`）+ 生命周期 + 崩溃熔断 | loader | 待做 |
+| F4 | 文档：插件开发指南 | `docs/PLUGINS.md` | 待做 |
 
 **门禁**：F1 的安全选型必须先过 review——这是 v2.0 最大的不确定性，不允许边做边定。
+
+> **F1 选型结论（2026-07-29）**：桌面调研完成，详见 `docs/superpowers/specs/2026-07-29-plugin-sandbox-spike.md`。
+> 推荐**分阶段混合**：6b = **iframe sandbox**（`allow-scripts` 不给 `allow-same-origin`，唯一能"既最安全又可贡献视图"，Worker 因无 DOM 无法满足视图需求）；6c = **UtilityProcess**（仅当插件需新 native 能力时，进程级隔离 + 白名单 native）。
+> Worker 降级为标签规则正则匹配 offload 的纯逻辑执行环境，不作为主沙箱。
+> **F1 尚未完全锁定**：推荐方案需 PoC 4 项实证（iframe 内 React 渲染 / 结构验证无 native / 主题同步 / 崩溃隔离）后才算 F1 通过。
 
 #### 任务 W2.0-C：方案 6c — 插件贡献数据源（远期）
 
