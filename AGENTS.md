@@ -130,7 +130,7 @@ scope:  native | app | ci | docs（可选）
 ## 7. 常见陷阱（给 AI 的避坑指南）
 
 1. **ABI 重编译**：改了 `codemgr-native/` 任何 C++ 后，必须 `pnpm build:electron`（不是 `pnpm build`，那个是 Node 目标）。否则 Electron 里 `require()` 崩溃。
-2. **cmake-js 找不到 CMake**：本机 CMake 在 VS 组件里不在 PATH，build 脚本已 baked `--cmake-path`。换机器需调整。
+2. **cmake-js 找不到 CMake**：本机 CMake 在 VS 组件里不在 PATH。`build`/`build:electron`/`rebuild` 脚本走 `scripts/build.mjs`，用 `vswhere` 动态发现 VS2017+ 自带的 CMake（含 BuildTools/Community/Enterprise 所有 edition），不再 baked 固定路径。换机器只需装了 VS Build Tools + CMake 组件即可，无需改代码。
 3. **winternl.h 冲突**：native 采集层用自定义 `MY_SYSTEM_PROCESS_INFORMATION` 避免与 winternl 重复定义。新加 NT 结构时遵循同样模式。
 4. **SystemProcessorPerformanceInformation (class 8)**：缓冲区必须**精确**等于 `核数×48` 字节，否则静默返回空。
 5. **winsock 冲突**：net_collector.cpp 必须先 `#define WIN32_LEAN_AND_MEAN` 再 include winsock2/ws2tcpip/iphlpapi，否则与 windows.h 的旧 winsock 冲突。

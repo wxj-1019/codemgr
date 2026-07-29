@@ -4,6 +4,13 @@
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **native 构建工具链**：`build`/`build:electron`/`rebuild` 不再 baked VS2019 Community 的固定 CMake 路径（该路径在仅有 VS2022 BuildTools 的机器/CI 上不存在，导致 `CMake is not installed` 报错）。改由 `scripts/build.mjs` 用 `vswhere` 动态发现 VS2017+ 自带的 CMake（覆盖所有 edition），并动态读取 Electron 版本号而非硬编码 `43.2.0`。换机器只需装了 VS Build Tools + CMake 组件即可，无需改代码。
+
+---
+
 ## [v1.6] — 2026-07-29
 
 ### 新增
