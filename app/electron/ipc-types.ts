@@ -89,6 +89,19 @@ export const ALLOWED_CAPABILITIES: ReadonlySet<string> = new Set(['demo-source',
 // ── 进程快照对比（v2.2，spec §2.2） ──
 
 /**
+ * 进程 cwd 所属 Git 仓库的身份（B，按需解析）。纯 fs 文件解析，不 spawn git。
+ * 解析失败（非 git 目录/权限/边界）→ fetchGitIdentity 返回 null。
+ */
+export interface GitIdentity {
+  gitRoot: string;
+  commonDir: string;
+  branch: string | null;
+  head: string;
+  detached: boolean;
+  isWorktree: boolean;
+}
+
+/**
  * 快照条目 = ProcessInfo 的子集 + 必要元信息。只保留 diff/分组/展示所需的字段，
  * 比存全量 ProcessInfo 小很多（每进程约 5 字段 vs 10+）。字段类型与 ProcessInfo 对齐，
  * 以便 diff 引擎与 groupByProject 复用同一套分组代码。
