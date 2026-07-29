@@ -39,7 +39,7 @@ describe('killByPids guard list', () => {
   // 保护名单（与 process_ops.cpp IsProtected 保持一致）
   const PROTECTED = [
     'System', 'Registry', 'smss.exe', 'csrss.exe', 'wininit.exe', 'winlogon.exe',
-    'services.exe', 'lsass.exe', 'svchost.exe', 'electron.exe',
+    'services.exe', 'lsass.exe', 'svchost.exe', 'electron.exe', 'Idle',
   ];
 
   it('returns a number for an empty pid list', () => {
@@ -89,11 +89,16 @@ describe('killTree', () => {
       const killed = native.killTree(parent.pid!);
       expect(killed).toBeGreaterThanOrEqual(2); // 父 + 孙
 
-      const after = native.processScan();
-      expect(after.some((p) => p.pid === parent.pid)).toBe(false);
+      // TerminateProcess 的 teardown 是异步的，轮询等待父进程真正消失
+      let parentGone = false;
+      for (let i = 0; i < 6 && !parentGone; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        parentGone = !native.processScan().some((p) => p.pid === parent.pid);
+      }
+      expect(parentGone).toBe(true);
     } finally {
-      // 兜底清理，避免测试失败时残留
-      try { process.kill(parent.pid!); } catch { /* 已退出 */ }
+      // 兜底清理，避免测试失败时残留（killTree 连同孙进程一起清）
+      try { native.killTree(parent.pid!); } catch { /* 已退出 */ }
     }
   }, 15000);
 
