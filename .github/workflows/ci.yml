@@ -45,3 +45,11 @@ jobs:
 
       - name: Build app
         run: pnpm build:app
+
+      # 性能基准：跑 processScan/netScan/leak 的 Go/No-Go 判据。
+      # continue-on-error: CI runner 负载波动大，bench 失败标黄但不 block PR
+      # （软报告）。性能回归可见但不误杀；待 CI 稳定后可升级为硬 gate。
+      - name: Performance bench
+        working-directory: codemgr-native
+        continue-on-error: true
+        run: pnpm bench
