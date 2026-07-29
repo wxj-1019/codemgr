@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Mosaic, MosaicWindow } from 'react-mosaic-component';
 import 'react-mosaic-component/react-mosaic-component.css';
 import { PortRadar } from './components/PortRadar';
@@ -7,22 +7,27 @@ import { PerfPanel } from './components/PerfPanel';
 import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
 import { PluginHost } from './components/PluginHost';
+import { PluginPanel } from './components/PluginPanel';
 import { useThemeStore } from './store/themeStore';
 import { ipc } from './lib/ipc';
 import {
   useLayoutStore,
+  prunePluginLeaves,
+  isBuiltInPanel,
+  type BuiltInPanelId,
   type PanelId,
   type PresetId,
 } from './store/layoutStore';
+import { usePluginRegistryStore } from './store/pluginRegistryStore';
 import type { MosaicBranch, MosaicNode } from 'react-mosaic-component';
 
-const PANEL_TITLES: Record<PanelId, string> = {
+const BUILTIN_TITLES: Record<BuiltInPanelId, string> = {
   port: '端口雷达',
   process: '进程',
   perf: '性能',
 };
 
-const ALL_PANELS: PanelId[] = ['port', 'process', 'perf'];
+const ALL_BUILTIN: BuiltInPanelId[] = ['port', 'process', 'perf'];
 
 const PRESETS: { id: PresetId; label: string }[] = [
   { id: 'classic', label: '经典' },
@@ -30,29 +35,57 @@ const PRESETS: { id: PresetId; label: string }[] = [
   { id: 'dev-focus', label: '开发聚焦' },
 ];
 
-/** 收集树中已出现的面板 id（用于 createNode 选下一个可用面板）。 */
-function leaves(node: MosaicNode<PanelId> | null): Set<PanelId> {
+/** 收集树中已出现的内置面板 id（用于 createNode 选下一个可用面板）。 */
+function builtinLeaves(node: MosaicNode<PanelId> | null): Set<BuiltInPanelId> {
   if (!node) return new Set();
-  if (typeof node === 'string') return new Set([node]);
-  return new Set([...leaves(node.first), ...leaves(node.second)]);
+  if (typeof node === 'string') return isBuiltInPanel(node) ? new Set([node]) : new Set();
+  return new Set([...builtinLeaves(node.first), ...builtinLeaves(node.second)]);
+}
+
+/** 面板标题：内置查表，插件查 manifest 名称。 */
+function usePanelTitle() {
+  const find = usePluginRegistryStore((s) => s.find);
+  return (id: string): string => {
+    if (isBuiltInPanel(id)) return BUILTIN_TITLES[id];
+    if (id.startsWith('plugin:')) {
+      const e = find(id.slice('plugin:'.length));
+      return e?.name ?? id;
+    }
+    return id;
+  };
 }
 
 export function App() {
-  const { root, setRoot, applyPreset, preset } = useLayoutStore();
+  const { root, setRoot, applyPreset, addPluginPanel, preset } = useLayoutStore();
   const [rulesOpen, setRulesOpen] = useState(false);
   const { theme, toggle } = useThemeStore();
+  const registryLoaded = usePluginRegistryStore((s) => s.loaded);
+  const registryIds = usePluginRegistryStore((s) => s.ids);
+  const pluginEntries = usePluginRegistryStore((s) => s.entries);
+  const panelTitle = usePanelTitle();
+  const [pluginMenuOpen, setPluginMenuOpen] = useState(false);
   // 版本号：挂载时拉一次（来自 package.json，经 app.getVersion()）。不轮询。
   const [version, setVersion] = useState('');
   useEffect(() => {
     ipc.getAppVersion().then(setVersion).catch(() => { /* 忽略，版本非关键 */ });
   }, []);
 
-  // mosaic 拆分/替换时需要一个新面板 id。从当前树里挑还没出现的下一个面板；
-  // 三个面板都在用时无可拆分项 → reject（SplitButton 会被禁用或静默无操作）。
-  const createNode = (): Promise<PanelId> => {
-    const used = leaves(root);
-    const next = ALL_PANELS.find((p) => !used.has(p));
-    return next ? Promise.resolve(next) : Promise.reject(new Error('所有面板已在布局中'));
+  // 启动清理：manifest 就绪后，过滤布局树中悬空的 plugin:* 叶子（插件被移除导致）
+  useEffect(() => {
+    if (!registryLoaded) return;
+    const pruned = prunePluginLeaves(root, registryIds());
+    // 仅当确实清理了悬空叶子时才写回（避免无谓 setState）
+    if (JSON.stringify(pruned) !== JSON.stringify(root)) {
+      setRoot(pruned);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registryLoaded]);
+
+  // mosaic 拆分/替换时需要一个新面板 id。只在内置面板间拆分（插件经添加面板入口插入）
+  const createNode = (): Promise<BuiltInPanelId> => {
+    const used = builtinLeaves(root);
+    const next = ALL_BUILTIN.find((p) => !used.has(p));
+    return next ? Promise.resolve(next) : Promise.reject(new Error('所有内置面板已在布局中'));
   };
 
   return (
@@ -81,6 +114,32 @@ export function App() {
         >
           🏷️
         </button>
+        {/* 添加插件面板入口：manifest 就绪且有插件时显示下拉 */}
+        {pluginEntries.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setPluginMenuOpen((v) => !v)}
+              className="px-3 py-2 text-sm text-fg-secondary hover:text-fg-primary"
+              aria-label="添加插件面板"
+              title="添加插件面板到布局"
+            >
+              ➕
+            </button>
+            {pluginMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded border border-base-600 bg-base-800 py-1 shadow-lg">
+                {pluginEntries.map((e) => (
+                  <button
+                    key={e.id}
+                    onClick={() => { addPluginPanel(`plugin:${e.id}` as `plugin:${string}`); setPluginMenuOpen(false); }}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-fg-secondary hover:bg-base-700 hover:text-fg-primary"
+                  >
+                    {e.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <button
           onClick={toggle}
           className="px-3 py-2 text-sm text-fg-secondary hover:text-fg-primary"
@@ -105,13 +164,14 @@ export function App() {
           renderTile={(id: PanelId, path: MosaicBranch[]) => (
             <MosaicWindow<PanelId>
               path={path}
-              title={PANEL_TITLES[id]}
+              title={panelTitle(id)}
               createNode={createNode}
             >
               <Panel id={id}>
                 {id === 'port' && <PortRadar />}
                 {id === 'process' && <ProcessPanel />}
                 {id === 'perf' && <PerfPanel />}
+                {id.startsWith('plugin:') && <PluginPanel id={id} />}
               </Panel>
             </MosaicWindow>
           )}

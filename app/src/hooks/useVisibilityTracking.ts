@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
 import { useVisibilityStore } from '../store/visibilityStore';
-import type { PanelId } from '../store/layoutStore';
 
 /**
  * 追踪某面板 DOM 的可见性，写入全局可见性 store。
@@ -14,7 +13,7 @@ import type { PanelId } from '../store/layoutStore';
  * 由 Panel 包装器调用：把面板根 div 的 ref 传进来。
  */
 export function useVisibilityTracking(
-  panelId: PanelId,
+  panelId: string,
   ref: RefObject<HTMLElement | null>,
 ): void {
   const setVisible = useVisibilityStore((s) => s.setVisible);

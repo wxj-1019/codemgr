@@ -146,7 +146,7 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
-- **v2.0**（未发版）：插件系统 6b 第一步——iframe 沙箱插件注册标签规则（`userData/plugins.json` manifest，postMessage 受控 API，pluginRules 独立层末位优先级，崩溃隔离）。F1 沙箱选型 + PoC 已实证锁定。完成 roadmap 方案 6b 的 F2-F4。
+- **v2.0**（未发版）：插件系统 6b 第一步——iframe 沙箱插件注册标签规则（`userData/plugins.json` manifest，postMessage 受控 API，pluginRules 独立层末位优先级，崩溃隔离）；6b 第二步——插件视图嵌入 mosaic（PanelId 模板字面量扩展、添加面板入口、只读快照推送、悬空叶子清理）。F1 沙箱选型 + PoC 已实证锁定。完成 roadmap 方案 6b 全部（F1-F4 + 视图嵌入）。
 - **v1.9**（tag `v1.9`）：精确 cwd 接入项目分组（旁路缓存 `preciseCwdByPid`，展开未分组组时按需拉取修正 dev server 误归组；缓存冻结防抖动；侧栏复用缓存）。完成 roadmap 方案 5 余项。
 - **v1.8**（tag `v1.8`）：IPv6 连接枚举（端口雷达不再漏绑 `::` 的 dev server）+ 三面板可调刷新间隔（1s/2s/5s/暂停，持久化）+ 进程表虚拟列表（>100 行启用，与键盘导航共存）+ ContextMenu 键盘导航 + LabelRuleEditor 焦点陷阱。
 - **v1.7**（tag `v1.7`）：react-mosaic 多面板自由布局（替换 Tab，三大面板可拆分/嵌套/拖拽/关闭，二叉树持久化）+ 3 布局预设 + 面板可见性轮询节流（IntersectionObserver + visibilitychange，对策 roadmap R2）+ native 构建工具链修复（vswhere 动态发现 CMake）。
@@ -158,7 +158,7 @@ scope:  native | app | ci | docs（可选）
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99<30ms 判据 PASS（v1.8 IPv6 合并枚举后实测 4.7~7.9ms，随负载波动）、60s 无泄漏。注意：bench 对机器负载敏感（软 gate），processScan 的 20ms 判据在高负载机器上会环境性 FAIL，判读时先做基线对照。
-- 测试：app 173/173 + native 33/33，共 206 PASS。
+- 测试：app 179/179 + native 33/33，共 212 PASS。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
 
 ## 9. 打包与 CI 注意事项（v1.5 新增）

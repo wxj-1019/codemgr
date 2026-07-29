@@ -13,10 +13,15 @@
   - **规则接入**：插件规则进独立 `pluginRules` 层（不污染 userRules，不持久化，启动由 PluginHost 重注）。优先级固定末位（内置 > 用户 > 插件）。卸载即清理。
   - **崩溃隔离**：iframe 崩溃不波及主窗口（F1 PoC ④ 验证）+ PluginFrame 加载失败熔断。
   - **文档**：`docs/PLUGINS.md` 插件开发指南 + 可运行示例（`app/poc-plugin-sandbox/examples/`）。
-  - 本次**不含**视图嵌入 mosaic（6b 第二步，需改 PanelId 闭合类型，单独立项）。
+- **插件视图嵌入 mosaic（6b 第二步）**：插件可贡献可视面板嵌入 mosaic 布局，与内置面板（端口/进程/性能）同等地位——拖拽/拆分/关闭。
+  - **类型扩展**：`PanelId` 从闭合 3 值联合扩展为 `BuiltInPanelId | \`plugin:${string}\``（模板字面量，保留编译期类型守卫区分内置/插件）。
+  - **添加入口**：工具栏「➕」下拉列出 manifest 插件，点击把插件 tile 插入布局。
+  - **只读快照推送**：可见 tile 每 2s 推送脱敏快照（进程 pid/name/mem + 端口 port/state/pid/进程名，无 cwd/cmdline）+ 主题 CSS 变量。不可见停推（visibilityStore 节流）。
+  - **悬空清理**：插件从 manifest 移除后，启动时自动清理布局树中的悬空 `plugin:*` 叶子（`prunePluginLeaves`），提升存活子树。
+  - 视图插件与隐形规则注册 iframe 并存（同一插件 src 可被两种方式加载）。
 
 ### 测试
-- app 165→173（+8 pluginRules：注入生效 / 立即生效 / 优先级末位 / 低于用户规则 / 清空 / 替换语义 / 不持久化 / resetAll）。
+- app 165→179（+8 pluginRules + 6 prunePluginLeaves）。
 
 ---
 

@@ -1,0 +1,62 @@
+<!doctype html>
+<!--
+  CodeMgr 示例视图插件：在 mosaic tile 内渲染只读进程列表。
+
+  与 label-rules-plugin.html 并存——本插件消费宿主推送的只读快照（snapshot 消息），
+  渲染可视 UI。把它登记到 plugins.json 后，在 CodeMgr 点"➕ 添加插件面板"即可嵌入布局。
+
+  安全：运行在 iframe sandbox（allow-scripts，无 allow-same-origin），无 Node/Electron。
+  数据来自宿主主动推送的脱敏快照（pid/name/mem + port/state），插件不能主动拉取。
+-->
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <style>
+    body { margin: 0; font-family: system-ui; background: var(--bg-panel, #1a2028); color: var(--text-primary, #e2e8f0); }
+    .row { display: flex; justify-content: space-between; padding: 4px 12px; border-bottom: 1px solid var(--border, #2f3947); font-size: 12px; }
+    .name { color: var(--text-primary, #e2e8f0); }
+    .mem { color: var(--text-muted, #64748b); }
+    .empty { padding: 20px; text-align: center; color: var(--text-muted, #64748b); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const { useState, useEffect } = React;
+
+    function View() {
+      const [procs, setProcs] = useState([]);
+      useEffect(() => {
+        window.addEventListener('message', (e) => {
+          const msg = e.data;
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'snapshot') {
+            // 按内存降序，取前 20 个
+            const top = [...msg.processes].sort((a, b) => b.workingSetBytes - a.workingSetBytes).slice(0, 20);
+            setProcs(top);
+          } else if (msg.type === 'theme') {
+            // 应用主题 CSS 变量
+            for (const [k, v] of Object.entries(msg.vars)) document.documentElement.style.setProperty(k, v);
+          }
+        });
+      }, []);
+
+      if (procs.length === 0) {
+        return React.createElement('div', { className: 'empty' }, '等待快照…');
+      }
+      return React.createElement('div', null,
+        ...procs.map((p) =>
+          React.createElement('div', { className: 'row', key: p.pid },
+            React.createElement('span', { className: 'name' }, p.name),
+            React.createElement('span', { className: 'mem' }, (p.workingSetBytes / 1048576).toFixed(1) + ' MB'),
+          ),
+        ),
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(View));
+  </script>
+</body>
+</html>
