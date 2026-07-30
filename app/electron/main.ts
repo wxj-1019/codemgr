@@ -45,9 +45,17 @@ function createWindow() {
   win = new BrowserWindow({
     width: last?.bounds.width ?? 1100,
     height: last?.bounds.height ?? 720,
+    minWidth: 760,
+    minHeight: 520,
     x: last?.bounds.x,
     y: last?.bounds.y,
-    backgroundColor: '#0f1419',
+    backgroundColor: '#08090c',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#08090c',
+      symbolColor: '#f7f8f8',
+      height: 40,
+    },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,   // 安全：隔离

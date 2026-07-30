@@ -40,6 +40,24 @@ export function pluginIdOf(id: string): string | null {
 /** 预设布局的 id。 */
 export type PresetId = 'classic' | 'port-perf' | 'dev-focus';
 
+/** 布局树是否已包含指定面板。 */
+export function containsPanel(node: MosaicNode<PanelId> | null, id: PanelId): boolean {
+  if (node === null) return false;
+  if (typeof node === 'string') return node === id;
+  return containsPanel(node.first, id) || containsPanel(node.second, id);
+}
+
+/** 打开面板后的纯布局转换；已存在时保留原树引用。 */
+export function openPanelRoot(
+  root: MosaicNode<PanelId> | null,
+  panelId: PanelId,
+): MosaicNode<PanelId> {
+  if (containsPanel(root, panelId)) return root as MosaicNode<PanelId>;
+  return root === null
+    ? panelId
+    : { direction: 'row', first: root, second: panelId, splitPercentage: 70 };
+}
+
 /** 预设：固定树结构，由 applyPreset 写入。 */
 export const LAYOUT_PRESETS: Record<PresetId, MosaicNode<PanelId>> = {
   // classic：单面板进程占满 —— 等同旧 Tab 默认体验，渐进式过渡。
@@ -65,19 +83,88 @@ export const LAYOUT_PRESETS: Record<PresetId, MosaicNode<PanelId>> = {
   },
 };
 
+function layoutNodesEqual(
+  left: MosaicNode<PanelId> | null,
+  right: MosaicNode<PanelId> | null,
+): boolean {
+  if (left === null || right === null) return left === right;
+  if (typeof left === 'string' || typeof right === 'string') return left === right;
+  return left.direction === right.direction
+    && left.splitPercentage === right.splitPercentage
+    && layoutNodesEqual(left.first, right.first)
+    && layoutNodesEqual(left.second, right.second);
+}
+
+function isPresetId(value: unknown): value is PresetId {
+  return value === 'classic' || value === 'port-perf' || value === 'dev-focus';
+}
+
+export function sanitizeLayoutRoot(
+  root: MosaicNode<PanelId> | null,
+  seen: Set<PanelId> = new Set(),
+): MosaicNode<PanelId> | null {
+  if (root === null) return null;
+  if (typeof root === 'string') {
+    if (seen.has(root)) return null;
+    seen.add(root);
+    return root;
+  }
+
+  const first = sanitizeLayoutRoot(root.first, seen);
+  const second = sanitizeLayoutRoot(root.second, seen);
+  if (first !== null && second !== null) {
+    return {
+      direction: root.direction,
+      first,
+      second,
+      splitPercentage: root.splitPercentage,
+    };
+  }
+  return first ?? second;
+}
+
+function migrateLayoutState(persistedState: unknown, version: number): unknown {
+  if (version !== 0 || !persistedState || typeof persistedState !== 'object') {
+    return persistedState;
+  }
+  const state = persistedState as {
+    root?: MosaicNode<PanelId> | null;
+    preset?: unknown;
+  };
+  const root = sanitizeLayoutRoot(state.root ?? null);
+  const preset = isPresetId(state.preset) ? state.preset : null;
+  return {
+    ...state,
+    root,
+    preset: preset !== null && layoutNodesEqual(root, LAYOUT_PRESETS[preset])
+      ? preset
+      : null,
+  };
+}
+
 interface LayoutState {
   /** mosaic 二叉树根。null = 空布局（用户关掉所有面板，显示 zero-state）。 */
   root: MosaicNode<PanelId> | null;
-  /** 当前激活的预设。手动 setRoot 后语义上"脱离预设"，但字段保留最近预设用于 UI 高亮。 */
-  preset: PresetId;
-  /** 受控写入树（mosaic onChange / 拖拽回报）。null 清空。 */
+  /** 当前激活的预设。手动修改布局后为 null。 */
+  preset: PresetId | null;
+  /** 受控写入树（mosaic onChange / 拖拽回报）。null 清空并脱离预设。 */
   setRoot: (n: MosaicNode<PanelId> | null) => void;
-  /** 应用预设（覆盖当前树）。 */
+  /** 应用预设（覆盖当前树并保持对应预设）。 */
   applyPreset: (id: PresetId) => void;
-  /** 把插件面板插入当前布局（在树右侧 split，无树则作为根）。 */
+  /** 打开面板；已存在时幂等，否则在当前树右侧按 70:30 插入。 */
+  openPanel: (panelId: PanelId) => void;
+  /** 把插件面板插入当前布局（兼容旧调用方）。 */
   addPluginPanel: (panelId: `plugin:${string}`) => void;
   /** 测试辅助：恢复默认。 */
   reset: () => void;
+}
+
+function openPanelState(
+  state: LayoutState,
+  panelId: PanelId,
+): LayoutState | Pick<LayoutState, 'root' | 'preset'> {
+  const root = openPanelRoot(state.root, panelId);
+  return root === state.root ? state : { root, preset: null };
 }
 
 /**
@@ -113,18 +200,16 @@ export const useLayoutStore = create<LayoutState>()(
       root: LAYOUT_PRESETS.classic,
       preset: 'classic',
 
-      setRoot: (n) => set({ root: n }),
+      setRoot: (n) => set({ root: n, preset: null }),
       applyPreset: (id) => set({ root: LAYOUT_PRESETS[id], preset: id }),
-      addPluginPanel: (panelId) => set((s) => ({
-        // 无树 → 插件作为根；有树 → 右侧 split（原树占左，插件占右 30%）
-        root: s.root === null
-          ? panelId
-          : { direction: 'row' as const, first: s.root, second: panelId, splitPercentage: 70 },
-      })),
+      openPanel: (panelId) => set((s) => openPanelState(s, panelId)),
+      addPluginPanel: (panelId) => set((s) => openPanelState(s, panelId)),
       reset: () => set({ root: LAYOUT_PRESETS.classic, preset: 'classic' }),
     }),
     {
       name: 'codemgr:layout',
+      version: 1,
+      migrate: migrateLayoutState,
       // 只持久化布局树 + 预设；setter 是函数不存。
       partialize: (s) => ({ root: s.root, preset: s.preset }),
     },

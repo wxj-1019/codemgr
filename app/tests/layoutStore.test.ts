@@ -62,6 +62,7 @@ describe('layoutStore', () => {
     };
     useLayoutStore.getState().setRoot(drag);
     expect(useLayoutStore.getState().root).toEqual(drag);
+    expect(useLayoutStore.getState().preset).toBeNull();
   });
 
   it('setRoot(null) clears the layout (zero-state)', () => {
@@ -78,6 +79,148 @@ describe('layoutStore', () => {
       second: 'perf',
       splitPercentage: 50,
     });
+  });
+
+  it('openPanel creates a leaf when the layout is empty', () => {
+    useLayoutStore.getState().setRoot(null);
+    useLayoutStore.getState().openPanel('snapshot');
+
+    expect(useLayoutStore.getState().root).toBe('snapshot');
+  });
+
+  it('openPanel inserts a missing panel on the right with a 70:30 row split', () => {
+    useLayoutStore.getState().setRoot('process');
+    useLayoutStore.getState().openPanel('sessions');
+
+    expect(useLayoutStore.getState().root).toEqual({
+      direction: 'row',
+      first: 'process',
+      second: 'sessions',
+      splitPercentage: 70,
+    });
+  });
+
+  it('openPanel is idempotent when the panel already exists in a nested tree', () => {
+    useLayoutStore.getState().applyPreset('dev-focus');
+    const before = useLayoutStore.getState().root;
+
+    useLayoutStore.getState().openPanel('perf');
+
+    expect(useLayoutStore.getState().root).toBe(before);
+    expect(useLayoutStore.getState().preset).toBe('dev-focus');
+  });
+
+  it('addPluginPanel creates a leaf when the layout is empty', () => {
+    useLayoutStore.getState().setRoot(null);
+    useLayoutStore.getState().addPluginPanel('plugin:disk-volumes');
+
+    expect(useLayoutStore.getState().root).toBe('plugin:disk-volumes');
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
+  it('addPluginPanel clears the preset after inserting a plugin', () => {
+    useLayoutStore.getState().applyPreset('classic');
+    useLayoutStore.getState().addPluginPanel('plugin:disk-volumes');
+
+    expect(useLayoutStore.getState().root).toEqual({
+      direction: 'row',
+      first: 'process',
+      second: 'plugin:disk-volumes',
+      splitPercentage: 70,
+    });
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
+  it('addPluginPanel is idempotent when the plugin already exists', () => {
+    useLayoutStore.getState().openPanel('plugin:disk-volumes');
+    const before = useLayoutStore.getState().root;
+
+    useLayoutStore.getState().addPluginPanel('plugin:disk-volumes');
+
+    expect(useLayoutStore.getState().root).toBe(before);
+  });
+
+  it('migrates a v0 custom tree with a stale preset to preset null', async () => {
+    const legacyRoot: MosaicNode<PanelId> = {
+      direction: 'row',
+      first: 'port',
+      second: 'process',
+      splitPercentage: 45,
+    };
+    localStorage.setItem('codemgr:layout', JSON.stringify({
+      state: { root: legacyRoot, preset: 'port-perf' },
+      version: 0,
+    }));
+
+    await useLayoutStore.persist.rehydrate();
+
+    expect(useLayoutStore.getState().root).toEqual(legacyRoot);
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
+  it('deduplicates repeated panel leaves while migrating a v0 layout', async () => {
+    const legacyRoot: MosaicNode<PanelId> = {
+      direction: 'row',
+      first: {
+        direction: 'column',
+        first: 'plugin:disk-volumes',
+        second: 'process',
+        splitPercentage: 40,
+      },
+      second: {
+        direction: 'column',
+        first: 'plugin:disk-volumes',
+        second: 'perf',
+        splitPercentage: 60,
+      },
+      splitPercentage: 55,
+    };
+    localStorage.setItem('codemgr:layout', JSON.stringify({
+      state: { root: legacyRoot, preset: 'dev-focus' },
+      version: 0,
+    }));
+
+    await useLayoutStore.persist.rehydrate();
+
+    expect(useLayoutStore.getState().root).toEqual({
+      direction: 'row',
+      first: {
+        direction: 'column',
+        first: 'plugin:disk-volumes',
+        second: 'process',
+        splitPercentage: 40,
+      },
+      second: 'perf',
+      splitPercentage: 55,
+    });
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
+  it('migrates a nested v0 tree matching its preset without losing the preset', async () => {
+    const legacyRoot: MosaicNode<PanelId> = {
+      direction: 'row',
+      first: 'process',
+      splitPercentage: 70,
+      second: {
+        direction: 'column',
+        first: 'port',
+        second: 'perf',
+        splitPercentage: 50,
+      },
+    };
+    localStorage.setItem('codemgr:layout', JSON.stringify({
+      state: { root: legacyRoot, preset: 'dev-focus' },
+      version: 0,
+    }));
+
+    await useLayoutStore.persist.rehydrate();
+
+    expect(useLayoutStore.getState().root).toEqual(legacyRoot);
+    expect(useLayoutStore.getState().preset).toBe('dev-focus');
+  });
+
+  it('uses persist schema version 1', () => {
+    expect(useLayoutStore.persist.getOptions().version).toBe(1);
   });
 
   it('persists only root + preset (partialize shape)', () => {

@@ -1,18 +1,26 @@
 import { create } from 'zustand';
+import type { MosaicNode } from 'react-mosaic-component';
+import { containsPanel, type PanelId } from './layoutStore';
 
-/**
- * 聚焦面板追踪（Aurora UI v1.2 P3）：记录用户最后点击的面板，
- * Panel 组件据此挂 .panel-active（Siri 辉光描边）。
- * 不 persist——聚焦是瞬态，刷新后回到无聚焦。
- */
+export function firstPanelLeaf(root: MosaicNode<PanelId> | null): PanelId | null {
+  if (root === null) return null;
+  return typeof root === 'string' ? root : firstPanelLeaf(root.first);
+}
+
 interface ActivePanelState {
-  activeId: string | null;
-  setActive: (id: string) => void;
+  activeId: PanelId | null;
+  setActive: (id: PanelId) => void;
+  reconcile: (root: MosaicNode<PanelId> | null) => void;
   reset: () => void;
 }
 
-export const useActivePanelStore = create<ActivePanelState>((set) => ({
+export const useActivePanelStore = create<ActivePanelState>((set, get) => ({
   activeId: null,
   setActive: (id) => set({ activeId: id }),
+  reconcile: (root) => {
+    const activeId = get().activeId;
+    if (activeId !== null && containsPanel(root, activeId)) return;
+    set({ activeId: firstPanelLeaf(root) });
+  },
   reset: () => set({ activeId: null }),
 }));

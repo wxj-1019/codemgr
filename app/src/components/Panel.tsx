@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useVisibilityTracking } from '../hooks/useVisibilityTracking';
 import { useActivePanelStore } from '../store/activePanelStore';
+import type { PanelId } from '../store/layoutStore';
 
 /**
  * 面板包装器：把 PortRadar/ProcessPanel/PerfPanel/PluginPanel 包一层。
@@ -12,16 +13,14 @@ import { useActivePanelStore } from '../store/activePanelStore';
  *
  * 不含标题栏——标题栏由外层 MosaicWindow 提供（拖拽手柄 + 控制按钮）。
  */
-export function Panel({ id, children }: { id: string; children: ReactNode }) {
+export function Panel({ id, children }: { id: PanelId; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useVisibilityTracking(id, ref);
   const isActive = useActivePanelStore((s) => s.activeId === id);
-  const setActive = useActivePanelStore((s) => s.setActive);
   return (
     <div
       ref={ref}
-      onPointerDownCapture={() => setActive(id)}
-      className={`glass h-full w-full overflow-hidden rounded-[14px]${isActive ? ' panel-active' : ''}`}
+      className={`panel-container glass h-full w-full overflow-hidden rounded-[6px]${isActive ? ' panel-active' : ''}`}
     >
       {children}
     </div>

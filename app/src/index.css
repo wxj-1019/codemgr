@@ -10,31 +10,80 @@ html, body, #root {
 /* ── Aurora UI v1.2 tokens：Linear 纪律 × Apple 毛玻璃 ──
    设计依据：docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md */
 :root {
-  /* 明度阶梯（Linear）：抬一格的黑 → 面板 → 浮层 */
-  --bg-base: #08090c;
-  --bg-panel: rgba(15, 17, 21, 0.72);
-  --bg-elevated: rgba(24, 26, 32, 0.8);
-  /* 三级灰文字（Linear） */
-  --text-primary: #f7f8f8;
-  --text-secondary: #8a8f98;
-  --text-muted: #62666d;
-  /* 1px hairline */
-  --border: rgba(255, 255, 255, 0.07);
-  /* 品牌柔紫（全场只用一处）+ 图表专用柔青 */
-  --accent: #8b93e8;
-  --accent-data: #67e8f9;
-  --danger: #fb7185;
-  --warn: #fcd34d;
+  /* Unified desktop-workbench semantics. RGB channels let Tailwind compose alpha. */
+  --surface-canvas-rgb: 8 9 12;
+  --surface-panel-rgb: 15 17 21;
+  --surface-raised-rgb: 24 26 32;
+  --surface-overlay-rgb: 33 36 43;
+  --surface-panel-alpha: 0.72;
+  --surface-raised-alpha: 0.8;
+  --surface-overlay-alpha: 0.92;
+  --content-primary-rgb: 247 248 248;
+  --content-secondary-rgb: 138 143 152;
+  --content-muted-rgb: 120 125 134;
+  --line-rgb: 255 255 255;
+  --line-alpha: 0.07;
+  --accent-rgb: 139 147 232;
+  --accent-hover-rgb: 157 164 237;
+  --accent-muted-rgb: 97 103 162;
+  --accent-data-rgb: 103 232 249;
+  --focus-rgb: 156 163 255;
+  --success-rgb: 98 214 139;
+  --info-rgb: 103 232 249;
+  --danger-rgb: 251 113 133;
+  --warn-rgb: 252 211 77;
+  --on-accent-rgb: 8 9 12;
+
+  --surface-canvas: rgb(var(--surface-canvas-rgb));
+  --surface-panel: rgb(var(--surface-panel-rgb) / var(--surface-panel-alpha));
+  --surface-raised: rgb(var(--surface-raised-rgb) / var(--surface-raised-alpha));
+  --surface-overlay: rgb(var(--surface-overlay-rgb) / var(--surface-overlay-alpha));
+  --content-primary: rgb(var(--content-primary-rgb));
+  --content-secondary: rgb(var(--content-secondary-rgb));
+  --content-muted: rgb(var(--content-muted-rgb));
+  --line: rgb(var(--line-rgb) / var(--line-alpha));
+  --focus: rgb(var(--focus-rgb));
+  --success: rgb(var(--success-rgb));
+  --info: rgb(var(--info-rgb));
+  --on-accent: rgb(var(--on-accent-rgb));
+
+  /* Legacy aliases retained for existing Aurora and business components. */
+  --bg-base: var(--surface-canvas);
+  --bg-panel: var(--surface-panel);
+  --bg-elevated: var(--surface-raised);
+  --text-primary: var(--content-primary);
+  --text-secondary: var(--content-secondary);
+  --text-muted: var(--content-muted);
+  --border: var(--line);
+  --accent: rgb(var(--accent-rgb));
+  --accent-data: rgb(var(--accent-data-rgb));
+  --danger: rgb(var(--danger-rgb));
+  --warn: rgb(var(--warn-rgb));
 }
 
 :root.light {
-  --bg-base: #f4f3fa;
-  --bg-panel: rgba(255, 255, 255, 0.65);
-  --bg-elevated: rgba(255, 255, 255, 0.85);
-  --text-primary: #1b1d23;
-  --text-secondary: #5a5f6a;
-  --text-muted: #9aa0ab;
-  --border: rgba(20, 16, 40, 0.08);
+  --surface-canvas-rgb: 244 243 250;
+  --surface-panel-rgb: 255 255 255;
+  --surface-raised-rgb: 255 255 255;
+  --surface-overlay-rgb: 250 250 253;
+  --surface-panel-alpha: 0.65;
+  --surface-raised-alpha: 0.85;
+  --surface-overlay-alpha: 0.96;
+  --content-primary-rgb: 27 29 35;
+  --content-secondary-rgb: 90 95 106;
+  --content-muted-rgb: 100 105 116;
+  --line-rgb: 20 16 40;
+  --line-alpha: 0.08;
+  --accent-rgb: 89 99 184;
+  --accent-hover-rgb: 75 85 170;
+  --accent-muted-rgb: 71 79 142;
+  --accent-data-rgb: 8 123 138;
+  --focus-rgb: 72 81 171;
+  --success-rgb: 36 122 69;
+  --info-rgb: 8 123 138;
+  --danger-rgb: 192 54 81;
+  --warn-rgb: 135 101 0;
+  --on-accent-rgb: 255 255 255;
 }
 
 body {
@@ -133,9 +182,176 @@ body {
   .panel-active::before { animation: none; }
 }
 
-/* 单面板（classic 预设）时隐藏 mosaic 窗口工具栏——与面板自身 header 标题重复，纯属噪音 */
-.single-leaf .mosaic-window .mosaic-window-toolbar {
-  display: none;
+/* ── Desktop workbench shell ── */
+.workspace-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 192px minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: rgb(var(--surface-canvas-rgb) / 0.88);
+}
+
+.workspace-sidebar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: rgb(var(--surface-panel-rgb) / 0.9);
+  backdrop-filter: blur(24px) saturate(1.12);
+  -webkit-backdrop-filter: blur(24px) saturate(1.12);
+}
+
+.workspace-sidebar-brand {
+  display: flex;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.workspace-brand-mark {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(var(--accent-rgb) / 0.38);
+  border-radius: 5px;
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: rgb(var(--accent-rgb));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workspace-main {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 40px minmax(0, 1fr);
+}
+
+.workspace-topbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 152px 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--surface-canvas-rgb) / 0.74);
+}
+
+.workspace-topbar-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--content-muted);
+  font-size: 10px;
+}
+
+.workspace-drag-region {
+  -webkit-app-region: drag;
+}
+
+.workspace-no-drag,
+.workspace-no-drag *,
+.workspace-sidebar button,
+.workspace-sidebar select {
+  -webkit-app-region: no-drag;
+}
+
+.workspace-mosaic {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.panel-container {
+  container-name: workspace-panel;
+  container-type: inline-size;
+}
+
+.workspace-sidebar-auto-launch > button {
+  min-height: 28px;
+  width: 100%;
+  overflow: hidden;
+  padding: 4px 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--content-secondary);
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .workspace-shell {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .workspace-sidebar-brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .workspace-sidebar-label,
+  .workspace-sidebar-group-label,
+  .workspace-sidebar-version {
+    display: none;
+  }
+
+  .workspace-layout-select {
+    width: 40px;
+    margin-inline: auto;
+  }
+
+  .workspace-layout-select > span {
+    width: 40px;
+    height: 28px;
+  }
+
+  .workspace-layout-select svg {
+    left: 13px;
+  }
+
+  .workspace-layout-select select {
+    position: absolute;
+    inset: 0;
+    height: 28px;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .workspace-sidebar-item {
+    display: flex;
+    width: 40px;
+    height: 32px;
+    margin-inline: auto;
+    padding: 0;
+  }
+
+  .workspace-sidebar-tools {
+    flex-direction: column;
+  }
+
+  .workspace-sidebar-auto-launch {
+    width: 40px;
+    flex: 0 0 auto;
+  }
+
+  .workspace-sidebar-auto-launch > button {
+    width: 40px;
+    padding-inline: 2px;
+    font-size: 9px;
+  }
 }
 
 /* ── 表单控件统一 ── */

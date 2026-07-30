@@ -10,20 +10,9 @@ interface ThemeState {
 }
 
 function applyTheme(t: Theme) {
-  const root = document.documentElement;
-  if (t === 'light') {
-    root.classList.remove('dark');
-    root.classList.add('light');
-  } else {
-    root.classList.remove('light');
-    root.classList.add('dark');
-  }
-}
-
-// 默认深色：模块加载时先打上 dark 类，避免首帧闪烁。
-// （rehydrate 后若用户保存的是 light，会由 onRehydrateStorage 覆盖）
-if (typeof document !== 'undefined') {
-  document.documentElement.classList.add('dark');
+  if (typeof document === 'undefined') return;
+  document.documentElement.classList.toggle('dark', t === 'dark');
+  document.documentElement.classList.toggle('light', t === 'light');
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -50,3 +39,8 @@ export const useThemeStore = create<ThemeState>()(
     },
   ),
 );
+
+/** Synchronize the persisted store value to the root before React's first render. */
+export function initializeTheme() {
+  applyTheme(useThemeStore.getState().theme);
+}
