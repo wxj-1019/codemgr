@@ -15,26 +15,16 @@ import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
 import { Search, X } from './icons';
-
-// Tailwind 的 lg 断点 = 1024px。侧栏仅 lg+ 显示（与原 hidden lg:block 一致），
-// 用 matchMedia 判断，避免 allotment 在小屏仍给侧栏 pane 分配空间。
-function useIsLg(): boolean {
-  const [lg, setLg] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const handler = (e: MediaQueryListEvent) => setLg(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return lg;
-}
+import { useContainerWidth } from '../hooks/useContainerWidth';
 
 export function ProcessPanel() {
   useProcessPanel(); // Start polling (interval from store, default 2s)
 
-  const isLg = useIsLg();
+  // 侧栏按容器（tile）宽度显隐，而非窗口宽度——多面板布局下 tile 宽度与窗口无关。
+  // ≥720px 显示侧栏（容纳曲线 + 详情字段）。
+  const panelRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(panelRef);
+  const showSidebar = containerWidth !== null && containerWidth >= 720;
 
   const {
     processes, loading, error, selectedPids, filter, setFilter, clearSelection,
@@ -187,7 +177,7 @@ export function ProcessPanel() {
   }${selectedPids.size > 0 ? ` · 已选 ${selectedPids.size} 个` : ''}`;
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={panelRef} className="flex h-full flex-col">
       <PanelActionBar
         label="进程"
         eyebrow="进程"
@@ -273,7 +263,7 @@ export function ProcessPanel() {
         </div>
       ) : (
         <ProcessTableArea
-          isLg={isLg}
+          isLg={showSidebar}
           sidebarProportion={sidebarProportion}
           onSidebarResize={setSidebarProportion}
           viewMode={viewMode}

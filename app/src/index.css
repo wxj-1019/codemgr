@@ -485,3 +485,22 @@ input[type='checkbox'] {
 /* close：X */
 .mosaic-theme .mosaic-window .close-button::before { width: 12px; height: 1.5px; border: none; background: var(--text-secondary); transform: rotate(45deg); }
 .mosaic-theme .mosaic-window .close-button::after { width: 12px; height: 1.5px; border: none; background: var(--text-secondary); transform: rotate(-45deg); }
+
+/* ── 容器查询：按面板 tile 宽度做响应式（替代 window.matchMedia）──
+   多面板布局下单个 tile 宽度与窗口宽度无关（窗口很宽但某 tile 可能很窄），
+   故用 container query 而非 media query。.panel-container 建立查询上下文，
+   子元素可用 @container panel (min-width: 560px) 等断点。 */
+.panel-container {
+  container-type: inline-size;
+  container-name: panel;
+}
+/* 语义别名类，便于 JS 或 CSS 通过类名判断当前档位（useContainerWidth 也可读数值） */
+@container panel (max-width: 559px) {
+  .panel-container.is-narrow-target { /* 占位：JS 读 useContainerWidth 决策，CSS 仅备别名 */ }
+}
+
+/* SnapshotPanel 侧栏：窄 tile（<480px）缩窄为 180px，避免挤占主区 diff 表格。
+   完整折叠（变顶部条）留后续——当前最小化改动保证窄 tile 可用。 */
+@container panel (max-width: 479px) {
+  .snapshot-sidebar { width: 180px; }
+}

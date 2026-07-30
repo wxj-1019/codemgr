@@ -246,8 +246,8 @@ export function SnapshotPanel() {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 左栏：快照列表 */}
-        <aside className="w-64 shrink-0 overflow-auto border-r border-base-700 bg-base-900/50">
+        {/* 左栏：快照列表。窄 tile 时由 container query 缩窄（见 index.css .snapshot-sidebar） */}
+        <aside className="snapshot-sidebar w-64 shrink-0 overflow-auto border-r border-base-700 bg-base-900/50">
           {/* 拍快照 */}
           <div className="border-b border-base-700 p-3">
             <input
