@@ -122,6 +122,9 @@ export interface RunProfile {
   expectedPorts?: number[]; // 预留 F2（端口意图），F1 不消费
 }
 
+/** shell 打开目标类型（子项目 A）。folder=Explorer；terminal=wt 优先回退 cmd；editor=VS Code。 */
+export type OpenTargetKind = 'folder' | 'terminal' | 'editor';
+
 /** 一个运行中的 profile 实例（main spawn 后产生）。 */
 export interface RunState {
   runId: string;
