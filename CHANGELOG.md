@@ -12,6 +12,7 @@
 - **Toast 通知系统**：全部操作反馈（kill 结果/快照/标签规则导入导出/RunProfile 启停/shell 打开失败）从原生 `alert`/`confirm` 迁移为非阻塞 toast（右下角堆叠上限 5 条，success/info 4s、error 8s 自动消失，可手动关闭，error 用 `role="alert"`）；标签规则「导入替换」与 RunProfile「删除」改用 ConfirmDialog。
 - **RunProfile 日志闭环**：启动的开发服务 stdout/stderr 按 run 捕获进 ring buffer（2000 行上限，退出后保留，ANSI 转义剥离）；profile 行可展开日志视图（2s 增量拉取、跟随滚动、丢弃行数提示、本地清空）。新增 `run:getLogs` IPC 通道。
 - **服务守望与就绪跳转**：RunProfile 服务状态跃迁主动通知（就绪 success / 端口冲突 error 含占用 PID，状态不变不重复）；服务就绪后行内出现「在浏览器打开」按钮一键访问。
+- **数据导出**：进程面板与端口雷达新增「导出」按钮，当前过滤视图可导出 CSV（Excel 兼容 CRLF）或 JSON；文件路径经 main 保存对话框（文件名白名单校验 + 10MB 上限），导出结果 toast 反馈。新增通用 `config:exportDataFile` IPC 通道。
 
 ---
 

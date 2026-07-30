@@ -8,6 +8,7 @@ import { labelForProcess } from '../lib/processLabels';
 import { formatBytes } from '../lib/format';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildProcessMenuItems } from '../lib/processMenu';
+import { filterProcesses } from '../lib/processFilter';
 import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 interface ProcessTableProps {
@@ -273,17 +274,8 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     focus(pid, 'process');
   }, [toggleSelect, focus]);
 
-  // ---- Filter ----
-  const filtered = useMemo(() => {
-    if (!filter.trim()) return processes;
-    const q = filter.toLowerCase();
-    return processes.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.cmdline.toLowerCase().includes(q) ||
-        String(p.pid).includes(q),
-    );
-  }, [processes, filter]);
+  // ---- Filter（谓词抽 lib/processFilter，与 ProcessPanel 导出入口共用）----
+  const filtered = useMemo(() => filterProcesses(processes, filter), [processes, filter]);
 
   // ---- Sort ----
   const sorted = useMemo(() => {

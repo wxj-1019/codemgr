@@ -6,6 +6,9 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { mostCommonName } from '../lib/batchKill';
+import { filterProcesses } from '../lib/processFilter';
+import { processesToCsv, toPrettyJson, buildExportName } from '../lib/exportData';
+import { ContextMenu } from './ContextMenu';
 import { formatRelativeTime } from '../lib/format';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
@@ -15,7 +18,7 @@ import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
-import { Search, X } from './icons';
+import { Download, Search, X } from './icons';
 import { useContainerWidth } from '../hooks/useContainerWidth';
 
 export function ProcessPanel() {
@@ -30,8 +33,19 @@ export function ProcessPanel() {
   const {
     processes, loading, error, selectedPids, filter, setFilter, clearSelection,
     viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
-    pollMs, setPollMs, staleAt,
+    pollMs, setPollMs, staleAt, cpuMap,
   } = useProcessPanelStore();
+
+  // 数据导出（子项目 E）：当前过滤视图 → CSV/JSON，main 保存对话框持路径
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
+
+  async function doExport(format: 'csv' | 'json') {
+    const rows = filterProcesses(processes, filter);
+    const content = format === 'csv' ? processesToCsv(rows, cpuMap) : toPrettyJson(rows);
+    const res = await ipc.exportDataFile(buildExportName('processes', format), content);
+    if (res === 'ok') notify.success('已导出');
+    else if (res === 'error') notify.error('导出失败');
+  }
 
   const [pendingKill, setPendingKill] = useState<{
     pid: number;
@@ -193,6 +207,9 @@ export function ProcessPanel() {
                 className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
             </div>
+            <IconButton label="导出" size="sm" onClick={(e) => setExportMenu({ x: e.clientX, y: e.clientY })}>
+              <Download />
+            </IconButton>
           </>
         }
         secondaryActions={
@@ -330,6 +347,16 @@ export function ProcessPanel() {
         busy={killBusy}
         onConfirm={doKillTree}
         onCancel={() => { if (!killBusy) setPendingKillTree(null); }}
+      />
+      <ContextMenu
+        open={exportMenu !== null}
+        x={exportMenu?.x ?? 0}
+        y={exportMenu?.y ?? 0}
+        items={[
+          { label: '导出 CSV', onSelect: () => void doExport('csv') },
+          { label: '导出 JSON', onSelect: () => void doExport('json') },
+        ]}
+        onClose={() => setExportMenu(null)}
       />
     </div>
   );

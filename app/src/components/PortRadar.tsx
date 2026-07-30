@@ -5,14 +5,16 @@ import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { filterConnections, isListenLike } from '../lib/portFilter';
+import { connectionsToCsv, toPrettyJson, buildExportName } from '../lib/exportData';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ContextMenu } from './ContextMenu';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
-import { Search, X } from './icons';
+import { Download, Search, X } from './icons';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
@@ -23,6 +25,16 @@ export function PortRadar() {
   const focus = useFocusStore((s) => s.focus);
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
+
+  // 数据导出（子项目 E）：当前过滤视图 → CSV/JSON，main 保存对话框持路径
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
+
+  async function doExport(format: 'csv' | 'json') {
+    const content = format === 'csv' ? connectionsToCsv(visible) : toPrettyJson(visible);
+    const res = await ipc.exportDataFile(buildExportName('ports', format), content);
+    if (res === 'ok') notify.success('已导出');
+    else if (res === 'error') notify.error('导出失败');
+  }
 
   async function doKill() {
     if (!pendingKill || killBusy) return;
@@ -73,6 +85,9 @@ export function PortRadar() {
                 className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
             </div>
+            <IconButton label="导出" size="sm" onClick={(e) => setExportMenu({ x: e.clientX, y: e.clientY })}>
+              <Download />
+            </IconButton>
           </>
         }
       />
@@ -121,6 +136,16 @@ export function PortRadar() {
         busy={killBusy}
         onConfirm={doKill}
         onCancel={() => { if (!killBusy) setPendingKill(null); }}
+      />
+      <ContextMenu
+        open={exportMenu !== null}
+        x={exportMenu?.x ?? 0}
+        y={exportMenu?.y ?? 0}
+        items={[
+          { label: '导出 CSV', onSelect: () => void doExport('csv') },
+          { label: '导出 JSON', onSelect: () => void doExport('json') },
+        ]}
+        onClose={() => setExportMenu(null)}
       />
     </div>
   );
