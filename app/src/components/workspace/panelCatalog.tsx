@@ -6,6 +6,7 @@ import { PerfPanel } from '../PerfPanel';
 import { SnapshotPanel } from '../SnapshotPanel';
 import { SessionPanel } from '../SessionPanel';
 import { RunProfilesPanel } from '../RunProfilesPanel';
+import { StartupPanel } from '../StartupPanel';
 import { PluginPanel } from '../PluginPanel';
 import {
   isBuiltInPanel,
@@ -78,6 +79,12 @@ export const BUILTIN_PANEL_CATALOG: Record<BuiltInPanelId, BuiltInPanelCatalogEn
     group: 'workflow',
     icon: <CatalogIcon label="R" />,
     renderer: () => <RunProfilesPanel />,
+  },
+  startup: {
+    title: '启动项',
+    group: 'workflow',
+    icon: <CatalogIcon label="启" />,
+    renderer: () => <StartupPanel />,
   },
 };
 
