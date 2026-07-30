@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { Dialog } from './ui/Dialog';
 
 // 诊断上下文预览弹窗（D）。显示脱敏后的 Markdown，提供复制/关闭。
-// 简单模态：Escape 关闭，初始焦点在复制按钮。复制用 navigator.clipboard。
+// 基于通用 Dialog（portal + focus trap + Esc + 焦点恢复）。复制用 navigator.clipboard。
 export function DiagnosticPreview({
   text,
   onClose,
@@ -10,15 +11,6 @@ export function DiagnosticPreview({
   onClose: () => void;
 }) {
   const copyBtnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    copyBtnRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   async function copy() {
     try {
@@ -30,37 +22,31 @@ export function DiagnosticPreview({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(o) => { if (!o) onClose(); }}
+      title="诊断上下文（已脱敏）"
+      initialFocusRef={copyBtnRef}
+      widthClass="w-full max-w-2xl"
     >
-      <div
-        className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border border-base-600 bg-base-800"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-base-600 px-4 py-3">
-          <h3 className="text-sm font-semibold text-fg-primary">诊断上下文（已脱敏）</h3>
-          <button onClick={onClose} className="text-fg-muted hover:text-fg-primary" aria-label="关闭">✕</button>
-        </div>
-        <pre className="flex-1 overflow-auto p-4 text-xs text-fg-secondary break-all font-mono whitespace-pre-wrap">
-          {text}
-        </pre>
-        <div className="flex justify-end gap-2 border-t border-base-600 p-3">
-          <button
-            ref={copyBtnRef}
-            onClick={copy}
-            className="rounded bg-accent px-4 py-1.5 text-sm text-white hover:bg-accent/80"
-          >
-            复制到剪贴板
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded border border-base-600 px-4 py-1.5 text-sm text-fg-secondary hover:bg-base-700"
-          >
-            关闭
-          </button>
-        </div>
+      <pre className="max-h-[60vh] overflow-auto text-xs text-fg-secondary break-all font-mono whitespace-pre-wrap">
+        {text}
+      </pre>
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          ref={copyBtnRef}
+          onClick={copy}
+          className="rounded bg-accent px-4 py-1.5 text-sm text-white hover:bg-accent/80"
+        >
+          复制到剪贴板
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded border border-base-600 px-4 py-1.5 text-sm text-fg-secondary hover:bg-base-700"
+        >
+          关闭
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

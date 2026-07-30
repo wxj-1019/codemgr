@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef } from 'react';
+import { useRef } from 'react';
+import { Dialog } from './ui/Dialog';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,67 +13,48 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+/**
+ * 确认对话框：基于通用 Dialog（portal + focus trap + Esc + 焦点恢复）。
+ * 保留确认/取消双按钮语义。打开时聚焦取消按钮（降低误触「结束」风险）。
+ */
 export function ConfirmDialog({
   open, title, message,
   confirmLabel = '确认', cancelLabel = '取消',
   busy = false,
   onConfirm, onCancel,
 }: ConfirmDialogProps) {
-  const titleId = useId();
-  const descId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    // 打开时把焦点放到取消按钮，降低误触「结束」的风险
-    cancelRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !busy) {
-        e.preventDefault();
-        onCancel();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, busy, onCancel]);
-
-  if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      role="presentation"
-      onClick={() => { if (!busy) onCancel(); }}
+    <Dialog
+      open={open}
+      onOpenChange={(o) => { if (!o && !busy) onCancel(); }}
+      title={title}
+      description={message}
+      initialFocusRef={cancelRef}
+      busy={busy}
+      widthClass="w-96"
+      showCloseButton={false}
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descId}
-        className="glass-elevated w-96 rounded-[14px] p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 id={titleId} className="text-base font-semibold text-fg-primary">{title}</h3>
-        <p id={descId} className="mt-2 text-sm text-fg-secondary">{message}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
-            className="rounded-lg px-3 py-1.5 text-sm text-fg-primary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            className="btn-danger-quiet rounded-lg px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? '处理中…' : confirmLabel}
-          </button>
-        </div>
+      <div className="flex justify-end gap-2">
+        <button
+          ref={cancelRef}
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="rounded-lg border border-line bg-surface-raised px-3 py-1.5 text-sm text-content-primary hover:bg-surface-overlay disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={busy}
+          className="rounded-lg border border-danger/40 bg-transparent px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? '处理中…' : confirmLabel}
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

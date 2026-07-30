@@ -73,7 +73,8 @@ describe('ContextMenu', () => {
     const { container } = render(
       <ContextMenu open={true} x={100} y={100} items={itemsWithDivider} onClose={() => {}} />,
     );
-    expect(container.querySelector('hr')).toBeInTheDocument();
+    // portal 后菜单渲染到 document.body，用 body 查询 hr
+    expect(document.body.querySelector('hr')).toBeInTheDocument();
   });
 });
 

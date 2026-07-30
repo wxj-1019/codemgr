@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ContextMenuItem {
   label: string;
@@ -128,7 +129,7 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
+  return createPortal(
     <div
       ref={ref}
       role="menu"
@@ -152,6 +153,7 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
           </button>
         </div>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 }
