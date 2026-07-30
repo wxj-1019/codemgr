@@ -8,6 +8,8 @@ import { DEFAULT_RULES } from '../lib/defaultRules';
 import { matchRules, type LabelRule, type MatchField } from '../lib/labelRules';
 import { labelForProcess } from '../lib/processLabels';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useLabelRulesStore, newRuleId, type LabelRulesSnapshot } from '../store/labelRulesStore';
 
 // Aurora v1.2：底色降到 14% 透明度，字色不变
@@ -124,32 +126,41 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
       };
       const ok = await ipc.exportLabelRules(snapshot);
       if (!ok) {
-        alert('导出失败或已取消');
+        notify.error('导出失败或已取消');
       }
     } catch (e) {
-      alert(`导出失败：${String(e)}`);
+      notify.error(`导出失败：${String(e)}`);
     } finally {
       setIoBusy(false);
     }
   }
 
-  // 从 JSON 文件导入（语义=替换）。导入前二次确认，避免误覆盖现有规则。
+  // 从 JSON 文件导入（语义=替换）。导入前二次确认（ConfirmDialog），避免误覆盖现有规则。
+  const [confirmImport, setConfirmImport] = useState(false);
+
   async function handleImport() {
     if (ioBusy) return;
+    // 已有规则时先确认；空规则集直接导入
     if (userRules.length > 0 || disabledDefaultIds.length > 0 || Object.keys(overrides).length > 0) {
-      if (!confirm('导入将替换现有规则，确定继续吗？')) return;
+      setConfirmImport(true);
+      return;
     }
+    await doImport();
+  }
+
+  async function doImport() {
+    setConfirmImport(false);
     setIoBusy(true);
     try {
       const snapshot = await ipc.importLabelRules();
       if (snapshot === null) {
-        alert('导入失败：文件无效或已取消');
+        notify.error('导入失败：文件无效或已取消');
         return;
       }
       const n = replaceAll(snapshot);
-      alert(`已导入规则（${n} 条自定义 + ${snapshot.disabledDefaultIds.length} 个默认开关变更）`);
+      notify.success(`已导入规则（${n} 条自定义 + ${snapshot.disabledDefaultIds.length} 个默认开关变更）`);
     } catch (e) {
-      alert(`导入失败：${String(e)}`);
+      notify.error(`导入失败：${String(e)}`);
     } finally {
       setIoBusy(false);
     }
@@ -163,6 +174,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
   const fullHit = labelForProcess(pName, pCmd);
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose} onKeyDown={onModalKeyDown}>
       <div
         ref={modalRef}
@@ -279,5 +291,16 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+    {/* 导入替换确认：与 modal 同级（portal 到 body），避免点击冒泡触发 modal 的 onClose */}
+    <ConfirmDialog
+      open={confirmImport}
+      title="导入标签规则"
+      message="导入将替换现有规则，确定继续吗？"
+      confirmLabel="导入"
+      busy={ioBusy}
+      onConfirm={() => void doImport()}
+      onCancel={() => setConfirmImport(false)}
+    />
+    </>
   );
 }

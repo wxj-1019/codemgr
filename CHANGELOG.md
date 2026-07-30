@@ -9,6 +9,7 @@
 ### 开发者体验增强包（dev-experience-pack，2026-07-31）
 
 - **开发者跳转动作闭环**：进程右键菜单/详情侧栏/项目分组行新增「打开所在文件夹 / 在终端打开（wt 优先回退 cmd）/ 在编辑器打开（VS Code）/ 复制工作目录」；端口表新增右键菜单（在浏览器打开/定位到进程/复制端口/复制 PID/结束进程）与 TCP 监听行「在浏览器打开」按钮。shell 动作经 main 侧白名单校验（kind/绝对路径/http(s) scheme），渲染层不可构造任意命令。
+- **Toast 通知系统**：全部操作反馈（kill 结果/快照/标签规则导入导出/RunProfile 启停/shell 打开失败）从原生 `alert`/`confirm` 迁移为非阻塞 toast（右下角堆叠上限 5 条，success/info 4s、error 8s 自动消失，可手动关闭，error 用 `role="alert"`）；标签规则「导入替换」与 RunProfile「删除」改用 ConfirmDialog。
 
 ---
 
