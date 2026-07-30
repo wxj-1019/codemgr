@@ -3,9 +3,12 @@ import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { labelForProcess } from '../lib/processLabels';
 import { groupByProject } from '../lib/projectGroup';
-import { FolderIcon, PackageIcon } from './icons';
+import { FolderIcon, PackageIcon, FolderOpen, Terminal, Code } from './icons';
 import { ipc } from '../lib/ipc';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { IconButton } from './ui/IconButton';
+import { buildProcessMenuItems } from '../lib/processMenu';
+import { copyText, openTargetOrAlert } from '../lib/shellClient';
 
 const UNGROUPED = '未分组';
 // 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd（PEB 直读）。
@@ -91,6 +94,11 @@ const GroupRow = memo(function GroupRow({
           {dir || '—'}
         </td>
         <td className="px-2 py-2 text-right">
+          <span className="mr-1 inline-flex items-center gap-0.5 align-middle">
+            <IconButton label="打开项目文件夹" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrAlert('folder', dir)}><FolderOpen /></IconButton>
+            <IconButton label="在项目目录打开终端" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrAlert('terminal', dir)}><Terminal /></IconButton>
+            <IconButton label="在编辑器打开项目" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrAlert('editor', dir)}><Code /></IconButton>
+          </span>
           <button
             onClick={onKillGroup}
             className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
@@ -242,17 +250,17 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY, proc });
   }, []);
-  const copyText = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
-  }, []);
-  const menuItems: ContextMenuItem[] = menu ? [
-    { label: '结束进程', danger: true, onSelect: () => onKillSingle(menu.proc.pid, menu.proc.name) },
-    ...(menu.proc.pid > 4
-      ? [{ label: '结束进程树', danger: true, onSelect: () => onKillTree(menu.proc.pid, menu.proc.name) }]
-      : []),
-    { label: '复制命令行', dividerBefore: true, onSelect: () => copyText(menu.proc.cmdline), disabled: !menu.proc.cmdline },
-    { label: '复制 PID', onSelect: () => copyText(String(menu.proc.pid)) },
-  ] : [];
+  // 与 ProcessTable 共用构建器；项目视图无树信息，hasChildren 传 true（按 pid>4 放行）
+  const menuItems: ContextMenuItem[] = menu ? buildProcessMenuItems(
+    menu.proc,
+    { hasChildren: true },
+    {
+      onOpenTarget: (kind, path) => void openTargetOrAlert(kind, path),
+      onCopy: copyText,
+      onKillSingle,
+      onKillTree,
+    },
+  ) : [];
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">

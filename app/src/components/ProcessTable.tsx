@@ -7,6 +7,8 @@ import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
 import { formatBytes } from '../lib/format';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { buildProcessMenuItems } from '../lib/processMenu';
+import { copyText, openTargetOrAlert } from '../lib/shellClient';
 
 interface ProcessTableProps {
   onKillSingle: (pid: number, name: string) => void;
@@ -362,11 +364,6 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     setMenu({ x: e.clientX, y: e.clientY, proc });
   }, []);
 
-  // 复制到剪贴板：失败静默（与侧栏 copyCmd 一致，clipboard 可能被环境阻断）
-  const copyText = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
-  }, []);
-
   // ── 键盘导航（纯导航模型：焦点框与 selectedPids 分离）──
   // 焦点用 pid 锚定（非 index）：排序/折叠/过滤后行序会变，按 pid 定位才稳定。
   // 用 ref 持有最新 rows，让 onRowKeyDown 引用稳定（不击穿 memo）。
@@ -449,15 +446,18 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     }
   }, [toggleSelect]);
 
-  // 按 menu.proc 动态构造菜单项。kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）
-  const menuItems: ContextMenuItem[] = menu ? [
-    { label: '结束进程', danger: true, onSelect: () => onKillSingle(menu.proc.pid, menu.proc.name) },
-    ...(childrenParentSet.has(menu.proc.pid) && menu.proc.pid > 4
-      ? [{ label: '结束进程树', danger: true, onSelect: () => onKillTree(menu.proc.pid, menu.proc.name) }]
-      : []),
-    { label: '复制命令行', dividerBefore: true, onSelect: () => copyText(menu.proc.cmdline), disabled: !menu.proc.cmdline },
-    { label: '复制 PID', onSelect: () => copyText(String(menu.proc.pid)) },
-  ] : [];
+  // 菜单项由共享构建器生成（与 ProjectGroupView 一致）：打开三项 → 复制三项 → kill 沉底。
+  // kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）。
+  const menuItems: ContextMenuItem[] = menu ? buildProcessMenuItems(
+    menu.proc,
+    { hasChildren: childrenParentSet.has(menu.proc.pid) },
+    {
+      onOpenTarget: (kind, path) => void openTargetOrAlert(kind, path),
+      onCopy: copyText,
+      onKillSingle,
+      onKillTree,
+    },
+  ) : [];
 
   // 虚拟化渲染窗口：上下用等高占位 <tr> 撑出总高度（保持 <table> 布局/列宽对齐，
   // 不切换为绝对定位）。行高固定，无需逐行测量。
