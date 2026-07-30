@@ -1,6 +1,6 @@
 # CodeMgr 插件开发指南
 
-> 版本：6b 第一步（标签规则注册）。视图嵌入（6b 第二步）和数据源（6c）尚未实现。
+> 版本：6b 全部（标签规则注册 + 视图嵌入 mosaic）+ 6c（UtilityProcess 数据源管道，白名单 capability：`demo-source`、`disk-volumes`）。三者均已发布（v2.0）。
 
 CodeMgr 插件让你扩展标签规则——给进程打自定义标签，无需改动 CodeMgr 本体。
 
