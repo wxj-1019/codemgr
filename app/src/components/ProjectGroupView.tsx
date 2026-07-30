@@ -8,7 +8,7 @@ import { ipc } from '../lib/ipc';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { IconButton } from './ui/IconButton';
 import { buildProcessMenuItems } from '../lib/processMenu';
-import { copyText, openTargetOrAlert } from '../lib/shellClient';
+import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 const UNGROUPED = '未分组';
 // 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd（PEB 直读）。
@@ -95,9 +95,9 @@ const GroupRow = memo(function GroupRow({
         </td>
         <td className="px-2 py-2 text-right">
           <span className="mr-1 inline-flex items-center gap-0.5 align-middle">
-            <IconButton label="打开项目文件夹" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrAlert('folder', dir)}><FolderOpen /></IconButton>
-            <IconButton label="在项目目录打开终端" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrAlert('terminal', dir)}><Terminal /></IconButton>
-            <IconButton label="在编辑器打开项目" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrAlert('editor', dir)}><Code /></IconButton>
+            <IconButton label="打开项目文件夹" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrNotify('folder', dir)}><FolderOpen /></IconButton>
+            <IconButton label="在项目目录打开终端" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrNotify('terminal', dir)}><Terminal /></IconButton>
+            <IconButton label="在编辑器打开项目" size="xs" disabled={!dir} onClick={() => dir && void openTargetOrNotify('editor', dir)}><Code /></IconButton>
           </span>
           <button
             onClick={onKillGroup}
@@ -255,7 +255,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     menu.proc,
     { hasChildren: true },
     {
-      onOpenTarget: (kind, path) => void openTargetOrAlert(kind, path),
+      onOpenTarget: (kind, path) => void openTargetOrNotify(kind, path),
       onCopy: copyText,
       onKillSingle,
       onKillTree,

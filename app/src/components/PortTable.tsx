@@ -6,7 +6,7 @@ import { isListenLike, conflictPorts } from '../lib/portFilter';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { IconButton } from './ui/IconButton';
 import { browseUrlFor, buildPortMenuItems } from '../lib/portActions';
-import { copyText, openExternalUrlOrAlert } from '../lib/shellClient';
+import { copyText, openExternalUrlOrNotify } from '../lib/shellClient';
 
 interface PortTableProps {
   connections: NetConnection[];
@@ -23,7 +23,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   const [menu, setMenu] = useState<{ x: number; y: number; conn: NetConnection } | null>(null);
   const menuItems: ContextMenuItem[] = menu
     ? buildPortMenuItems(menu.conn, {
-        onBrowse: (url) => void openExternalUrlOrAlert(url),
+        onBrowse: (url) => void openExternalUrlOrNotify(url),
         onCopy: copyText,
         onLocate: (pid) => onSelect(pid),
         onKill: (pid, name) => onKill(pid, name),
@@ -135,7 +135,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                       label="在浏览器打开"
                       size="xs"
                       className="mr-1"
-                      onClick={(e) => { e.stopPropagation(); void openExternalUrlOrAlert(browseUrl); }}
+                      onClick={(e) => { e.stopPropagation(); void openExternalUrlOrNotify(browseUrl); }}
                     >
                       <Globe />
                     </IconButton>

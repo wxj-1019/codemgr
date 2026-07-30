@@ -1,23 +1,23 @@
-// shell 跳转动作的渲染层统一出口。所有 UI 调用点走这里，
-// 子项目 B（Toast）落地时只需改这一个文件即可把 alert 全量替换为 toast。
+// shell 跳转动作的渲染层统一出口。所有 UI 调用点走这里，失败经 toast 反馈（子项目 B）。
 import { ipc } from './ipc';
+import { notify } from './notify';
 import type { OpenTargetKind } from '../../electron/ipc-types';
 
-export async function openTargetOrAlert(kind: OpenTargetKind, path: string): Promise<void> {
+export async function openTargetOrNotify(kind: OpenTargetKind, path: string): Promise<void> {
   try {
     const err = await ipc.openTarget(kind, path);
-    if (err) alert(err);
+    if (err) notify.error(err);
   } catch (e) {
-    alert(`打开失败：${String(e)}`);
+    notify.error(`打开失败：${String(e)}`);
   }
 }
 
-export async function openExternalUrlOrAlert(url: string): Promise<void> {
+export async function openExternalUrlOrNotify(url: string): Promise<void> {
   try {
     const err = await ipc.openExternalUrl(url);
-    if (err) alert(err);
+    if (err) notify.error(err);
   } catch (e) {
-    alert(`打开失败：${String(e)}`);
+    notify.error(`打开失败：${String(e)}`);
   }
 }
 

@@ -10,7 +10,7 @@ import { buildDiagnostic } from '../lib/diagnostic';
 import { DiagnosticPreview } from './DiagnosticPreview';
 import { IconButton } from './ui/IconButton';
 import { Copy, FolderOpen, Terminal, Code } from './icons';
-import { copyText, openTargetOrAlert } from '../lib/shellClient';
+import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 // 320px 右侧详情栏：展示当前唯一选中进程的"已采集但表格未展示"字段。
 // 未选 / 多选 / 进程已退出时显示对应提示。kill 走与表格一致的 onKill 回调
@@ -282,9 +282,9 @@ export function ProcessDetailSidebar({
             {activeCwd && (
               <div className="mt-1 flex items-center gap-1">
                 <IconButton label="复制工作目录" size="xs" onClick={() => copyText(activeCwd)}><Copy /></IconButton>
-                <IconButton label="打开所在文件夹" size="xs" onClick={() => void openTargetOrAlert('folder', activeCwd)}><FolderOpen /></IconButton>
-                <IconButton label="在终端打开" size="xs" onClick={() => void openTargetOrAlert('terminal', activeCwd)}><Terminal /></IconButton>
-                <IconButton label="在编辑器打开" size="xs" onClick={() => void openTargetOrAlert('editor', activeCwd)}><Code /></IconButton>
+                <IconButton label="打开所在文件夹" size="xs" onClick={() => void openTargetOrNotify('folder', activeCwd)}><FolderOpen /></IconButton>
+                <IconButton label="在终端打开" size="xs" onClick={() => void openTargetOrNotify('terminal', activeCwd)}><Terminal /></IconButton>
+                <IconButton label="在编辑器打开" size="xs" onClick={() => void openTargetOrNotify('editor', activeCwd)}><Code /></IconButton>
               </div>
             )}
           </div>

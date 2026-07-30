@@ -8,7 +8,7 @@ import { labelForProcess } from '../lib/processLabels';
 import { formatBytes } from '../lib/format';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildProcessMenuItems } from '../lib/processMenu';
-import { copyText, openTargetOrAlert } from '../lib/shellClient';
+import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 interface ProcessTableProps {
   onKillSingle: (pid: number, name: string) => void;
@@ -452,7 +452,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     menu.proc,
     { hasChildren: childrenParentSet.has(menu.proc.pid) },
     {
-      onOpenTarget: (kind, path) => void openTargetOrAlert(kind, path),
+      onOpenTarget: (kind, path) => void openTargetOrNotify(kind, path),
       onCopy: copyText,
       onKillSingle,
       onKillTree,
