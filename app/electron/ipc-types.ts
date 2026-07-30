@@ -43,6 +43,10 @@ export const IPC = {
   RUN_RESTART: 'run:restart',
   // run 状态事件（F1）：main 推 run exit/状态变更给渲染层（事件，非 invoke）
   RUN_UPDATE: 'run:update',
+  // shell 跳转动作（子项目 A）：打开文件夹/终端/编辑器 + 浏览器打开 URL。
+  // kind/路径/scheme 校验全在 main（shellActions.ts），渲染层只传 kind+path/url。
+  OPEN_TARGET: 'shell:openTarget',
+  OPEN_EXTERNAL_URL: 'shell:openExternalUrl',
 } as const;
 
 /**
@@ -294,4 +298,8 @@ export interface ExposedApi {
   stopProfile(runId: string): Promise<number>;
   restartProfile(runId: string): Promise<{ runId: string; pid: number } | null>;
   onRunUpdate(cb: (update: RunState) => void): () => void;
+  // shell 跳转动作（子项目 A）。返回 '' = 成功，非空 = 错误描述（UI 直接展示）。
+  openTarget(kind: OpenTargetKind, path: string): Promise<string>;
+  // 浏览器打开 URL，main 侧仅放行 http/https。
+  openExternalUrl(url: string): Promise<string>;
 }

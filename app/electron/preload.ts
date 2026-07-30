@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry, type RunState } from './ipc-types';
+import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry, type RunState, type OpenTargetKind } from './ipc-types';
 
 // 安全红线：只暴露封装后的方法，绝不暴露 ipcRenderer 本身
 const api: ExposedApi = {
@@ -48,6 +48,8 @@ const api: ExposedApi = {
     ipcRenderer.on(IPC.RUN_UPDATE, handler as never);
     return () => ipcRenderer.removeListener(IPC.RUN_UPDATE, handler as never);
   },
+  openTarget: (kind: OpenTargetKind, path: string) => ipcRenderer.invoke(IPC.OPEN_TARGET, kind, path),
+  openExternalUrl: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL_URL, url),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);

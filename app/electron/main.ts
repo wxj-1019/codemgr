@@ -1,11 +1,13 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog, utilityProcess, MessageChannelMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog, utilityProcess, MessageChannelMain, shell } from 'electron';
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState } from './ipc-types';
+import { spawn } from 'node:child_process';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState, type OpenTargetKind } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 import { RunManager, readProfiles, writeProfiles, validateProfile } from './runProfiles';
 import { resolveGitIdentity } from './gitWorkspace';
+import { openTarget, openExternalUrl, type ShellDeps, type SpawnLike } from './shellActions';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -437,6 +439,31 @@ ipcMain.handle(IPC.FETCH_GIT_IDENTITY, async (_evt, cwd: string) => {
     console.error('fetchGitIdentity failed:', e);
     return null;
   }
+});
+
+// ── shell 跳转动作（子项目 A）──
+// 校验/编排全在 shellActions（纯逻辑），这里只做 electron/child_process 真实依赖装配。
+const shellDeps: ShellDeps = {
+  openPath: (p) => shell.openPath(p),
+  openExternal: (url) => shell.openExternal(url).then(() => undefined),
+  spawn: (file, args, options): SpawnLike => spawn(file, args, options),
+  commandExists: (file) =>
+    new Promise((resolve) => {
+      const p = spawn('cmd.exe', ['/c', 'where', file], { stdio: 'ignore' });
+      p.on('error', () => resolve(false));
+      p.on('exit', (code) => resolve(code === 0));
+    }),
+  exists: (p) => existsSync(p),
+};
+
+ipcMain.handle(IPC.OPEN_TARGET, async (_evt, kind: OpenTargetKind, targetPath: string) => {
+  try { return await openTarget(kind, targetPath, shellDeps); }
+  catch (e) { console.error('shell:openTarget failed:', e); return String(e); }
+});
+
+ipcMain.handle(IPC.OPEN_EXTERNAL_URL, async (_evt, url: string) => {
+  try { return await openExternalUrl(url, shellDeps); }
+  catch (e) { console.error('shell:openExternalUrl failed:', e); return String(e); }
 });
 
 // ── Run Profiles（F1）──

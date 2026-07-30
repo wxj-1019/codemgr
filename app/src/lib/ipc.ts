@@ -61,6 +61,8 @@ export const ipc: ExposedApi = {
   stopProfile: (...a) => invoke('stopProfile', ...a),
   restartProfile: (...a) => invoke('restartProfile', ...a),
   onRunUpdate: (...a) => subscribe('onRunUpdate', ...a),
+  openTarget: (...a) => invoke('openTarget', ...a),
+  openExternalUrl: (...a) => invoke('openExternalUrl', ...a),
 };
 
 // 保留未使用类型导入的引用，避免 TS noUnusedLocals 报错（类型已通过 ExposedApi 间接使用）。
