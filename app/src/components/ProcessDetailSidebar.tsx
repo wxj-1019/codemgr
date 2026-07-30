@@ -238,12 +238,12 @@ export function ProcessDetailSidebar({
   }
 
   return (
-    <aside className="flex h-full flex-col border-l border-line bg-surface-raised">
+    <aside className="flex h-full min-w-0 flex-col border-l border-line bg-surface-raised">
       <div className="border-b border-base-600 px-4 py-3">
-        <h3 className="text-sm font-semibold text-fg-primary">{proc.name}</h3>
+        <h3 className="truncate text-sm font-semibold text-fg-primary" title={proc.name}>{proc.name}</h3>
         <p className="text-xs text-fg-muted">PID {proc.pid}</p>
       </div>
-      <div className="flex-1 overflow-auto p-4 text-xs">
+      <div className="min-w-0 flex-1 overflow-auto p-4 text-xs">
         <dl className="space-y-2">
           <div>
             <dt className="text-fg-muted">命令行</dt>

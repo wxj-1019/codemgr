@@ -517,7 +517,7 @@ function DiffView({
       )}
 
       {/* 列表区 */}
-      <div className="flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         {tab === 'added' && (
           <EntryGroupList
             entries={diff.added}

@@ -488,7 +488,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   );
 
   return (
-    <div ref={scrollRef} className="overflow-auto flex-1">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
       <table ref={tableRef} role="grid" className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs text-fg-muted">
           <tr>

@@ -371,7 +371,7 @@ function ProcessTableArea({
 
   // 小屏：无侧栏，直接铺满
   if (!isLg) {
-    return <div className="flex flex-1 overflow-hidden">{tableOrGroup}</div>;
+    return <div className="flex min-h-0 flex-1 overflow-hidden">{tableOrGroup}</div>;
   }
 
   // lg+：Allotment 分栏。用 ResizeObserver 测容器宽度，把 sidebarProportion 换算成
@@ -420,7 +420,7 @@ function ResizableSplit({
   const sidebarPx = Math.round(width * proportion);
   // 宽度就绪后挂载一次 Allotment；后续缩放交给 proportionalLayout 保持用户比例。
   return (
-    <div ref={containerRef} className="flex flex-1 overflow-hidden">
+    <div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden">
       {width > 0 && (
         <Allotment
           defaultSizes={[width - sidebarPx, sidebarPx]}

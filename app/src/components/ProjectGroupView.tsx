@@ -255,7 +255,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
   ] : [];
 
   return (
-    <div className="overflow-auto flex-1">
+    <div className="min-h-0 flex-1 overflow-auto">
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
