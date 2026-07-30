@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import type { SnapshotEntry, ProcessSnapshot } from '../../electron/ipc-types';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import type { SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
-import { FolderIcon, PackageIcon, Camera, RefreshCw } from './icons';
+import { FolderIcon, PackageIcon, Camera, RefreshCw, Trash2 } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
+import { Button } from './ui/Button';
+import { StateView } from './ui/StateView';
+import { useContainerWidth } from '../hooks/useContainerWidth';
 
 /**
  * 进程快照对比面板（v2.2，spec §2.4）。
@@ -86,6 +89,10 @@ export function SnapshotPanel() {
   const [selectedPids, setSelectedPids] = useState<Set<number>>(new Set());
   const [batchKillName, setBatchKillName] = useState<string | null>(null);
   const [killBusy, setKillBusy] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(panelRef);
+  const compact = containerWidth !== null && containerWidth < 480;
 
   // 挂载时拉一次列表
   useEffect(() => {
@@ -172,8 +179,10 @@ export function SnapshotPanel() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('确定删除此快照吗？')) return;
+  async function handleDelete() {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
     await remove(id);
   }
 
@@ -220,10 +229,9 @@ export function SnapshotPanel() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={panelRef} className="flex h-full flex-col">
       <PanelActionBar
         label="快照对比"
-        eyebrow="快照对比"
         summary={`${snapshots.length} 个快照${loading ? ' · 加载中…' : ''}${currentEntries ? ` · 当前 ${currentEntries.length} 个进程` : ''}`}
         actions={
           <IconButton
@@ -240,78 +248,48 @@ export function SnapshotPanel() {
       />
 
       {(error || currentFetchError) && (
-        <div className="border-b border-danger/40 bg-danger/10 px-4 py-2 text-xs text-danger">
+        <div className="border-b border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
           {error || currentFetchError}
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* 左栏：快照列表。窄 tile 时由 container query 缩窄（见 index.css .snapshot-sidebar） */}
-        <aside className="snapshot-sidebar w-64 shrink-0 overflow-auto border-r border-base-700 bg-base-900/50">
-          {/* 拍快照 */}
-          <div className="border-b border-base-700 p-3">
-            <input
-              type="text"
-              placeholder="快照名称（如 agent 开工前）"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCapture(); }}
-              className="mb-2 w-full rounded-lg border border-base-600 bg-base-800 px-2 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
-            />
-            <button
-              onClick={handleCapture}
-              disabled={capturing}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
-            >
-              <Camera size={14} aria-hidden="true" />
-              {capturing ? '拍摄中…' : '拍快照'}
-            </button>
-            <p className="mt-1.5 text-[10px] text-fg-muted">
-              上限 20 个，超出请删旧
-            </p>
-          </div>
+      <div className={`flex min-h-0 flex-1 overflow-hidden ${compact ? 'flex-col' : ''}`}>
+        {compact ? (
+          <CompactSnapshotControls
+            snapshots={snapshots}
+            selectedId={selectedId}
+            nameInput={nameInput}
+            capturing={capturing}
+            onNameChange={setNameInput}
+            onSelect={select}
+            onCapture={handleCapture}
+            onDelete={() => selectedId && setPendingDeleteId(selectedId)}
+          />
+        ) : (
+          <SnapshotSidebar
+            snapshots={snapshots}
+            selectedId={selectedId}
+            nameInput={nameInput}
+            capturing={capturing}
+            onNameChange={setNameInput}
+            onSelect={select}
+            onCapture={handleCapture}
+            onDelete={setPendingDeleteId}
+          />
+        )}
 
-          {/* 快照列表 */}
-          <ul className="py-1">
-            {snapshots.length === 0 && (
-              <li className="px-3 py-6 text-center text-xs text-fg-muted">
-                暂无快照
-              </li>
-            )}
-            {snapshots.map((m) => (
-              <li key={m.id}>
-                <button
-                  onClick={() => select(selectedId === m.id ? null : m.id)}
-                  className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-base-800 ${
-                    selectedId === m.id ? 'bg-base-800 border-l-2 border-accent' : ''
-                  }`}
-                >
-                  <span className="truncate text-sm text-fg-primary">{m.name}</span>
-                  <span className="text-[10px] text-fg-muted">
-                    {formatTime(m.createdAt)} · {m.count} 进程
-                  </span>
-                </button>
-                <div className="px-3 pb-1 text-right">
-                  <button
-                    onClick={() => handleDelete(m.id)}
-                    className="text-[10px] text-danger/80 hover:text-danger"
-                  >
-                    删除
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        {/* 主区：diff 三组 */}
-        <main className="flex-1 overflow-hidden">
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
           {!baseSnapshot ? (
-            <EmptyState text="从左栏选择一个快照开始对比" />
+            <StateView
+              className="h-full"
+              state="empty"
+              title={snapshots.length === 0 ? '暂无快照' : '选择一个快照开始对比'}
+              description={snapshots.length === 0 ? '创建快照后，可查看进程的新增、退出和变化。' : undefined}
+            />
           ) : !currentEntries ? (
-            <EmptyState text="正在读取当前进程…" />
+            <StateView className="h-full" state="loading" title="正在读取当前进程" />
           ) : !diff ? (
-            <EmptyState text="计算差异中…" />
+            <StateView className="h-full" state="loading" title="正在计算差异" />
           ) : (
             <DiffView
               diff={diff}
@@ -328,6 +306,16 @@ export function SnapshotPanel() {
         </main>
       </div>
 
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title="删除快照"
+        message="确定删除此快照吗？此操作无法撤销。"
+        confirmLabel="删除快照"
+        busy={loading}
+        onConfirm={handleDelete}
+        onCancel={() => { if (!loading) setPendingDeleteId(null); }}
+      />
+
       {/* 批量结束确认（照 ProcessPanel 模式：targets explicit pids） */}
       <ConfirmDialog
         open={batchKillName !== null}
@@ -342,11 +330,112 @@ export function SnapshotPanel() {
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+interface SnapshotControlsProps {
+  snapshots: SnapshotMeta[];
+  selectedId: string | null;
+  nameInput: string;
+  capturing: boolean;
+  onNameChange: (value: string) => void;
+  onSelect: (id: string | null) => void;
+  onCapture: () => void;
+}
+
+function CompactSnapshotControls({
+  snapshots,
+  selectedId,
+  nameInput,
+  capturing,
+  onNameChange,
+  onSelect,
+  onCapture,
+  onDelete,
+}: SnapshotControlsProps & { onDelete: () => void }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-fg-muted">
-      {text}
-    </div>
+    <section data-testid="snapshot-compact-controls" aria-label="快照选择与创建" className="shrink-0 space-y-1.5 border-b border-line bg-surface-raised/70 p-2">
+      <div className="flex min-w-0 items-center gap-1">
+        <select
+          aria-label="对比快照"
+          value={selectedId ?? ''}
+          onChange={(event) => onSelect(event.target.value || null)}
+          className="h-7 min-w-0 flex-1 rounded-md border border-line bg-surface-overlay px-2 text-xs text-content-primary outline-none focus:ring-2 focus:ring-focus/70"
+        >
+          <option value="">选择快照</option>
+          {snapshots.map((snapshot) => (
+            <option key={snapshot.id} value={snapshot.id}>{snapshot.name}</option>
+          ))}
+        </select>
+        <IconButton label="删除选中快照" size="sm" variant="dangerQuiet" disabled={!selectedId} onClick={onDelete}>
+          <Trash2 size={14} aria-hidden="true" />
+        </IconButton>
+      </div>
+      <div className="flex min-w-0 items-center gap-1">
+        <input
+          type="text"
+          aria-label="快照名称"
+          placeholder="新快照名称"
+          value={nameInput}
+          onChange={(event) => onNameChange(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') onCapture(); }}
+          className="h-7 min-w-0 flex-1 rounded-md border border-line bg-surface-overlay px-2 text-xs text-content-primary placeholder-content-muted outline-none focus:ring-2 focus:ring-focus/70"
+        />
+        <IconButton label={capturing ? '正在拍摄快照' : '拍快照'} size="sm" variant="primary" disabled={capturing} onClick={onCapture}>
+          <Camera size={14} aria-hidden="true" />
+        </IconButton>
+      </div>
+    </section>
+  );
+}
+
+function SnapshotSidebar({
+  snapshots,
+  selectedId,
+  nameInput,
+  capturing,
+  onNameChange,
+  onSelect,
+  onCapture,
+  onDelete,
+}: SnapshotControlsProps & { onDelete: (id: string) => void }) {
+  return (
+    <aside data-testid="snapshot-sidebar" className="w-64 shrink-0 overflow-auto border-r border-line bg-surface-raised/60">
+      <div className="border-b border-line p-3">
+        <input
+          type="text"
+          aria-label="快照名称"
+          placeholder="快照名称（如 agent 开工前）"
+          value={nameInput}
+          onChange={(event) => onNameChange(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') onCapture(); }}
+          className="mb-2 w-full rounded-md border border-line bg-surface-overlay px-2 py-1 text-sm text-content-primary placeholder-content-muted outline-none focus:ring-2 focus:ring-focus/70"
+        />
+        <Button className="w-full" variant="primary" size="sm" busy={capturing} busyLabel="拍摄中" onClick={onCapture}>
+          <Camera size={14} aria-hidden="true" />
+          拍快照
+        </Button>
+        <p className="mt-1.5 text-[10px] text-content-muted">最多保留 20 个快照</p>
+      </div>
+
+      {snapshots.length === 0 ? (
+        <StateView className="min-h-28 px-3 py-5" state="empty" title="暂无快照" />
+      ) : (
+        <ul className="py-1">
+          {snapshots.map((snapshot) => (
+            <li key={snapshot.id} className="group flex min-w-0 items-center border-l-2 border-transparent pr-1 data-[selected=true]:border-accent data-[selected=true]:bg-surface-overlay" data-selected={selectedId === snapshot.id}>
+              <button
+                onClick={() => onSelect(selectedId === snapshot.id ? null : snapshot.id)}
+                className="min-w-0 flex-1 px-2 py-2 text-left hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus/70"
+              >
+                <span className="block truncate text-sm text-content-primary">{snapshot.name}</span>
+                <span className="block truncate text-[10px] text-content-muted">{formatTime(snapshot.createdAt)} · {snapshot.count} 进程</span>
+              </button>
+              <IconButton label={`删除快照 ${snapshot.name}`} size="xs" variant="ghost" className="shrink-0 text-content-muted hover:text-danger" onClick={() => onDelete(snapshot.id)}>
+                <Trash2 size={13} aria-hidden="true" />
+              </IconButton>
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
   );
 }
 
@@ -375,23 +464,28 @@ function DiffView({
   return (
     <div className="flex h-full flex-col">
       {/* Tab 栏 */}
-      <div className="flex items-center gap-1 border-b border-base-700 px-3 py-2">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 rounded px-3 py-1 text-sm transition-colors ${
-              tab === t.id
-                ? 'bg-base-800 text-fg-primary'
-                : 'text-fg-muted hover:text-fg-secondary'
-            }`}
-          >
-            <span className={`inline-block h-2 w-2 rounded-full ${t.dot}`} />
-            <span className={tab === t.id ? t.color : ''}>{t.label}</span>
-            <span className="ml-0.5 text-xs text-fg-muted">({counts[t.id]})</span>
-          </button>
-        ))}
-        <div className="ml-auto text-xs text-fg-muted">
+      <div className="flex flex-wrap items-center gap-1 border-b border-line px-2 py-1.5">
+        <div role="tablist" aria-label="快照差异类型" className="flex min-w-0 items-center gap-1 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
+              tabIndex={tab === t.id ? 0 : -1}
+              onClick={() => setTab(t.id)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 ${
+                tab === t.id
+                  ? 'bg-surface-overlay text-content-primary'
+                  : 'text-content-muted hover:bg-surface-raised hover:text-content-secondary'
+              }`}
+            >
+              <span className={`inline-block h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden="true" />
+              <span className={tab === t.id ? t.color : ''}>{t.label}</span>
+              <span className="text-content-muted">{counts[t.id]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="min-w-0 flex-1 truncate text-right text-[11px] text-content-muted" title={`基准：${baseName}`}>
           基准：{baseName}
         </div>
       </div>
@@ -437,7 +531,7 @@ function DiffView({
         )}
         {tab === 'changed' && <ChangedList changed={diff.changed} />}
         {counts[tab] === 0 && (
-          <EmptyState text={`无${TABS.find((t) => t.id === tab)?.label ?? ''}项`} />
+          <StateView className="h-full" state="empty" title={`无${TABS.find((t) => t.id === tab)?.label ?? ''}项`} />
         )}
       </div>
     </div>
@@ -521,7 +615,7 @@ function EntryGroupList({
           </table>
         </div>
       ))}
-      {entries.length === 0 && <EmptyState text={`无${mode === 'added' ? '新增' : '已退出'}进程`} />}
+      {entries.length === 0 && <StateView state="empty" title={`无${mode === 'added' ? '新增' : '已退出'}进程`} />}
     </div>
   );
 }
@@ -531,7 +625,7 @@ function ChangedList({ changed }: { changed: SnapshotDiff['changed'] }) {
   return (
     <div className="py-1">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 bg-surface-raised text-left text-xs text-content-muted">
           <tr>
             <th className="px-3 py-2 font-medium">PID</th>
             <th className="px-3 py-2 font-medium">字段</th>
@@ -561,7 +655,7 @@ function ChangedList({ changed }: { changed: SnapshotDiff['changed'] }) {
           })}
         </tbody>
       </table>
-      {changed.length === 0 && <EmptyState text="无变化的进程" />}
+      {changed.length === 0 && <StateView state="empty" title="无变化的进程" />}
     </div>
   );
 }

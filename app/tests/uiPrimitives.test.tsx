@@ -146,6 +146,8 @@ describe('panel feedback primitives', () => {
     const toolbar = screen.getByRole('toolbar', { name: 'Process actions' });
     expect(toolbar).toHaveAttribute('data-testid', 'panel-action-bar');
     expect(toolbar).toHaveClass('panel-action-bar', 'flex-wrap');
+    expect(toolbar.querySelector('[data-panel-context]')).toHaveClass('min-w-0', 'flex-1');
+    expect(toolbar.querySelector('[data-panel-actions]')).toHaveClass('min-w-0', 'flex-wrap');
     expect(toolbar).toHaveTextContent('Live');
     expect(toolbar).toHaveTextContent('Processes');
     expect(toolbar).toHaveTextContent('12 running');

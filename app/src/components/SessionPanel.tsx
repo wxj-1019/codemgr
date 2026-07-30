@@ -45,7 +45,7 @@ export function SessionPanel() {
   if (sessions.length === 0) {
     return (
       <div className="flex h-full flex-col">
-        <PanelActionBar label="AI 会话" eyebrow="AI 会话" />
+        <PanelActionBar label="AI 会话" />
         <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-fg-muted">
           未检测到 AI 开发会话。<br />Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。
         </div>
@@ -55,7 +55,7 @@ export function SessionPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <PanelActionBar label="AI 会话" eyebrow="AI 会话" summary={`${sessions.length} 个活跃会话`} />
+      <PanelActionBar label="AI 会话" summary={`${sessions.length} 个活跃会话`} />
       <div className="flex-1 overflow-auto p-3">
         <div className="space-y-2">
           {sessions.map((s) => {

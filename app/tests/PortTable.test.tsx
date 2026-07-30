@@ -78,6 +78,21 @@ describe('PortTable', () => {
 });
 
 describe('PortTable keyboard navigation', () => {
+  it('makes the first row the initial keyboard entry point', () => {
+    const { container } = render(
+      <PortTable
+        connections={[conn({ pid: 100 }), conn({ pid: 200, localPort: 3001 })]}
+        selectedPid={null}
+        onSelect={() => {}}
+        onKill={() => {}}
+      />,
+    );
+    const rows = container.querySelectorAll('tbody tr[role="row"]');
+    expect(rows[0]).toHaveAttribute('tabindex', '0');
+    expect(rows[1]).toHaveAttribute('tabindex', '-1');
+    expect(container.firstElementChild).toHaveClass('flex-1', 'min-h-0', 'overflow-auto');
+  });
+
   it('ArrowDown moves focus to next row (roving tabindex)', () => {
     const { container } = render(
       <PortTable

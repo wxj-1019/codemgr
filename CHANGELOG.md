@@ -18,7 +18,12 @@
 6 内置面板去掉内部 `<h1>`（mosaic 标题栏为唯一标题），header→`PanelActionBar`（eyebrow+summary+actions）。emoji 按钮→`IconButton`+lucide（✕→X、↻→RefreshCw、📸→Camera）。硬编码色→语义令牌/Badge（SessionPanel fuchsia→Badge(accent)、cyan→accent、red→danger quiet；RunProfilesPanel green/amber/red→success/warn/danger）。PerfPanel 11 处重复 surface→共享常量。ProcessTable 空状态/虚拟 spacer colSpan 8→9（实际 9 列）。PluginPanel `bg-base-panel`（无效类）→`bg-surface-panel`。
 
 #### Phase 3：响应式 tile
-`useContainerWidth` hook（ResizeObserver 测容器宽度）。`.panel-container` 加 `container-type: inline-size`（容器查询上下文）。ProcessPanel 删 `useIsLg(matchMedia 1024px)`→`useContainerWidth(panelRef)`，侧栏 ≥720px 才显示（**核心**：多面板布局下按 tile 宽度而非窗口宽度）。SnapshotPanel 侧栏窄 tile 由容器查询缩窄。
+`useContainerWidth` hook（ResizeObserver 测容器宽度）。`.panel-container` 加 `container-type: inline-size`（容器查询上下文）。ProcessPanel 删 `useIsLg(matchMedia 1024px)`→`useContainerWidth(panelRef)`，侧栏 ≥720px 才显示（**核心**：多面板布局下按 tile 宽度而非窗口宽度）。SnapshotPanel 在 `<480px` tile 改为顶部紧凑选择/创建条，避免 diff 区被固定侧栏挤窄；面板操作条在窄 tile 自动换行，搜索控件随剩余宽度收缩。
+
+#### Phase 5：桌面交互收口
+- Workspace shell 合并重复 CSS，保留 Windows 原生标题栏 152px 安全区；窄 rail 仍可访问布局预设。
+- 端口/进程表补初始 Tab 入口、完整滚动链和虚拟列表兼容；进程详情侧栏完全按 tile 宽度显示，跨面板聚焦时无需 checkbox 选中。
+- Snapshot 空/加载状态统一 `StateView`，删除迁移到 `ConfirmDialog`，差异 tabs 补 ARIA 语义；Mosaic 控件补 focus-visible 与 reduced-motion 规则。
 
 #### Phase 4：portal 浮层
 `ui/Dialog`（新）：createPortal 到 document.body + focus trap（Tab 循环）+ Escape（非 busy）+ 焦点恢复 + aria-modal/aria-labelledby。ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移到 Dialog。ContextMenu 加 portal。决策：LabelRuleEditor 保留现状（已有完整 focus trap，迁移收益边际且双重 trap 有冲突风险）；App 插件下拉迁移留后续。

@@ -204,17 +204,17 @@ export function ProcessDetailSidebar({
     }
   }
 
-  if (selectedPids.size === 0) {
+  if (selectedPids.size > 1) {
     return (
-      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:flex lg:items-center lg:justify-center">
-        <p className="text-xs text-fg-muted/70">选中一个进程查看详情</p>
+      <aside className="h-full border-l border-line bg-surface-raised p-4">
+        <p className="text-sm text-content-muted">已选 {selectedPids.size} 个进程。选择单个查看详情。</p>
       </aside>
     );
   }
-  if (selectedPids.size > 1) {
+  if (pid == null) {
     return (
-      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:block">
-        <p className="text-sm text-fg-muted">已选 {selectedPids.size} 个进程。选择单个查看详情。</p>
+      <aside className="flex h-full items-center justify-center border-l border-line bg-surface-raised p-4">
+        <p className="text-xs text-content-muted">选中一个进程查看详情</p>
       </aside>
     );
   }
@@ -222,8 +222,8 @@ export function ProcessDetailSidebar({
   const proc = processes.find((p) => p.pid === pid);
   if (!proc) {
     return (
-      <aside className="hidden h-full border-l border-base-600 bg-base-800 p-4 lg:block">
-        <p className="text-sm text-fg-muted">进程已退出</p>
+      <aside className="h-full border-l border-line bg-surface-raised p-4">
+        <p className="text-sm text-content-muted">进程已退出</p>
       </aside>
     );
   }
@@ -238,7 +238,7 @@ export function ProcessDetailSidebar({
   }
 
   return (
-    <aside className="hidden h-full flex-col border-l border-base-600 bg-base-800 lg:flex">
+    <aside className="flex h-full flex-col border-l border-line bg-surface-raised">
       <div className="border-b border-base-600 px-4 py-3">
         <h3 className="text-sm font-semibold text-fg-primary">{proc.name}</h3>
         <p className="text-xs text-fg-muted">PID {proc.pid}</p>

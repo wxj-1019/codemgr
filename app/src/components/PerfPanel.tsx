@@ -63,8 +63,7 @@ export function PerfPanel() {
     <div className="flex h-full flex-col">
       <PanelActionBar
         label="性能"
-        eyebrow="性能"
-        summary={staleAt !== null ? `⚠ 数据陈旧（${formatRelativeTime(staleAt)}）` : undefined}
+        summary={staleAt !== null ? `数据陈旧（${formatRelativeTime(staleAt)}）` : undefined}
         actions={<PollIntervalSelect value={pollMs} onChange={setPollMs} />}
       />
       {/* 子 tab 导航（独立于 action bar，避免挤压） */}

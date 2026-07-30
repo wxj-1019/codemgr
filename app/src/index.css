@@ -91,7 +91,7 @@ body {
   color: var(--text-primary);
   font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.011em;
+  letter-spacing: 0;
 }
 
 /* ── aurora 环境光：只余呼吸感的 mesh（App.tsx 根节点第一个子元素）── */
@@ -139,8 +139,8 @@ body {
 }
 .btn-danger-quiet:hover:not(:disabled) {
   background: var(--danger);
-  color: #fff;
-  box-shadow: 0 0 14px rgba(251, 113, 133, 0.3);
+  color: var(--on-accent);
+  box-shadow: 0 0 14px rgb(var(--danger-rgb) / 0.24);
 }
 
 /* ── Siri 辉光（differentiator）：聚焦面板的流转描边。
@@ -179,7 +179,17 @@ body {
   to { --glow-angle: 360deg; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .panel-active::before { animation: none; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .panel-active::before,
+  .animate-spin {
+    animation: none !important;
+  }
 }
 
 /* ── Desktop workbench shell ── */
@@ -276,7 +286,7 @@ body {
 }
 
 .panel-container {
-  container-name: workspace-panel;
+  container-name: panel;
   container-type: inline-size;
 }
 
@@ -457,8 +467,13 @@ input[type='checkbox'] {
   border-radius: 6px;
   cursor: pointer;
 }
-.mosaic-theme .mosaic-window .mosaic-window-controls button:hover {
-  background: rgba(255, 255, 255, 0.08);
+.mosaic-theme .mosaic-window .mosaic-window-controls button:hover,
+.mosaic-theme .mosaic-window .mosaic-window-controls button:focus-visible {
+  background: rgb(var(--surface-overlay-rgb) / 0.78);
+}
+.mosaic-theme .mosaic-window .mosaic-window-controls button:focus-visible {
+  outline: 2px solid rgb(var(--focus-rgb) / 0.7);
+  outline-offset: -2px;
 }
 .mosaic-theme .mosaic-window .mosaic-window-controls button::before,
 .mosaic-theme .mosaic-window .mosaic-window-controls button::after {
@@ -490,17 +505,15 @@ input[type='checkbox'] {
    多面板布局下单个 tile 宽度与窗口宽度无关（窗口很宽但某 tile 可能很窄），
    故用 container query 而非 media query。.panel-container 建立查询上下文，
    子元素可用 @container panel (min-width: 560px) 等断点。 */
-.panel-container {
-  container-type: inline-size;
-  container-name: panel;
-}
 /* 语义别名类，便于 JS 或 CSS 通过类名判断当前档位（useContainerWidth 也可读数值） */
 @container panel (max-width: 559px) {
   .panel-container.is-narrow-target { /* 占位：JS 读 useContainerWidth 决策，CSS 仅备别名 */ }
 }
 
-/* SnapshotPanel 侧栏：窄 tile（<480px）缩窄为 180px，避免挤占主区 diff 表格。
-   完整折叠（变顶部条）留后续——当前最小化改动保证窄 tile 可用。 */
-@container panel (max-width: 479px) {
-  .snapshot-sidebar { width: 180px; }
+/* 面板操作条按 tile 宽度重排，避免 Mosaic 窄列裁掉搜索和操作按钮。 */
+@container panel (max-width: 559px) {
+  .panel-action-bar [data-panel-actions] {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }

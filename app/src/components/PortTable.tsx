@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
+import { TriangleAlert } from './icons';
 import { isListenLike, conflictPorts } from '../lib/portFilter';
 
 interface PortTableProps {
@@ -51,7 +52,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   }
 
   return (
-    <div className="overflow-auto">
+    <div className="min-h-0 flex-1 overflow-auto">
       <table ref={tableRef} role="grid" className="w-full text-sm">
         <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
@@ -74,7 +75,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
               <tr
                 key={`${c.pid}-${c.localPort}-${i}`}
                 role="row"
-                tabIndex={focused ? 0 : -1}
+                tabIndex={focused || (focusedIdx === null && i === 0) ? 0 : -1}
                 data-row-focused={focused ? 'true' : undefined}
                 aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
@@ -89,7 +90,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                   }`}
                   title={conflict ? '端口冲突：多个进程监听同一端口' : undefined}
                 >
-                  {conflict && <span aria-label="端口冲突">⚠ </span>}
+                  {conflict && <TriangleAlert size={13} className="mr-1 inline-block align-[-2px]" aria-label="端口冲突" />}
                   {c.localPort}
                 </td>
                 <td className="px-3 py-2 uppercase text-fg-secondary">{c.protocol}</td>

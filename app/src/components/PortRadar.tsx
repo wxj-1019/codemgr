@@ -51,26 +51,25 @@ export function PortRadar() {
 
   // 拼接状态摘要文本（监听数 / 刷新中 / 出错 / 数据陈旧）
   const summary = `${listenCount} 个监听端口${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
-    staleAt !== null ? ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
+    staleAt !== null ? ` · 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
   }`;
 
   return (
     <div className="flex h-full flex-col">
       <PanelActionBar
         label="端口雷达"
-        eyebrow="端口雷达"
         summary={summary}
         actions={
           <>
             <PollIntervalSelect value={pollMs} onChange={setPollMs} />
-            <div className="relative">
+            <div className="relative min-w-32 max-w-48 flex-1">
               <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-content-muted" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="搜索端口/进程/PID/地址…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
             </div>
           </>
@@ -94,7 +93,7 @@ export function PortRadar() {
         </div>
       )}
 
-      <main className="flex-1 overflow-hidden p-2">
+      <main className="flex min-h-0 flex-1 overflow-hidden p-2">
         {showLoadState ? (
           <LoadState
             loading={loading}

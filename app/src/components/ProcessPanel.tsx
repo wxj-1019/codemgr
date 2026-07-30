@@ -173,26 +173,25 @@ export function ProcessPanel() {
 
   // 拼接状态摘要（进程数 / 刷新中 / 出错 / 陈旧 / 已选）
   const summary = `${processes.length} 个进程${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
-    staleAt !== null ? ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
+    staleAt !== null ? ` · 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
   }${selectedPids.size > 0 ? ` · 已选 ${selectedPids.size} 个` : ''}`;
 
   return (
     <div ref={panelRef} className="flex h-full flex-col">
       <PanelActionBar
         label="进程"
-        eyebrow="进程"
         summary={summary}
         actions={
           <>
             <PollIntervalSelect value={pollMs} onChange={setPollMs} />
-            <div className="relative">
+            <div className="relative min-w-32 max-w-48 flex-1">
               <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-content-muted" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="搜索进程/命令行/PID…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
             </div>
           </>
@@ -419,13 +418,11 @@ function ResizableSplit({
   }, []);
 
   const sidebarPx = Math.round(width * proportion);
-  // 宽度未就绪前给 Allotment 一个占位 defaultSizes，就绪后用真实像素。
-  // key=width 让 allotment 在宽度首次确定时重算 defaultSizes（仅一次，之后比例化）。
+  // 宽度就绪后挂载一次 Allotment；后续缩放交给 proportionalLayout 保持用户比例。
   return (
     <div ref={containerRef} className="flex flex-1 overflow-hidden">
       {width > 0 && (
         <Allotment
-          key={width}
           defaultSizes={[width - sidebarPx, sidebarPx]}
           onChange={(sizes) => {
             // sizes = [tablePx, sidebarPx]，total 容差防除零

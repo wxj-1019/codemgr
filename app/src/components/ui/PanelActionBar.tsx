@@ -30,18 +30,17 @@ export function PanelActionBar({
       role="toolbar"
       aria-label={label}
       className={cx(
-        'flex min-h-9 items-center justify-between gap-1.5 border-t border-line bg-surface-panel/80 px-2 py-1.5',
-        'panel-action-bar flex-wrap',
+        'panel-action-bar flex min-h-9 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-line bg-surface-panel/80 px-2 py-1.5',
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div data-panel-context className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
         {leading}
-        {eyebrow && <span className="text-[10px] font-semibold uppercase tracking-wider text-content-muted">{eyebrow}</span>}
-        {heading && <span className="text-xs font-semibold text-content">{heading}</span>}
-        {summary && <span className="text-[11px] text-content-muted">{summary}</span>}
+        {eyebrow && <span className="shrink-0 text-[10px] font-semibold uppercase text-content-muted">{eyebrow}</span>}
+        {heading && <span className="shrink-0 text-xs font-semibold text-content-primary">{heading}</span>}
+        {summary && <span className="min-w-0 truncate text-[11px] text-content-muted" title={typeof summary === 'string' ? summary : undefined}>{summary}</span>}
       </div>
-      <div className="flex items-center gap-1">
+      <div data-panel-actions className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1">
         {children}
         {actions}
         {secondaryActions}

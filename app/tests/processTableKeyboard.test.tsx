@@ -27,6 +27,15 @@ describe('ProcessTable keyboard navigation (non-virtualized, ≤100 rows)', () =
     useProcessPanelStore.getState().setProcesses(flatProcs(3));
   });
 
+  it('makes the first visible row the initial keyboard entry point', () => {
+    const { container } = render(
+      <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,
+    );
+    const rows = getRows(container);
+    expect(rows[0]).toHaveAttribute('tabindex', '0');
+    expect(rows[1]).toHaveAttribute('tabindex', '-1');
+  });
+
   it('ArrowDown moves focus to next row (roving tabindex)', () => {
     const { container } = render(
       <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,

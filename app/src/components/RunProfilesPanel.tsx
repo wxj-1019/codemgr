@@ -61,7 +61,6 @@ export function RunProfilesPanel() {
     <div className="flex h-full flex-col">
       <PanelActionBar
         label="Run Profiles"
-        eyebrow="Run Profiles"
         summary={`${profiles.length} 个配置 · ${runs.filter((r) => r.status === 'running').length} 个运行中`}
         actions={
           <button onClick={() => setEditing(null)} className="rounded-md bg-accent px-2 py-1 text-xs text-on-accent hover:bg-accent-hover">新建</button>

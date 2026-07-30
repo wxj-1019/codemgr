@@ -95,6 +95,7 @@ interface ProcessRowProps {
   isExpanded: boolean;
   isSelected: boolean;
   isFocused: boolean;
+  isKeyboardEntry: boolean;
   isFocusedGlobal?: boolean;  // 全局聚焦高亮（C），与多选选中态视觉区分
   onToggleExpand: (pid: number) => void;
   onToggleSelect: (pid: number) => void;
@@ -107,7 +108,7 @@ interface ProcessRowProps {
 }
 
 const ProcessRow = memo(function ProcessRow({
-  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, isFocused, isFocusedGlobal,
+  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, isFocused, isKeyboardEntry, isFocusedGlobal,
   onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow, onRowKeyDown,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
@@ -120,7 +121,7 @@ const ProcessRow = memo(function ProcessRow({
     <tr
       key={proc.pid}
       role="row"
-      tabIndex={isFocused ? 0 : -1}
+      tabIndex={isFocused || isKeyboardEntry ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
       data-pid={proc.pid}
       className={`border-b border-base-700/30 hover:bg-base-700 cursor-pointer ${
@@ -475,6 +476,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       isExpanded={expandedPids.has(proc.pid)}
       isSelected={selectedPids.has(proc.pid)}
       isFocused={proc.pid === navFocusPid}
+      isKeyboardEntry={navFocusPid === null && proc.pid === rows[0]?.proc.pid}
       isFocusedGlobal={proc.pid === focusedPid}
       onToggleExpand={onToggleExpand}
       onToggleSelect={onRowClick}
