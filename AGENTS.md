@@ -146,6 +146,7 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
+- **v2.4**（未发版）：桌面工作台（Apple × Codex Desktop Workbench）Phase 1-4。Phase 1 workspace shell（侧栏+顶栏+panelCatalog）+ 设计系统（语义令牌 surface/content/line/focus/success、lucide facade、UI 原语 Button/IconButton/Badge/StateView/PanelActionBar/PanelAlert、kindStyles）+ 布局引擎（openPanel 幂等/preset/persist v1 迁移/活跃面板协调）。Phase 2 六面板 chrome 统一（去 h1→PanelActionBar、emoji→IconButton+lucide、硬编码色→语义令牌/Badge、ProcessTable colSpan 8→9、PluginPanel bg-base-panel→bg-surface-panel）。Phase 3 响应式 tile（useContainerWidth hook + container query，ProcessPanel 侧栏按 tile 宽度≥720px 而非 matchMedia）。Phase 4 portal 浮层（Dialog 组件 createPortal+focus trap+Esc+焦点恢复，ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移，ContextMenu 加 portal）。设计/计划文档：`docs/superpowers/specs/2026-07-30-codemgr-desktop-workbench-design.md`、`docs/superpowers/plans/2026-07-30-codemgr-desktop-workbench-remainder.md`。
 - **v2.3**（未发版）：Aurora UI 视觉重设计（spec `docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md` v1.2 "Linear 纪律 × Apple 毛玻璃"：明度阶梯中性黑 + 玻璃浮层 + 安静危险按钮 + Siri 辉光聚焦描边 + mosaic 白底渗入修复 + 控制按钮 CSS 图标）。
 - **v2.2**（tag `v2.2`）：进程快照对比（受控文件 IO `userData/snapshots/` + diff 引擎 identity=pid:createTimeMs + SnapshotPanel 挂 mosaic，完成 spec D6/D7）。
 - **v2.1**（tag `v2.1`）：AI 开发工具默认标签（Claude/Kimi/Aider/Codex/Cursor/Ollama/LM Studio，新 kind `ai`/`ai-ide`）+ 开机自启开关（setLoginItemSettings，nav toggle）+ GPU/显存监控（PDH English GPU Engine counters + DXGI 显存 + perf GPU 子标签 + 进程 GPU% 列，完成 spec D5，无 GPU 降级；GPU 采集经预热 + 三层优化）。
@@ -161,7 +162,7 @@ scope:  native | app | ci | docs（可选）
 - **v1.1**（tag `v1.1`）：断链修复 + 高危交互治理 + 按项目分组 + 进程详情侧栏 + 亮色主题 + 持久化。
 - **v1.0**（tag `v1.0`）：四大板块完成（端口雷达/进程/性能/系统）。
 - 性能基线：processScan p99=12.38ms（真实 2s 轮询，396 进程，v1.5 未改 native 采集层）、netScan p99<30ms 判据 PASS（v1.8 IPv6 合并枚举后实测 4.7~7.9ms，随负载波动）、60s 无泄漏。注意：bench 对机器负载敏感（软 gate），processScan 的 20ms 判据在高负载机器上会环境性 FAIL，判读时先做基线对照。
-- 测试：app 308/308 + native 47/47，共 355 PASS。
+- 测试：app 381/381 PASS（含 Phase 1 +73）。native：源码测试 49 个，但本机 CMake 不在 PATH（vswhere 命中 VS2022 BuildTools 无 CMake，PATH 回退失败），native addon 未重编译为 v2.1+ → disk/gpu 17 测试环境性失败（非代码问题，需在有 CMake 的环境 `pnpm --filter codemgr-native build` 后跑）。
 - 后续规划见 `docs/CONTRIBUTING.md` 的 roadmap 节。
 
 ## 9. 打包与 CI 注意事项（v1.5 新增）

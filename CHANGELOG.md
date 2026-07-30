@@ -4,6 +4,30 @@
 
 ---
 
+## [v2.4] — 2026-07-30
+
+### 桌面工作台（Apple × Codex Desktop Workbench）
+基于 `feat/desktop-workbench` 分支的 Phase 1-4 设计落地。把 CodeMgr 的 UI 骨架从「mosaic 顶部 nav」升级为「Apple × Codex 工作台」：workspace 侧栏导航 + 设计系统 + 统一面板 chrome + 响应式 tile + portal 浮层。
+
+#### Phase 1：工作台骨架（shell + 设计系统 + 布局引擎）
+- **workspace shell**：Codex 式侧栏（`WorkspaceSidebar`：监控组/工作流组/扩展组）+ 顶栏（`WorkspaceTopbar`，`app-region: drag`）+ `panelCatalog`（6 内置面板 + 插件描述符的单一真相源）。
+- **设计系统**：语义令牌（`surface/canvas/panel/raised/overlay`、`content/primary/secondary/muted`、`line/focus/success/info/danger/warn/on-accent`）+ Tailwind `<alpha-value>` + 亮/暗双主题（root `.dark`/`.light` 早于 createRoot 挂载）。lucide-react 图标经 `icons.tsx` facade。UI 原语：`Button`（4 variant/3 size）、`IconButton`、`Badge`（6 tone）、`StateView`、`PanelActionBar`、`PanelAlert`。`kindStyles.ts` 集中进程 kind→Badge tone 映射。
+- **布局引擎**：`layoutStore` 的 `openPanel`（幂等：存在→激活，缺席→70/30 行拆，空→叶根）+ preset（手动重排后清空，apply 时恢复）+ persist v1（v0 迁移 + preset 同步校验 + DFS 去重）+ 活跃面板协调（关闭回退首叶）。
+
+#### Phase 2：面板 chrome 统一
+6 内置面板去掉内部 `<h1>`（mosaic 标题栏为唯一标题），header→`PanelActionBar`（eyebrow+summary+actions）。emoji 按钮→`IconButton`+lucide（✕→X、↻→RefreshCw、📸→Camera）。硬编码色→语义令牌/Badge（SessionPanel fuchsia→Badge(accent)、cyan→accent、red→danger quiet；RunProfilesPanel green/amber/red→success/warn/danger）。PerfPanel 11 处重复 surface→共享常量。ProcessTable 空状态/虚拟 spacer colSpan 8→9（实际 9 列）。PluginPanel `bg-base-panel`（无效类）→`bg-surface-panel`。
+
+#### Phase 3：响应式 tile
+`useContainerWidth` hook（ResizeObserver 测容器宽度）。`.panel-container` 加 `container-type: inline-size`（容器查询上下文）。ProcessPanel 删 `useIsLg(matchMedia 1024px)`→`useContainerWidth(panelRef)`，侧栏 ≥720px 才显示（**核心**：多面板布局下按 tile 宽度而非窗口宽度）。SnapshotPanel 侧栏窄 tile 由容器查询缩窄。
+
+#### Phase 4：portal 浮层
+`ui/Dialog`（新）：createPortal 到 document.body + focus trap（Tab 循环）+ Escape（非 busy）+ 焦点恢复 + aria-modal/aria-labelledby。ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移到 Dialog。ContextMenu 加 portal。决策：LabelRuleEditor 保留现状（已有完整 focus trap，迁移收益边际且双重 trap 有冲突风险）；App 插件下拉迁移留后续。
+
+### 测试
+- app 308→381（+73：layoutStore/panelCatalog/workspaceNavigation/uiPrimitives/designTokens/themeStore/activePanelStore/PluginPanel 等 Phase 1 测试），全过。native 源码 49 测试，但本机 CMake 不在 PATH 致 addon 未重编译为 v2.1+，disk/gpu 17 测试环境性失败（非本次代码问题，需有 CMake 环境重编译后跑）。
+
+---
+
 ## [v2.3] — 2026-07-30
 
 本版本把 CodeMgr 从「进程观察 + 清理工具」升级为「AI 开发者工作台」：补齐 workspace 身份、跨面板聚焦、诊断导出、AI 会话图谱、受控启动与服务健康检测，形成完整闭环。同时完成 Aurora 视觉重设计。
