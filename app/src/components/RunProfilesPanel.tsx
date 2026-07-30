@@ -3,8 +3,10 @@ import { useRunProfiles, refreshProfiles } from '../hooks/useRunProfiles';
 import { useRunProfileStore } from '../store/runProfileStore';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { resolveServiceStatus, type ServiceStatus } from '../lib/devService';
 import { RunProfileEditor } from './RunProfileEditor';
+import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import type { RunProfile, RunState } from '../../electron/ipc-types';
 
@@ -32,28 +34,34 @@ export function RunProfilesPanel() {
     setBusy(profileId);
     try {
       const r = await ipc.startProfile(profileId);
-      if (!r) alert('启动失败：command 不在白名单或 cwd 无效');
-    } catch (e) { alert(`启动失败：${String(e)}`); }
+      if (!r) notify.error('启动失败：command 不在白名单或 cwd 无效');
+    } catch (e) { notify.error(`启动失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
   async function stop(runId: string, profileId: string) {
     setBusy(profileId);
     try { await ipc.stopProfile(runId); }
-    catch (e) { alert(`停止失败：${String(e)}`); }
+    catch (e) { notify.error(`停止失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
   async function restart(runId: string, profileId: string) {
     setBusy(profileId);
     try { await ipc.restartProfile(runId); }
-    catch (e) { alert(`重启失败：${String(e)}`); }
+    catch (e) { notify.error(`重启失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
-  async function del(profileId: string) {
-    if (!confirm('确定删除此 profile？')) return;
-    await ipc.deleteRunProfile(profileId);
+  // 删除走 ConfirmDialog（替代原生 confirm）：del 只记录待删 id，doDelete 执行
+  const [confirmDelId, setConfirmDelId] = useState<string | null>(null);
+
+  function del(profileId: string) { setConfirmDelId(profileId); }
+
+  async function doDelete() {
+    if (!confirmDelId) return;
+    setConfirmDelId(null);
+    await ipc.deleteRunProfile(confirmDelId);
     await refreshProfiles();
   }
 
@@ -118,6 +126,14 @@ export function RunProfilesPanel() {
         )}
       </div>
       {editing !== undefined && <RunProfileEditor editing={editing} onClose={() => setEditing(undefined)} />}
+      <ConfirmDialog
+        open={confirmDelId !== null}
+        title="删除 Profile"
+        message="确定删除此 profile？"
+        confirmLabel="删除"
+        onConfirm={() => void doDelete()}
+        onCancel={() => setConfirmDelId(null)}
+      />
     </div>
   );
 }

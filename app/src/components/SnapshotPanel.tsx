@@ -3,6 +3,7 @@ import type { SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electro
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { FolderIcon, PackageIcon, Camera, RefreshCw, Trash2 } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
@@ -152,7 +153,7 @@ export function SnapshotPanel() {
     if (capturing) return;
     const name = nameInput.trim();
     if (!name) {
-      alert('请先输入快照名称（如「agent 开工前」）');
+      notify.info('请先输入快照名称（如「agent 开工前」）');
       return;
     }
     setCapturing(true);
@@ -160,7 +161,7 @@ export function SnapshotPanel() {
       // 拍快照时刻取当前进程（独立于面板已缓存的 currentEntries，确保是「按下按钮这一刻」的快照）
       const result = await ipc.fetchProcesses();
       if (!result.ok) {
-        alert(`取当前进程失败：${result.error.message}`);
+        notify.error(`取当前进程失败：${result.error.message}`);
         return;
       }
       const entries = result.data.map(toSnapshotEntry);
@@ -173,7 +174,7 @@ export function SnapshotPanel() {
         // save 内部已 setError，这里不再重复 alert
       }
     } catch (e) {
-      alert(`拍快照失败：${String(e)}`);
+      notify.error(`拍快照失败：${String(e)}`);
     } finally {
       setCapturing(false);
     }
@@ -212,17 +213,17 @@ export function SnapshotPanel() {
       setBatchKillName(null);
       clearSelection();
       if (killed === 0) {
-        alert('未结束任何进程：可能均为受保护进程、权限不足或已退出');
+        notify.error('未结束任何进程：可能均为受保护进程、权限不足或已退出');
       } else if (killed < targets.length) {
-        alert(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        notify.error(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
-        alert(`已结束 ${killed} 个进程`);
+        notify.success(`已结束 ${killed} 个进程`);
       }
       // kill 后立即刷新当前进程，让 diff 反映最新态
       await refreshCurrent();
     } catch (e) {
       setBatchKillName(null);
-      alert(`批量结束失败：${String(e)}`);
+      notify.error(`批量结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
