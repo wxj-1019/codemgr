@@ -17,6 +17,9 @@ export const IPC = {
   LIST_PLUGINS: 'config:listPlugins',
   // 数据导出（子项目 E）：渲染层传建议文件名+内容，main 保存对话框持路径（红线同 EXPORT_LABEL_RULES）
   EXPORT_DATA_FILE: 'config:exportDataFile',
+  // 启动项（子项目 G）：列出/启停系统启动项。禁用在 main 经备份键搬移/改后缀（可逆）。
+  STARTUP_LIST: 'startup:list',
+  STARTUP_SET_ENABLED: 'startup:setEnabled',
   // 插件数据源（6c）：renderer 请求某 capability 的数据，main 转发 UtilityProcess 采集
   REQUEST_DATA_SOURCE: 'plugin:requestDataSource',
   // 插件数据源（6c）：main 把 UtilityProcess 采集结果推回 renderer（事件，非 invoke）
@@ -135,6 +138,15 @@ export type OpenTargetKind = 'folder' | 'terminal' | 'editor';
 
 /** 数据导出结果（子项目 E）：cancelled 用户取消（UI 静默），error 失败。 */
 export type ExportDataResult = 'ok' | 'cancelled' | 'error';
+
+/** 系统启动项（子项目 G）。id 编码来源：hkcu:<value名> / hklm:<value名> / folder:<当前文件名>。 */
+export interface StartupItem {
+  id: string;
+  name: string;
+  command: string;
+  source: 'hkcu-run' | 'hklm-run' | 'startup-folder';
+  enabled: boolean;
+}
 
 /** 一个运行中的 profile 实例（main spawn 后产生）。 */
 export interface RunState {
@@ -329,4 +341,7 @@ export interface ExposedApi {
   openExternalUrl(url: string): Promise<string>;
   // 数据导出（子项目 E）。文件名/大小 main 校验；内容已由渲染层序列化（CSV/JSON 文本）。
   exportDataFile(defaultName: string, content: string): Promise<ExportDataResult>;
+  // 启动项（子项目 G）。setEnabled 返回 ''=成功，非空=错误描述（HKLM 只读 → 错误文本）。
+  listStartupItems(): Promise<StartupItem[]>;
+  setStartupItemEnabled(id: string, enabled: boolean): Promise<string>;
 }

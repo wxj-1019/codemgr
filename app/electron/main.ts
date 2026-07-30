@@ -2,13 +2,16 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, d
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, execFile as cpExecFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { rename as fsRename } from 'node:fs/promises';
 import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState, type OpenTargetKind, type ExportDataResult } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 import { RunManager, readProfiles, writeProfiles, validateProfile } from './runProfiles';
 import { resolveGitIdentity } from './gitWorkspace';
 import { openTarget, openExternalUrl, type ShellDeps, type SpawnLike } from './shellActions';
 import { sanitizeExportName, EXPORT_MAX_CONTENT_BYTES } from './exportFile';
+import { listStartupItems, setStartupItemEnabled, type StartupDeps } from './startupItems';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -485,6 +488,25 @@ ipcMain.handle(IPC.OPEN_TARGET, async (_evt, kind: OpenTargetKind, targetPath: s
 ipcMain.handle(IPC.OPEN_EXTERNAL_URL, async (_evt, url: string) => {
   try { return await openExternalUrl(url, shellDeps); }
   catch (e) { console.error('shell:openExternalUrl failed:', e); return String(e); }
+});
+
+// ── 启动项（子项目 G）──
+// 采集/启停逻辑在 startupItems（deps 注入可测），这里只装配真实 reg.exe/fs 依赖。
+const execFileAsync = promisify(cpExecFile);
+const startupDeps: StartupDeps = {
+  execFile: async (file, args) => (await execFileAsync(file, args)).stdout,
+  rename: (from, to) => fsRename(from, to),
+  readdir: async (dir) => readdirSync(dir),
+};
+
+ipcMain.handle(IPC.STARTUP_LIST, async () => {
+  try { return await listStartupItems(startupDeps); }
+  catch (e) { console.error('startup:list failed:', e); return []; }
+});
+
+ipcMain.handle(IPC.STARTUP_SET_ENABLED, async (_evt, id: string, enabled: boolean) => {
+  try { return await setStartupItemEnabled(startupDeps, String(id), !!enabled); }
+  catch (e) { console.error('startup:setEnabled failed:', e); return String(e); }
 });
 
 // ── Run Profiles（F1）──
