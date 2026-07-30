@@ -12,8 +12,12 @@ import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
+import { PanelActionBar } from './ui/PanelActionBar';
 import { useFocusStore } from '../store/focusStore';
 import { formatBytesPerSec, formatRelativeTime } from '../lib/format';
+
+// 共享区块样式（避免 ~10 处重复 className）
+const sectionSurface = 'rounded-lg border border-line bg-surface-panel p-4';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network' | 'gpu';
 
@@ -57,32 +61,28 @@ export function PerfPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <div className="flex items-baseline gap-2">
-          <h1 className="text-lg font-semibold text-fg-primary">性能</h1>
-          {staleAt !== null && (
-            <span className="text-xs text-fg-muted">⚠ 数据陈旧（{formatRelativeTime(staleAt)}）</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <PollIntervalSelect value={pollMs} onChange={setPollMs} />
-          <div className="flex gap-1">
-            {subTabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setSub(t.id)}
-                className={`rounded px-3 py-1 text-sm ${
-                  sub === t.id
-                    ? 'bg-accent/20 text-accent'
-                    : 'text-fg-secondary hover:text-fg-primary'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
+      <PanelActionBar
+        label="性能"
+        eyebrow="性能"
+        summary={staleAt !== null ? `⚠ 数据陈旧（${formatRelativeTime(staleAt)}）` : undefined}
+        actions={<PollIntervalSelect value={pollMs} onChange={setPollMs} />}
+      />
+      {/* 子 tab 导航（独立于 action bar，避免挤压） */}
+      <div className="flex gap-1 border-b border-line px-2 py-1">
+        {subTabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSub(t.id)}
+            className={`rounded px-3 py-1 text-sm ${
+              sub === t.id
+                ? 'bg-accent/20 text-accent'
+                : 'text-content-secondary hover:text-content-primary'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       <main className="flex-1 overflow-auto p-4">
         {sub === 'cpu' && <CpuView current={current} history={history} />}
@@ -104,7 +104,7 @@ function CpuView({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+      <div className={sectionSurface}>
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-fg-secondary">CPU 使用率</span>
           <span className="font-mono text-3xl font-bold text-accent">
@@ -151,7 +151,7 @@ function CpuView({
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+      <div className={sectionSurface}>
         <div className="mb-2 text-sm text-fg-secondary">
           各核心 ({current.cpu.perCore.length} 核)
         </div>
@@ -187,7 +187,7 @@ function MemoryView({
   const usedBytes = mem.totalBytes - mem.availableBytes;
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+      <div className={sectionSurface}>
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-fg-secondary">内存使用</span>
           <span className="font-mono text-3xl font-bold text-accent">
@@ -345,7 +345,7 @@ function GpuView({
   const top5 = [...gpu.perProcess].sort((a, b) => b.gpuPercent - a.gpuPercent).slice(0, 5);
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+      <div className={sectionSurface}>
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-fg-secondary">GPU 使用率</span>
           <span className="font-mono text-3xl font-bold text-accent">
@@ -379,7 +379,7 @@ function GpuView({
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+      <div className={sectionSurface}>
         <div className="mb-1 flex justify-between text-sm">
           <span className="text-fg-secondary">显存</span>
           <span className="text-fg-muted">
@@ -392,7 +392,7 @@ function GpuView({
         </div>
       </div>
       {top5.length > 0 && (
-        <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+        <div className={sectionSurface}>
           <div className="mb-2 text-sm text-fg-secondary">GPU 占用 Top 5（数据来自性能面板轮询）</div>
           <table className="w-full text-sm">
             <thead className="text-xs uppercase text-fg-muted">
@@ -421,7 +421,7 @@ function GpuView({
       )}
       {/* v2.x 多适配器明细（核显+独显分卡；仅 >1 时显示，单卡时上层总览已够） */}
       {gpu.adapters.length > 1 && (
-        <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+        <div className={sectionSurface}>
           <div className="mb-3 text-sm text-fg-secondary">适配器明细</div>
           <div className="space-y-3">
             {gpu.adapters.map((a, i) => {

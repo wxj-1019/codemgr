@@ -12,6 +12,9 @@ import { ProcessDetailSidebar } from './ProcessDetailSidebar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
+import { PanelActionBar } from './ui/PanelActionBar';
+import { IconButton } from './ui/IconButton';
+import { Search, X } from './icons';
 
 // Tailwind 的 lg 断点 = 1024px。侧栏仅 lg+ 显示（与原 hidden lg:block 一致），
 // 用 matchMedia 判断，避免 allotment 在小屏仍给侧栏 pane 分配空间。
@@ -178,80 +181,83 @@ export function ProcessPanel() {
   // node.exe is actually present in the current snapshot.
   const hasNode = processes.some((p) => p.name.toLowerCase() === 'node.exe');
 
+  // 拼接状态摘要（进程数 / 刷新中 / 出错 / 陈旧 / 已选）
+  const summary = `${processes.length} 个进程${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
+    staleAt !== null ? ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
+  }${selectedPids.size > 0 ? ` · 已选 ${selectedPids.size} 个` : ''}`;
+
   return (
     <div className="flex h-full flex-col">
-      {/* Header bar */}
-      <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold text-fg-primary">进程</h1>
-          <p className="text-xs text-fg-muted">
-            {processes.length} 个进程
-            {loading ? ' · 刷新中…' : ''}
-            {error && ' · 上次刷新出错'}
-            {staleAt !== null && ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）`}
-            {selectedPids.size > 0 && ` · 已选 ${selectedPids.size} 个`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <PollIntervalSelect value={pollMs} onChange={setPollMs} />
-          <input
-            type="text"
-            placeholder="搜索进程/命令行/PID…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="w-56 rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
-          />
-          <button
-            onClick={toggleViewMode}
-            className="rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700"
-            title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
-          >
-            {viewMode === 'tree' ? '按项目' : '树形'}
-          </button>
-          {hasNode && (
+      <PanelActionBar
+        label="进程"
+        eyebrow="进程"
+        summary={summary}
+        actions={
+          <>
+            <PollIntervalSelect value={pollMs} onChange={setPollMs} />
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-content-muted" aria-hidden="true" />
+              <input
+                type="text"
+                placeholder="搜索进程/命令行/PID…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+              />
+            </div>
+          </>
+        }
+        secondaryActions={
+          <>
             <button
-              onClick={() => setConfirmKillAllNode(true)}
-              className="btn-danger-quiet rounded px-3 py-1 text-xs"
-              title="结束系统中所有 node.exe 进程（受保护名单排除）"
+              onClick={toggleViewMode}
+              className="rounded-md border border-line bg-surface-raised px-2 py-1 text-xs text-content-secondary hover:bg-surface-overlay hover:text-content-primary"
+              title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
             >
-              结束所有 node.exe
+              {viewMode === 'tree' ? '按项目' : '树形'}
             </button>
-          )}
-          {selectedPids.size > 0 && (
-            <button
-              onClick={() => {
-                // Pick the most-common name among the selected PIDs as the
-                // batch target label. The kill itself targets explicit PIDs
-                // (killByPids), so unrelated same-name processes elsewhere are
-                // never touched.
-                const name = mostCommonName(
-                  [...selectedPids].map(
-                    (pid) => processes.find((p) => p.pid === pid)?.name || '',
-                  ),
-                );
-                if (name) setBatchKillName(name);
-              }}
-              className="btn-danger-quiet rounded-lg px-3 py-1 text-xs"
-            >
-              批量结束 ({selectedPids.size})
-            </button>
-          )}
-        </div>
-      </header>
+            {hasNode && (
+              <button
+                onClick={() => setConfirmKillAllNode(true)}
+                className="rounded-md border border-danger/40 bg-transparent px-2 py-1 text-xs text-danger hover:bg-danger hover:text-on-accent"
+                title="结束系统中所有 node.exe 进程（受保护名单排除）"
+              >
+                结束所有 node.exe
+              </button>
+            )}
+            {selectedPids.size > 0 && (
+              <button
+                onClick={() => {
+                  const name = mostCommonName(
+                    [...selectedPids].map(
+                      (pid) => processes.find((p) => p.pid === pid)?.name || '',
+                    ),
+                  );
+                  if (name) setBatchKillName(name);
+                }}
+                className="rounded-md border border-danger/40 bg-transparent px-2 py-1 text-xs text-danger hover:bg-danger hover:text-on-accent"
+              >
+                批量结束 ({selectedPids.size})
+              </button>
+            )}
+          </>
+        }
+      />
 
       {showErrorBanner && (
         <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
           <p className="truncate text-xs text-danger">
             上次刷新失败：{error}
           </p>
-          <button
+          <IconButton
+            label="关闭错误提示"
+            size="xs"
+            variant="ghost"
             onClick={() => useProcessPanelStore.getState().setError(null)}
-            className="shrink-0 text-danger/80 hover:text-danger"
-            aria-label="关闭错误提示"
-            title="关闭"
+            className="text-danger/80 hover:text-danger"
           >
-            ✕
-          </button>
+            <X size={14} aria-hidden="true" />
+          </IconButton>
         </div>
       )}
 

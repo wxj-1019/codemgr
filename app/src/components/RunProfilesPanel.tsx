@@ -5,13 +5,14 @@ import { usePortRadarStore } from '../store/portRadarStore';
 import { ipc } from '../lib/ipc';
 import { resolveServiceStatus, type ServiceStatus } from '../lib/devService';
 import { RunProfileEditor } from './RunProfileEditor';
+import { PanelActionBar } from './ui/PanelActionBar';
 import type { RunProfile, RunState } from '../../electron/ipc-types';
 
 const STATUS_BADGE: Record<ServiceStatus['kind'], { text: string; cls: string }> = {
-  listening: { text: '就绪', cls: 'bg-green-500/20 text-green-400' },
-  starting: { text: '启动中…', cls: 'bg-amber-500/20 text-amber-400' },
-  conflict: { text: '端口冲突', cls: 'bg-red-500/20 text-red-400' },
-  exited: { text: '已退出', cls: 'bg-base-700 text-fg-muted' },
+  listening: { text: '就绪', cls: 'bg-success/20 text-success' },
+  starting: { text: '启动中…', cls: 'bg-warn/20 text-warn' },
+  conflict: { text: '端口冲突', cls: 'bg-danger/20 text-danger' },
+  exited: { text: '已退出', cls: 'bg-surface-raised text-content-muted' },
   'no-ports': { text: '', cls: '' },
 };
 
@@ -58,13 +59,14 @@ export function RunProfilesPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold text-fg-primary">Run Profiles</h1>
-          <p className="text-xs text-fg-muted">{profiles.length} 个配置 · {runs.filter((r) => r.status === 'running').length} 个运行中</p>
-        </div>
-        <button onClick={() => setEditing(null)} className="rounded bg-accent px-3 py-1 text-sm text-white hover:bg-accent/80">新建</button>
-      </header>
+      <PanelActionBar
+        label="Run Profiles"
+        eyebrow="Run Profiles"
+        summary={`${profiles.length} 个配置 · ${runs.filter((r) => r.status === 'running').length} 个运行中`}
+        actions={
+          <button onClick={() => setEditing(null)} className="rounded-md bg-accent px-2 py-1 text-xs text-on-accent hover:bg-accent-hover">新建</button>
+        }
+      />
       <div className="flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
@@ -80,7 +82,7 @@ export function RunProfilesPanel() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-fg-primary">{p.name}</span>
-                      {run && <span className="ml-2 rounded bg-green-500/20 px-1 text-[10px] text-green-400">PID {run.pid}</span>}
+                      {run && <span className="ml-2 rounded bg-success/20 px-1 text-[10px] text-success">PID {run.pid}</span>}
                       {run && (() => {
                         const svc = resolveServiceStatus(run as RunState, p, connections);
                         const badge = STATUS_BADGE[svc.kind];
@@ -101,7 +103,7 @@ export function RunProfilesPanel() {
                       ) : (
                         <>
                           <button onClick={() => restart(run.runId, p.id)} disabled={isBusy} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600 disabled:opacity-50">重启</button>
-                          <button onClick={() => stop(run.runId, p.id)} disabled={isBusy} className="rounded bg-red-600/80 px-2 py-0.5 text-xs text-white hover:bg-red-500 disabled:opacity-50">停止</button>
+                          <button onClick={() => stop(run.runId, p.id)} disabled={isBusy} className="rounded border border-danger/40 bg-transparent px-2 py-0.5 text-xs text-danger hover:bg-danger hover:text-on-accent disabled:opacity-50">停止</button>
                         </>
                       )}
                       <button onClick={() => setEditing(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600">编辑</button>

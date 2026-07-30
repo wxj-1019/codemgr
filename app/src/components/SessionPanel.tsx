@@ -8,6 +8,8 @@ import { aggregateSession } from '../lib/sessionAggregate';
 import { formatBytes } from '../lib/format';
 import { ipc } from '../lib/ipc';
 import { ConfirmDialog } from './ConfirmDialog';
+import { PanelActionBar } from './ui/PanelActionBar';
+import { Badge } from './ui/Badge';
 
 export function SessionPanel() {
   useSessions(); // 启动订阅（订阅 processPanelStore，无独立轮询）
@@ -43,9 +45,7 @@ export function SessionPanel() {
   if (sessions.length === 0) {
     return (
       <div className="flex h-full flex-col">
-        <header className="border-b border-base-700 px-4 py-3">
-          <h1 className="text-lg font-semibold text-fg-primary">AI 会话</h1>
-        </header>
+        <PanelActionBar label="AI 会话" eyebrow="AI 会话" />
         <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-fg-muted">
           未检测到 AI 开发会话。<br />Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。
         </div>
@@ -55,10 +55,7 @@ export function SessionPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b border-base-700 px-4 py-3">
-        <h1 className="text-lg font-semibold text-fg-primary">AI 会话</h1>
-        <p className="text-xs text-fg-muted">{sessions.length} 个活跃会话</p>
-      </header>
+      <PanelActionBar label="AI 会话" eyebrow="AI 会话" summary={`${sessions.length} 个活跃会话`} />
       <div className="flex-1 overflow-auto p-3">
         <div className="space-y-2">
           {sessions.map((s) => {
@@ -68,18 +65,18 @@ export function SessionPanel() {
               <div
                 key={s.id}
                 onClick={() => { focusSession(s.id); focus(s.rootPid, 'process'); }}
-                className={`cursor-pointer rounded-lg border p-3 hover:bg-base-800 ${
-                  isFocused ? 'border-cyan-400/70 ring-1 ring-cyan-400/40' : 'border-base-700 bg-base-800/60'
+                className={`cursor-pointer rounded-lg border p-3 hover:bg-surface-panel ${
+                  isFocused ? 'border-accent/70 ring-1 ring-accent/40' : 'border-line bg-surface-panel/60'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-fg-primary">{s.rootLabel}</span>
-                    <span className="rounded bg-fuchsia-500/20 px-1 text-[10px] text-fuchsia-400">{s.kind}</span>
+                    <Badge tone="accent">{s.kind}</Badge>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); setPendingStop({ rootPid: s.rootPid, label: s.rootLabel }); }}
-                    className="rounded bg-red-600/80 px-2 py-0.5 text-xs text-white hover:bg-red-500"
+                    className="rounded border border-danger/40 bg-transparent px-2 py-0.5 text-xs text-danger hover:bg-danger hover:text-on-accent"
                   >
                     停止
                   </button>

@@ -2,6 +2,7 @@ import { Folder, Package } from 'lucide-react';
 
 export {
   AlertCircle,
+  Camera,
   Check,
   CheckCircle2,
   ChevronDown,

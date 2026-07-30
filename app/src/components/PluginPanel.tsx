@@ -118,7 +118,7 @@ export function LoadedPluginPanel({ id, entry }: { id: string; entry: PluginMani
       sandbox="allow-scripts"
       src={entry.src}
       title={entry.name}
-      className="h-full w-full border-0 bg-base-panel"
+      className="h-full w-full border-0 bg-surface-panel"
     />
   );
 }

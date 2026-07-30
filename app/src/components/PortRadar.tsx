@@ -9,6 +9,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
+import { PanelActionBar } from './ui/PanelActionBar';
+import { IconButton } from './ui/IconButton';
+import { Search, X } from './icons';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
@@ -46,42 +49,48 @@ export function PortRadar() {
   const showErrorBanner = !!error && hasData;
   const showLoadState = (isFirstLoad && loading) || (!!error && !hasData);
 
+  // 拼接状态摘要文本（监听数 / 刷新中 / 出错 / 数据陈旧）
+  const summary = `${listenCount} 个监听端口${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
+    staleAt !== null ? ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
+  }`;
+
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold text-fg-primary">端口雷达</h1>
-          <p className="text-xs text-fg-muted">
-            {listenCount} 个监听端口{loading ? ' · 刷新中…' : ''}
-            {error && ' · 上次刷新出错'}
-            {staleAt !== null && ` · ⚠ 数据陈旧（${formatRelativeTime(staleAt)}）`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <PollIntervalSelect value={pollMs} onChange={setPollMs} />
-          <input
-            type="text"
-            placeholder="搜索端口/进程/PID/地址…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="w-56 rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-sm text-fg-primary placeholder-fg-muted outline-none focus:border-accent/50"
-          />
-        </div>
-      </header>
+      <PanelActionBar
+        label="端口雷达"
+        eyebrow="端口雷达"
+        summary={summary}
+        actions={
+          <>
+            <PollIntervalSelect value={pollMs} onChange={setPollMs} />
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-content-muted" aria-hidden="true" />
+              <input
+                type="text"
+                placeholder="搜索端口/进程/PID/地址…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+              />
+            </div>
+          </>
+        }
+      />
 
       {showErrorBanner && (
         <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
           <p className="truncate text-xs text-danger">
             上次刷新失败：{error}
           </p>
-          <button
+          <IconButton
+            label="关闭错误提示"
+            size="xs"
+            variant="ghost"
             onClick={() => usePortRadarStore.getState().setError(null)}
-            className="shrink-0 text-danger/80 hover:text-danger"
-            aria-label="关闭错误提示"
-            title="关闭"
+            className="text-danger/80 hover:text-danger"
           >
-            ✕
-          </button>
+            <X size={14} aria-hidden="true" />
+          </IconButton>
         </div>
       )}
 

@@ -565,13 +565,13 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
             <>
               {padTop > 0 && (
                 <tr aria-hidden="true" data-virtual-spacer="top">
-                  <td colSpan={8} style={{ height: padTop, padding: 0, border: 0 }} />
+                  <td colSpan={9} style={{ height: padTop, padding: 0, border: 0 }} />
                 </tr>
               )}
               {virtualItems.map((vi) => renderRow(rows[vi.index]))}
               {padBottom > 0 && (
                 <tr aria-hidden="true" data-virtual-spacer="bottom">
-                  <td colSpan={8} style={{ height: padBottom, padding: 0, border: 0 }} />
+                  <td colSpan={9} style={{ height: padBottom, padding: 0, border: 0 }} />
                 </tr>
               )}
             </>
@@ -580,7 +580,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
           )}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={9} className="px-3 py-8 text-center text-fg-muted">
                 无进程
               </td>
             </tr>

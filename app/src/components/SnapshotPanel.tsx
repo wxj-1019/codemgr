@@ -3,10 +3,12 @@ import type { SnapshotEntry, ProcessSnapshot } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
-import { FolderIcon, PackageIcon } from './icons';
+import { FolderIcon, PackageIcon, Camera, RefreshCw } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
 import { ConfirmDialog } from './ConfirmDialog';
+import { PanelActionBar } from './ui/PanelActionBar';
+import { IconButton } from './ui/IconButton';
 
 /**
  * 进程快照对比面板（v2.2，spec §2.4）。
@@ -219,25 +221,23 @@ export function SnapshotPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-base-700 px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold text-fg-primary">快照对比</h1>
-          <p className="text-xs text-fg-muted">
-            {snapshots.length} 个快照
-            {loading ? ' · 加载中…' : ''}
-            {currentEntries ? ` · 当前 ${currentEntries.length} 个进程` : ''}
-          </p>
-        </div>
-        <button
-          onClick={refreshCurrent}
-          disabled={refreshing}
-          className="rounded-lg border border-base-600 bg-base-800 px-3 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:opacity-50"
-          title="重新读取当前进程列表（不轮询）"
-        >
-          {refreshing ? '刷新中…' : '↻ 刷新当前'}
-        </button>
-      </header>
+      <PanelActionBar
+        label="快照对比"
+        eyebrow="快照对比"
+        summary={`${snapshots.length} 个快照${loading ? ' · 加载中…' : ''}${currentEntries ? ` · 当前 ${currentEntries.length} 个进程` : ''}`}
+        actions={
+          <IconButton
+            label="刷新当前进程列表"
+            size="sm"
+            variant="secondary"
+            onClick={refreshCurrent}
+            disabled={refreshing}
+            title="重新读取当前进程列表（不轮询）"
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+          </IconButton>
+        }
+      />
 
       {(error || currentFetchError) && (
         <div className="border-b border-danger/40 bg-danger/10 px-4 py-2 text-xs text-danger">
@@ -261,9 +261,10 @@ export function SnapshotPanel() {
             <button
               onClick={handleCapture}
               disabled={capturing}
-              className="w-full rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
             >
-              {capturing ? '拍摄中…' : '📸 拍快照'}
+              <Camera size={14} aria-hidden="true" />
+              {capturing ? '拍摄中…' : '拍快照'}
             </button>
             <p className="mt-1.5 text-[10px] text-fg-muted">
               上限 20 个，超出请删旧
