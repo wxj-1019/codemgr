@@ -20,30 +20,49 @@ const addonRoot = join(__dirname, '..')
 const VSWHERE =
 	'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe'
 
-// 用 vswhere 找最新 VS（含 BuildTools/Community/Enterprise 等所有 edition），
-// 取其内置 CMake。失败则回退到 PATH 上的 cmake（交由 cmake-js 自行处理）。
+// 用 vswhere 找 VS 自带的 CMake。
+// 策略：先取最新 VS 实例（-latest）；若其无 CMake 组件（如只装了 BuildTools
+// 未勾 CMake），则遍历**所有** VS 实例找第一个带 CMake 的（如 VS2019 Community）。
+// 全失败才回退 PATH（交由 cmake-js 处理，通常也会失败）。
 function findCmake() {
+	const cmakeRel = join('Common7', 'IDE', 'CommonExtensions', 'Microsoft', 'CMake', 'CMake', 'bin', 'cmake.exe')
+	const tryInstance = (vsInstall) => {
+		const cmake = join(vsInstall, cmakeRel)
+		return existsSync(cmake) ? cmake : null
+	}
+
+	// 1) 最新 VS 实例
 	try {
-		const vsInstall = execFileSync(
+		const latest = execFileSync(
 			VSWHERE,
 			['-latest', '-products', '*', '-property', 'installationPath'],
 			{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
 		).trim()
-		const cmake = join(
-			vsInstall,
-			'Common7',
-			'IDE',
-			'CommonExtensions',
-			'Microsoft',
-			'CMake',
-			'CMake',
-			'bin',
-			'cmake.exe',
-		)
-		if (existsSync(cmake)) return cmake
-		console.warn(`[build] vswhere 命中 ${vsInstall} 但未找到其 CMake，回退到 PATH 上的 cmake`)
+		const hit = tryInstance(latest)
+		if (hit) return hit
+		console.warn(`[build] 最新 VS 实例 ${latest} 无 CMake，遍历所有 VS 实例...`)
 	} catch {
 		console.warn('[build] vswhere 不可用，回退到 PATH 上的 cmake')
+		return undefined
+	}
+
+	// 2) 遍历所有 VS 实例（按安装时间倒序），找第一个带 CMake 的
+	try {
+		const all = execFileSync(
+			VSWHERE,
+			['-products', '*', '-property', 'installationPath'],
+			{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+		).split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
+		for (const inst of all) {
+			const hit = tryInstance(inst)
+			if (hit) {
+				console.warn(`[build] 在 ${inst} 找到 CMake`)
+				return hit
+			}
+		}
+		console.warn('[build] 所有 VS 实例均无 CMake，回退到 PATH 上的 cmake')
+	} catch {
+		console.warn('[build] vswhere 列举失败，回退到 PATH 上的 cmake')
 	}
 	return undefined
 }

@@ -24,7 +24,8 @@
 `ui/Dialog`（新）：createPortal 到 document.body + focus trap（Tab 循环）+ Escape（非 busy）+ 焦点恢复 + aria-modal/aria-labelledby。ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移到 Dialog。ContextMenu 加 portal。决策：LabelRuleEditor 保留现状（已有完整 focus trap，迁移收益边际且双重 trap 有冲突风险）；App 插件下拉迁移留后续。
 
 ### 测试
-- app 308→381（+73：layoutStore/panelCatalog/workspaceNavigation/uiPrimitives/designTokens/themeStore/activePanelStore/PluginPanel 等 Phase 1 测试），全过。native 源码 49 测试，但本机 CMake 不在 PATH 致 addon 未重编译为 v2.1+，disk/gpu 17 测试环境性失败（非本次代码问题，需有 CMake 环境重编译后跑）。
+- app 308→381（+73：layoutStore/panelCatalog/workspaceNavigation/uiPrimitives/designTokens/themeStore/activePanelStore/PluginPanel 等 Phase 1 测试），全过。native 49/49 全过（含 disk/gpu）。共 430 PASS。
+- **修复**：`codemgr-native/scripts/build.mjs` 的 CMake 发现逻辑——`vswhere -latest` 只取最新 VS 实例，若其无 CMake 组件（如只装 BuildTools）会失败回退 PATH。改为：最新实例无 CMake 时遍历**所有** VS 实例找第一个带 CMake 的（如本机 VS2022 BuildTools 无 CMake → 回退到 VS2019 Community）。
 
 ---
 
