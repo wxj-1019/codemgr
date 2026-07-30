@@ -15,6 +15,8 @@
 - **数据导出**：进程面板与端口雷达新增「导出」按钮，当前过滤视图可导出 CSV（Excel 兼容 CRLF）或 JSON；文件路径经 main 保存对话框（文件名白名单校验 + 10MB 上限），导出结果 toast 反馈。新增通用 `config:exportDataFile` IPC 通道。
 - **环境变量对比**：进程面板恰好选中 2 个进程时可「对比环境变量」，弹窗展示值不同/仅 A 有/仅 B 有三组差异（Windows env 键大小写不敏感，保留原大小写显示）。
 - **启动项管理**：新「启动项」面板（workflow 组）列出 HKCU/HKLM Run 注册表项与启动文件夹项；HKCU 与文件夹项可逆禁用/恢复（备份键搬移 / `.codemgr-disabled` 后缀，不删数据），HKLM 系统级项只读。新增 `startup:list`/`startup:setEnabled` IPC 通道。
+- **项目分组视图对齐树形视图能力**：组级按项目名/合计内存排序、组内进程按名称/CPU%/内存/PID 排序（点击表头切换）；总行数 >100 启用虚拟滚动（组头与进程行混合窗口化）。
+- **一致性收尾**：进程 kind 配色收敛为 `lib/kindColors` 单处定义（原三处重复）；`lib/processFilter` 抽出共享（表格过滤与导出入口）；PLUGINS.md 头部滞后声明与 CONTRIBUTING roadmap 按实际发布修正（自定义列/排序预设评审后决策不做）。
 
 ---
 
