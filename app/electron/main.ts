@@ -3,11 +3,12 @@ import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState, type OpenTargetKind } from './ipc-types';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState, type OpenTargetKind, type ExportDataResult } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 import { RunManager, readProfiles, writeProfiles, validateProfile } from './runProfiles';
 import { resolveGitIdentity } from './gitWorkspace';
 import { openTarget, openExternalUrl, type ShellDeps, type SpawnLike } from './shellActions';
+import { sanitizeExportName, EXPORT_MAX_CONTENT_BYTES } from './exportFile';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -242,6 +243,26 @@ ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
   } catch (e) {
     console.error('importLabelRules failed:', e);
     return null;
+  }
+});
+
+// 数据导出（子项目 E）：文件名白名单校验 + 10MB 上限，保存对话框持路径
+ipcMain.handle(IPC.EXPORT_DATA_FILE, async (_evt, defaultName: string, content: string): Promise<ExportDataResult> => {
+  try {
+    const safe = sanitizeExportName(String(defaultName));
+    if (!safe || typeof content !== 'string' || content.length > EXPORT_MAX_CONTENT_BYTES) return 'error';
+    const ext = safe.slice(safe.lastIndexOf('.') + 1);
+    const res = await dialog.showSaveDialog({
+      title: '导出数据',
+      defaultPath: safe,
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+    });
+    if (res.canceled || !res.filePath) return 'cancelled';
+    writeFileSync(res.filePath, content, 'utf8');
+    return 'ok';
+  } catch (e) {
+    console.error('exportDataFile failed:', e);
+    return 'error';
   }
 });
 

@@ -15,6 +15,8 @@ export const IPC = {
   IMPORT_LABEL_RULES: 'config:importLabelRules',
   // 插件 manifest：main 读 userData/plugins.json，渲染层只拿校验过的条目列表（红线）
   LIST_PLUGINS: 'config:listPlugins',
+  // 数据导出（子项目 E）：渲染层传建议文件名+内容，main 保存对话框持路径（红线同 EXPORT_LABEL_RULES）
+  EXPORT_DATA_FILE: 'config:exportDataFile',
   // 插件数据源（6c）：renderer 请求某 capability 的数据，main 转发 UtilityProcess 采集
   REQUEST_DATA_SOURCE: 'plugin:requestDataSource',
   // 插件数据源（6c）：main 把 UtilityProcess 采集结果推回 renderer（事件，非 invoke）
@@ -130,6 +132,9 @@ export interface RunProfile {
 
 /** shell 打开目标类型（子项目 A）。folder=Explorer；terminal=wt 优先回退 cmd；editor=VS Code。 */
 export type OpenTargetKind = 'folder' | 'terminal' | 'editor';
+
+/** 数据导出结果（子项目 E）：cancelled 用户取消（UI 静默），error 失败。 */
+export type ExportDataResult = 'ok' | 'cancelled' | 'error';
 
 /** 一个运行中的 profile 实例（main spawn 后产生）。 */
 export interface RunState {
@@ -322,4 +327,6 @@ export interface ExposedApi {
   openTarget(kind: OpenTargetKind, path: string): Promise<string>;
   // 浏览器打开 URL，main 侧仅放行 http/https。
   openExternalUrl(url: string): Promise<string>;
+  // 数据导出（子项目 E）。文件名/大小 main 校验；内容已由渲染层序列化（CSV/JSON 文本）。
+  exportDataFile(defaultName: string, content: string): Promise<ExportDataResult>;
 }

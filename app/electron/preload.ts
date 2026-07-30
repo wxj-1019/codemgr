@@ -51,6 +51,7 @@ const api: ExposedApi = {
   },
   openTarget: (kind: OpenTargetKind, path: string) => ipcRenderer.invoke(IPC.OPEN_TARGET, kind, path),
   openExternalUrl: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL_URL, url),
+  exportDataFile: (defaultName: string, content: string) => ipcRenderer.invoke(IPC.EXPORT_DATA_FILE, defaultName, content),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);
