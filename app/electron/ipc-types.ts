@@ -139,6 +139,22 @@ export interface RunState {
   startedAt: number;
 }
 
+/** Run 日志行（子项目 C）。seq 由 main 按到达顺序单调分配（1 起）。 */
+export interface RunLogLine {
+  seq: number;
+  text: string;
+}
+
+/**
+ * 日志增量块（run:getLogs 返回）。nextSeq = 当前已分配的最大 seq（无行为 0），
+ * 下次请求传 sinceSeq=nextSeq 即得增量。ring buffer 满 2000 行丢最老并累计 droppedBefore。
+ */
+export interface RunLogChunk {
+  lines: RunLogLine[];
+  droppedBefore: number;
+  nextSeq: number;
+}
+
 /**
  * 快照条目 = ProcessInfo 的子集 + 必要元信息。只保留 diff/分组/展示所需的字段，
  * 比存全量 ProcessInfo 小很多（每进程约 5 字段 vs 10+）。字段类型与 ProcessInfo 对齐，
