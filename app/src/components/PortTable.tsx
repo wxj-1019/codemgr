@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
-import { TriangleAlert } from './icons';
+import { Globe, TriangleAlert } from './icons';
 import { isListenLike, conflictPorts } from '../lib/portFilter';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { IconButton } from './ui/IconButton';
+import { browseUrlFor, buildPortMenuItems } from '../lib/portActions';
+import { copyText, openExternalUrlOrAlert } from '../lib/shellClient';
 
 interface PortTableProps {
   connections: NetConnection[];
@@ -14,6 +18,17 @@ interface PortTableProps {
 export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTableProps) {
   const rows = connections.filter(isListenLike);
   const conflicts = useMemo(() => conflictPorts(connections), [connections]);
+
+  // ── 右键菜单（端口行动作：浏览器打开/定位/复制/结束）──
+  const [menu, setMenu] = useState<{ x: number; y: number; conn: NetConnection } | null>(null);
+  const menuItems: ContextMenuItem[] = menu
+    ? buildPortMenuItems(menu.conn, {
+        onBrowse: (url) => void openExternalUrlOrAlert(url),
+        onCopy: copyText,
+        onLocate: (pid) => onSelect(pid),
+        onKill: (pid, name) => onKill(pid, name),
+      })
+    : [];
 
   // ── 键盘导航（纯导航模型：焦点框与 selectedPid 分离）──
   // 端口表同一 pid 可能在多行（多端口监听），焦点用 index 锚定更准确。
@@ -71,6 +86,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
             const selected = c.pid === selectedPid;
             const focused = i === focusedIdx;
             const conflict = conflicts.has(`${c.protocol}:${c.localPort}`);
+            const browseUrl = browseUrlFor(c);
             return (
               <tr
                 key={`${c.pid}-${c.localPort}-${i}`}
@@ -79,6 +95,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                 data-row-focused={focused ? 'true' : undefined}
                 aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
+                onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, conn: c }); }}
                 onKeyDown={(e) => onRowKeyDown(e, i)}
                 className={`cursor-pointer border-b border-base-700/50 hover:bg-base-700 ${
                   selected ? 'bg-base-700/60' : ''
@@ -113,6 +130,16 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  {browseUrl && (
+                    <IconButton
+                      label="在浏览器打开"
+                      size="xs"
+                      className="mr-1"
+                      onClick={(e) => { e.stopPropagation(); void openExternalUrlOrAlert(browseUrl); }}
+                    >
+                      <Globe />
+                    </IconButton>
+                  )}
                   <button
                     onClick={(e) => { e.stopPropagation(); onKill(c.pid, c.processName || `PID ${c.pid}`); }}
                     className="btn-danger-quiet rounded-lg px-2 py-1 text-xs"
@@ -130,6 +157,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
           )}
         </tbody>
       </table>
+      <ContextMenu open={menu !== null} x={menu?.x ?? 0} y={menu?.y ?? 0} items={menuItems} onClose={() => setMenu(null)} />
     </div>
   );
 }
