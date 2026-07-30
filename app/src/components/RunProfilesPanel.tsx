@@ -6,6 +6,7 @@ import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { resolveServiceStatus, type ServiceStatus } from '../lib/devService';
 import { RunProfileEditor } from './RunProfileEditor';
+import { RunLogView } from './RunLogView';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import type { RunProfile, RunState } from '../../electron/ipc-types';
@@ -29,6 +30,11 @@ export function RunProfilesPanel() {
   function runOf(profileId: string) {
     return runs.find((r) => r.profileId === profileId && r.status === 'running');
   }
+
+  // 行内日志（子项目 C）：一次只展开一行；取该 profile 最近一次 run（运行中或已退出均可查日志）
+  const [logOpenFor, setLogOpenFor] = useState<string | null>(null);
+  const latestRunOf = (profileId: string) =>
+    runs.filter((r) => r.profileId === profileId).at(-1) ?? null;
 
   async function start(profileId: string) {
     setBusy(profileId);
@@ -115,10 +121,21 @@ export function RunProfilesPanel() {
                       )}
                       <button onClick={() => setEditing(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600">编辑</button>
                       <button onClick={() => del(p.id)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-muted hover:bg-base-600">删</button>
+                      {latestRunOf(p.id) && (
+                        <button
+                          onClick={() => setLogOpenFor(logOpenFor === p.id ? null : p.id)}
+                          className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600"
+                        >
+                          {logOpenFor === p.id ? '收起日志' : '日志'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="mt-1 font-mono text-xs text-fg-muted">{p.command} {p.args.join(' ')}</div>
                   <div className="font-mono text-xs text-fg-muted truncate">{p.cwd}</div>
+                  {logOpenFor === p.id && latestRunOf(p.id) && (
+                    <RunLogView runId={latestRunOf(p.id)!.runId} />
+                  )}
                 </div>
               );
             })}
