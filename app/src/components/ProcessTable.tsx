@@ -9,6 +9,7 @@ import { formatBytes } from '../lib/format';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildProcessMenuItems } from '../lib/processMenu';
 import { filterProcesses } from '../lib/processFilter';
+import { kindColorOf } from '../lib/kindColors';
 import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 interface ProcessTableProps {
@@ -77,17 +78,6 @@ const VIRTUALIZE_THRESHOLD = 100;
 const ROW_HEIGHT = 29;
 
 /** Color classes for each process-label kind（Aurora v1.2：底色降到 14% 透明度，字色不变）。 */
-const KIND_COLORS: Record<string, string> = {
-  dev: 'bg-accent/[0.14] text-accent',
-  test: 'bg-green-500/[0.14] text-green-400',
-  build: 'bg-purple-500/[0.14] text-purple-400',
-  container: 'bg-blue-500/[0.14] text-blue-400',
-  db: 'bg-amber-500/[0.14] text-amber-400',
-  system: 'bg-slate-600/[0.14] text-fg-secondary',
-  ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
-  'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
-};
-
 // ---- Memoized row: only re-renders when its own inputs change ----
 interface ProcessRowProps {
   proc: ProcessInfo;
@@ -167,10 +157,7 @@ const ProcessRow = memo(function ProcessRow({
           </span>
           {label && (
             <span
-              className={`ml-1 rounded px-1 text-[10px] ${
-                KIND_COLORS[label.kind] ||
-                'bg-slate-600/[0.14] text-fg-secondary'
-              }`}
+              className={`ml-1 rounded px-1 text-[10px] ${kindColorOf(label.kind)}`}
             >
               {label.label}
             </span>

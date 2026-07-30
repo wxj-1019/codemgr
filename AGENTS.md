@@ -209,7 +209,7 @@ scope:  native | app | ci | docs（可选）
 - 只改 `app/src/lib/defaultRules.ts`（默认规则，TDD：`app/tests/defaultRules.test.ts`）。
 - 规则模型：`groups`（OR）× 组内 `include`（AND 子串）+ `exclude`（NOT）；`field: name/cmdline/both`。**无正则**。
 - 防误伤：短词（如 kimi）必须带分隔符/扩展名（`kimi.exe`、`\kimi\`），用户名目录是经典误伤面。
-- 新 kind 要补 `KIND_COLORS`（目前在 `ProcessTable.tsx`/`ProjectGroupView.tsx`/`LabelRuleEditor.tsx` 三处重复定义——改动要同步三处）。
+- 新 kind 要补 `KIND_COLORS`（`app/src/lib/kindColors.ts` 单处，用 `kindColorOf(kind)` 取色；原三处重复定义已收敛，勿再内联）。
 
 ### 10.4 发版流程
 

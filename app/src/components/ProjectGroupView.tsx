@@ -8,6 +8,7 @@ import { ipc } from '../lib/ipc';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { IconButton } from './ui/IconButton';
 import { buildProcessMenuItems } from '../lib/processMenu';
+import { kindColorOf } from '../lib/kindColors';
 import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 const UNGROUPED = '未分组';
@@ -28,18 +29,6 @@ function formatMem(bytes: number): string {
   const mb = bytes / 1048576;
   return mb >= 1000 ? mb.toFixed(0) : mb.toFixed(1);
 }
-
-/** Color classes for each process-label kind（Aurora v1.2：底色降到 14% 透明度，字色不变）。 */
-const KIND_COLORS: Record<string, string> = {
-  dev: 'bg-accent/[0.14] text-accent',
-  test: 'bg-green-500/[0.14] text-green-400',
-  build: 'bg-purple-500/[0.14] text-purple-400',
-  container: 'bg-blue-500/[0.14] text-blue-400',
-  db: 'bg-amber-500/[0.14] text-amber-400',
-  system: 'bg-slate-600/[0.14] text-fg-secondary',
-  ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
-  'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
-};
 
 const GroupRow = memo(function GroupRow({
   name,
@@ -126,9 +115,7 @@ const GroupRow = memo(function GroupRow({
                   </span>
                   {label && (
                     <span
-                      className={`ml-1 rounded px-1 text-[10px] ${
-                        KIND_COLORS[label.kind] || 'bg-slate-600/[0.14] text-fg-secondary'
-                      }`}
+                      className={`ml-1 rounded px-1 text-[10px] ${kindColorOf(label.kind)}`}
                     >
                       {label.label}
                     </span>
