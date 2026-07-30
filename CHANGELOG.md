@@ -13,6 +13,7 @@
 - **RunProfile 日志闭环**：启动的开发服务 stdout/stderr 按 run 捕获进 ring buffer（2000 行上限，退出后保留，ANSI 转义剥离）；profile 行可展开日志视图（2s 增量拉取、跟随滚动、丢弃行数提示、本地清空）。新增 `run:getLogs` IPC 通道。
 - **服务守望与就绪跳转**：RunProfile 服务状态跃迁主动通知（就绪 success / 端口冲突 error 含占用 PID，状态不变不重复）；服务就绪后行内出现「在浏览器打开」按钮一键访问。
 - **数据导出**：进程面板与端口雷达新增「导出」按钮，当前过滤视图可导出 CSV（Excel 兼容 CRLF）或 JSON；文件路径经 main 保存对话框（文件名白名单校验 + 10MB 上限），导出结果 toast 反馈。新增通用 `config:exportDataFile` IPC 通道。
+- **环境变量对比**：进程面板恰好选中 2 个进程时可「对比环境变量」，弹窗展示值不同/仅 A 有/仅 B 有三组差异（Windows env 键大小写不敏感，保留原大小写显示）。
 
 ---
 

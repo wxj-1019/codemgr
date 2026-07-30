@@ -9,6 +9,8 @@ import { mostCommonName } from '../lib/batchKill';
 import { filterProcesses } from '../lib/processFilter';
 import { processesToCsv, toPrettyJson, buildExportName } from '../lib/exportData';
 import { ContextMenu } from './ContextMenu';
+import { EnvDiffDialog } from './EnvDiffDialog';
+import type { ProcessInfo } from '../../electron/ipc-types';
 import { formatRelativeTime } from '../lib/format';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
@@ -46,6 +48,9 @@ export function ProcessPanel() {
     if (res === 'ok') notify.success('已导出');
     else if (res === 'error') notify.error('导出失败');
   }
+
+  // 环境变量对比（子项目 F）：恰好选中 2 个进程时可用，点击快照两个 ProcessInfo
+  const [envDiffPair, setEnvDiffPair] = useState<{ a: ProcessInfo; b: ProcessInfo } | null>(null);
 
   const [pendingKill, setPendingKill] = useState<{
     pid: number;
@@ -245,6 +250,19 @@ export function ProcessPanel() {
                 批量结束 ({selectedPids.size})
               </button>
             )}
+            {selectedPids.size === 2 && (
+              <button
+                onClick={() => {
+                  const [p1, p2] = [...selectedPids]
+                    .map((pid) => processes.find((p) => p.pid === pid))
+                    .filter((x): x is ProcessInfo => !!x);
+                  if (p1 && p2) setEnvDiffPair({ a: p1, b: p2 });
+                }}
+                className="rounded-md border border-line bg-surface-raised px-2 py-1 text-xs text-content-secondary hover:bg-surface-overlay hover:text-content-primary"
+              >
+                对比环境变量
+              </button>
+            )}
           </>
         }
       />
@@ -358,6 +376,9 @@ export function ProcessPanel() {
         ]}
         onClose={() => setExportMenu(null)}
       />
+      {envDiffPair && (
+        <EnvDiffDialog a={envDiffPair.a} b={envDiffPair.b} onClose={() => setEnvDiffPair(null)} />
+      )}
     </div>
   );
 }
