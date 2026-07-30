@@ -3,6 +3,7 @@ import { usePortRadar } from '../hooks/usePortRadar';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { filterConnections, isListenLike } from '../lib/portFilter';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -29,12 +30,12 @@ export function PortRadar() {
     try {
       const ok = await ipc.killProcess(pendingKill.pid);
       if (!ok) {
-        alert(`结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：受保护进程、权限不足或进程已退出。`);
+        notify.error(`结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：受保护进程、权限不足或进程已退出。`);
       }
       setPendingKill(null);
     } catch (e) {
       setPendingKill(null);
-      alert(`结束失败：${String(e)}`);
+      notify.error(`结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }

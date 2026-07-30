@@ -7,6 +7,7 @@ import { useFocusStore } from '../store/focusStore';
 import { aggregateSession } from '../lib/sessionAggregate';
 import { formatBytes } from '../lib/format';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { Badge } from './ui/Badge';
@@ -31,12 +32,12 @@ export function SessionPanel() {
       const killed = await ipc.killTree(pendingStop.rootPid);
       setPendingStop(null);
       if (killed === 0) {
-        alert('未结束任何进程：根进程可能受保护、权限不足或已退出');
+        notify.error('未结束任何进程：根进程可能受保护、权限不足或已退出');
       }
       // session 在下次 processScan 刷新后自然消失
     } catch (e) {
       setPendingStop(null);
-      alert(`停止会话失败：${String(e)}`);
+      notify.error(`停止会话失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }

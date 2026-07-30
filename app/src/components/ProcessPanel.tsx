@@ -4,6 +4,7 @@ import 'allotment/dist/style.css';
 import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { mostCommonName } from '../lib/batchKill';
 import { formatRelativeTime } from '../lib/format';
 import { ProcessTable } from './ProcessTable';
@@ -68,11 +69,11 @@ export function ProcessPanel() {
       const ok = await ipc.killProcess(pendingKill.pid);
       setPendingKill(null);
       if (!ok) {
-        alert('结束失败：受保护进程、权限不足或进程已退出');
+        notify.error('结束失败：受保护进程、权限不足或进程已退出');
       }
     } catch (e) {
       setPendingKill(null);
-      alert(`结束失败：${String(e)}`);
+      notify.error(`结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -87,15 +88,15 @@ export function ProcessPanel() {
       setBatchKillName(null);
       clearSelection();
       if (killed === 0) {
-        alert('未结束任何进程：可能均为受保护进程、权限不足或已退出');
+        notify.error('未结束任何进程：可能均为受保护进程、权限不足或已退出');
       } else if (killed < targets.length) {
-        alert(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        notify.error(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
-        alert(`已结束 ${killed} 个进程`);
+        notify.success(`已结束 ${killed} 个进程`);
       }
     } catch (e) {
       setBatchKillName(null);
-      alert(`批量结束失败：${String(e)}`);
+      notify.error(`批量结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -108,12 +109,11 @@ export function ProcessPanel() {
       const killed = await ipc.killByName('node.exe');
       setConfirmKillAllNode(false);
       clearSelection();
-      alert(killed === 0
-        ? '未结束任何 node.exe：可能权限不足或进程已退出'
-        : `已结束 ${killed} 个 node.exe 进程`);
+      if (killed === 0) notify.error('未结束任何 node.exe：可能权限不足或进程已退出');
+      else notify.success(`已结束 ${killed} 个 node.exe 进程`);
     } catch (e) {
       setConfirmKillAllNode(false);
-      alert(`结束 node.exe 失败：${String(e)}`);
+      notify.error(`结束 node.exe 失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -128,15 +128,15 @@ export function ProcessPanel() {
       const killed = await ipc.killByPids(targets);
       setGroupKill(null);
       if (killed === 0) {
-        alert(`「${name}」组内未结束任何进程：可能受保护/无权限/已退出`);
+        notify.error(`「${name}」组内未结束任何进程：可能受保护/无权限/已退出`);
       } else if (killed < targets.length) {
-        alert(`已结束「${name}」组内 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        notify.error(`已结束「${name}」组内 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
-        alert(`已结束「${name}」组内 ${killed} 个进程`);
+        notify.success(`已结束「${name}」组内 ${killed} 个进程`);
       }
     } catch (e) {
       setGroupKill(null);
-      alert(`结束本组失败：${String(e)}`);
+      notify.error(`结束本组失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -149,12 +149,11 @@ export function ProcessPanel() {
       const killed = await ipc.killTree(pendingKillTree.pid);
       setPendingKillTree(null);
       clearSelection();
-      alert(killed === 0
-        ? '未结束任何进程：根进程可能受保护、权限不足或已退出'
-        : `已结束进程树，共 ${killed} 个进程`);
+      if (killed === 0) notify.error('未结束任何进程：根进程可能受保护、权限不足或已退出');
+      else notify.success(`已结束进程树，共 ${killed} 个进程`);
     } catch (e) {
       setPendingKillTree(null);
-      alert(`结束进程树失败：${String(e)}`);
+      notify.error(`结束进程树失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
