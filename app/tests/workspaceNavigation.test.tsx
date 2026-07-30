@@ -146,6 +146,20 @@ describe('workspace shell wiring', () => {
     await expect(factory?.()).resolves.toBe('port');
   });
 
+  it('stops offering Mosaic split/replace after three panels are open', () => {
+    const root = {
+      direction: 'row' as const,
+      first: 'process' as const,
+      second: {
+        direction: 'column' as const,
+        first: 'port' as const,
+        second: 'perf' as const,
+      },
+    };
+
+    expect(createWorkspaceNodeFactory(root)).toBeUndefined();
+  });
+
   it('activates a panel from toolbar pointer and focus interactions', () => {
     const setActive = vi.fn();
     render(
@@ -169,11 +183,51 @@ describe('workspace shell wiring', () => {
         contextLabel="进程"
         pluginCount={0}
         registryLoaded={false}
+        openPanelCount={1}
+        canFocusPanel={false}
+        onFocusPanel={vi.fn()}
       />,
     );
 
     expect(screen.getByLabelText('工作区状态')).toHaveTextContent('正在加载插件');
     expect(screen.getByLabelText('工作区状态')).not.toHaveTextContent('就绪');
+  });
+
+  it('offers a focus action when multiple panels are open', async () => {
+    const user = userEvent.setup();
+    const onFocusPanel = vi.fn();
+    render(
+      <WorkspaceTopbar
+        layoutLabel="开发聚焦"
+        contextLabel="进程"
+        pluginCount={1}
+        registryLoaded
+        openPanelCount={3}
+        canFocusPanel
+        onFocusPanel={onFocusPanel}
+      />,
+    );
+
+    const focus = screen.getByRole('button', { name: '只保留当前面板' });
+    expect(focus).toHaveAttribute('title', '只保留当前面板');
+    await user.click(focus);
+    expect(onFocusPanel).toHaveBeenCalledOnce();
+  });
+
+  it('hides the focus action when only one panel is open', () => {
+    render(
+      <WorkspaceTopbar
+        layoutLabel="经典布局"
+        contextLabel="进程"
+        pluginCount={0}
+        registryLoaded
+        openPanelCount={1}
+        canFocusPanel={false}
+        onFocusPanel={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: '只保留当前面板' })).not.toBeInTheDocument();
   });
 
   it('opens a missing panel before activating it', () => {

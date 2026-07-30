@@ -21,15 +21,21 @@
 `useContainerWidth` hook（ResizeObserver 测容器宽度）。`.panel-container` 加 `container-type: inline-size`（容器查询上下文）。ProcessPanel 删 `useIsLg(matchMedia 1024px)`→`useContainerWidth(panelRef)`，侧栏 ≥720px 才显示（**核心**：多面板布局下按 tile 宽度而非窗口宽度）。SnapshotPanel 在 `<480px` tile 改为顶部紧凑选择/创建条，避免 diff 区被固定侧栏挤窄；面板操作条在窄 tile 自动换行，搜索控件随剩余宽度收缩。
 
 #### Phase 5：桌面交互收口
-- Workspace shell 合并重复 CSS，保留 Windows 原生标题栏 152px 安全区；窄 rail 仍可访问布局预设。
-- 端口/进程表补初始 Tab 入口、完整滚动链和虚拟列表兼容；进程详情侧栏完全按 tile 宽度显示，跨面板聚焦时无需 checkbox 选中。
+- Workspace shell 合并重复 CSS，保留 Windows 原生标题栏 152px 安全区；侧栏收窄到 180px，面板名称修复 Button grid 收缩导致的裁剪并真正左对齐，窄 rail 仍可访问布局预设。
+- 端口/进程表补初始 Tab 入口、完整滚动链和虚拟列表兼容；`Panel` 与各面板统一 `min-height: 0` 高度链，进程/项目分组/性能/快照/会话/Run Profiles 可完整滚动。进程详情侧栏完全按 tile 宽度显示，跨面板聚焦时无需 checkbox 选中。
 - Snapshot 空/加载状态统一 `StateView`，删除迁移到 `ConfirmDialog`，差异 tabs 补 ARIA 语义；Mosaic 控件补 focus-visible 与 reduced-motion 规则。
+- Renderer IPC 薄封装在 preload API 缺失时返回可捕获错误/空订阅，避免浏览器调试或 preload 加载失败直接白屏。
+
+#### Phase 6：聚焦工作区
+- 同时可见面板上限为 3：第二个面板沿用 70/30 主次布局，第三个在当前活跃 tile 下方 50/50 堆叠，避免三列窄窗；打开第 4 个未打开面板时替换当前活跃 tile，插件面板遵守同一规则。Mosaic 在 3 面板时不再提供 Split/Replace，避免标题栏重新制造拥挤布局。
+- 顶栏显示当前面板数量；多面板时提供「只保留当前面板」图标操作，一键回到专注单面板。
+- 布局持久化升级到 v2，旧 v1 自定义布局升级时按 DFS 收敛为前三个面板并折叠退化分支。
 
 #### Phase 4：portal 浮层
 `ui/Dialog`（新）：createPortal 到 document.body + focus trap（Tab 循环）+ Escape（非 busy）+ 焦点恢复 + aria-modal/aria-labelledby。ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移到 Dialog。ContextMenu 加 portal。决策：LabelRuleEditor 保留现状（已有完整 focus trap，迁移收益边际且双重 trap 有冲突风险）；App 插件下拉迁移留后续。
 
 ### 测试
-- app 308→381（+73：layoutStore/panelCatalog/workspaceNavigation/uiPrimitives/designTokens/themeStore/activePanelStore/PluginPanel 等 Phase 1 测试），全过。native 49/49 全过（含 disk/gpu）。共 430 PASS。
+- app 308→399（新增 layoutStore 聚焦上限/持久化迁移、WorkspaceTopbar 聚焦操作，以及工作台 Phase 1-6 回归），全过。native 49/49 全过（含 disk/gpu）。共 448 PASS。
 - **修复**：`codemgr-native/scripts/build.mjs` 的 CMake 发现逻辑——`vswhere -latest` 只取最新 VS 实例，若其无 CMake 组件（如只装 BuildTools）会失败回退 PATH。改为：最新实例无 CMake 时遍历**所有** VS 实例找第一个带 CMake 的（如本机 VS2022 BuildTools 无 CMake → 回退到 VS2019 Community）。
 
 ---

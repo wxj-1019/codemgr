@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useLayoutStore, type PanelId } from '../src/store/layoutStore';
+import {
+  LAYOUT_PRESETS,
+  MAX_VISIBLE_PANELS,
+  getPanelLeaves,
+  limitVisiblePanels,
+  openFocusedPanelRoot,
+  useLayoutStore,
+  type PanelId,
+} from '../src/store/layoutStore';
 import type { MosaicNode } from 'react-mosaic-component';
 
 describe('layoutStore', () => {
@@ -140,6 +148,141 @@ describe('layoutStore', () => {
     expect(useLayoutStore.getState().root).toBe(before);
   });
 
+  it('opens up to the visible-panel limit and stacks the third under the active tile', () => {
+    useLayoutStore.getState().setRoot('process');
+    useLayoutStore.getState().openPanel('port', 'process');
+    useLayoutStore.getState().openPanel('perf', 'port');
+
+    expect(MAX_VISIBLE_PANELS).toBe(3);
+    expect(useLayoutStore.getState().root).toEqual({
+      direction: 'row',
+      first: 'process',
+      second: {
+        direction: 'column',
+        first: 'port',
+        second: 'perf',
+        splitPercentage: 50,
+      },
+      splitPercentage: 70,
+    });
+    expect(getPanelLeaves(useLayoutStore.getState().root)).toEqual(['process', 'port', 'perf']);
+  });
+
+  it('replaces the active leaf instead of creating a fourth panel', () => {
+    useLayoutStore.getState().applyPreset('dev-focus');
+    useLayoutStore.getState().openPanel('snapshot', 'port');
+
+    expect(useLayoutStore.getState().root).toEqual({
+      direction: 'row',
+      first: 'process',
+      splitPercentage: 70,
+      second: {
+        direction: 'column',
+        first: 'snapshot',
+        second: 'perf',
+        splitPercentage: 50,
+      },
+    });
+    expect(getPanelLeaves(useLayoutStore.getState().root)).toEqual(['process', 'snapshot', 'perf']);
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
+  it('replaces the last leaf when the active panel is unavailable', () => {
+    const root = LAYOUT_PRESETS['dev-focus'];
+
+    expect(openFocusedPanelRoot(root, 'sessions', 'snapshot')).toEqual({
+      direction: 'row',
+      first: 'process',
+      splitPercentage: 70,
+      second: {
+        direction: 'column',
+        first: 'port',
+        second: 'sessions',
+        splitPercentage: 50,
+      },
+    });
+  });
+
+  it('keeps an already-open panel idempotent at the visible-panel limit', () => {
+    useLayoutStore.getState().applyPreset('dev-focus');
+    const before = useLayoutStore.getState().root;
+
+    useLayoutStore.getState().openPanel('perf', 'port');
+
+    expect(useLayoutStore.getState().root).toBe(before);
+    expect(useLayoutStore.getState().preset).toBe('dev-focus');
+  });
+
+  it('applies the same active-replacement policy to plugin panels', () => {
+    useLayoutStore.getState().applyPreset('dev-focus');
+    useLayoutStore.getState().addPluginPanel('plugin:disk-volumes', 'perf');
+
+    expect(getPanelLeaves(useLayoutStore.getState().root)).toEqual([
+      'process',
+      'port',
+      'plugin:disk-volumes',
+    ]);
+  });
+
+  it('keeps only the requested current panel', () => {
+    useLayoutStore.getState().applyPreset('dev-focus');
+    useLayoutStore.getState().focusPanel('port');
+
+    expect(useLayoutStore.getState().root).toBe('port');
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
+  it('limits a persisted custom tree to the first three DFS leaves', () => {
+    const crowded: MosaicNode<PanelId> = {
+      direction: 'row',
+      first: {
+        direction: 'column',
+        first: 'process',
+        second: 'port',
+      },
+      second: {
+        direction: 'column',
+        first: 'perf',
+        second: 'snapshot',
+      },
+    };
+
+    expect(limitVisiblePanels(crowded)).toEqual({
+      direction: 'row',
+      first: {
+        direction: 'column',
+        first: 'process',
+        second: 'port',
+      },
+      second: 'perf',
+    });
+  });
+
+  it('migrates a v1 crowded layout to the focused v2 schema', async () => {
+    const crowded: MosaicNode<PanelId> = {
+      direction: 'row',
+      first: {
+        direction: 'column',
+        first: 'process',
+        second: 'port',
+      },
+      second: {
+        direction: 'column',
+        first: 'perf',
+        second: 'snapshot',
+      },
+    };
+    localStorage.setItem('codemgr:layout', JSON.stringify({
+      state: { root: crowded, preset: null },
+      version: 1,
+    }));
+
+    await useLayoutStore.persist.rehydrate();
+
+    expect(getPanelLeaves(useLayoutStore.getState().root)).toEqual(['process', 'port', 'perf']);
+    expect(useLayoutStore.getState().preset).toBeNull();
+  });
+
   it('migrates a v0 custom tree with a stale preset to preset null', async () => {
     const legacyRoot: MosaicNode<PanelId> = {
       direction: 'row',
@@ -219,8 +362,8 @@ describe('layoutStore', () => {
     expect(useLayoutStore.getState().preset).toBe('dev-focus');
   });
 
-  it('uses persist schema version 1', () => {
-    expect(useLayoutStore.persist.getOptions().version).toBe(1);
+  it('uses persist schema version 2', () => {
+    expect(useLayoutStore.persist.getOptions().version).toBe(2);
   });
 
   it('persists only root + preset (partialize shape)', () => {

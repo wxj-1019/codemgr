@@ -40,6 +40,16 @@ export function pluginIdOf(id: string): string | null {
 /** 预设布局的 id。 */
 export type PresetId = 'classic' | 'port-perf' | 'dev-focus';
 
+/** 同时可见面板上限；超过后打开新面板会替换当前活跃面板。 */
+export const MAX_VISIBLE_PANELS = 3;
+
+/** 按 DFS 顺序返回布局中的面板叶子。 */
+export function getPanelLeaves(node: MosaicNode<PanelId> | null): PanelId[] {
+  if (node === null) return [];
+  if (typeof node === 'string') return [node];
+  return [...getPanelLeaves(node.first), ...getPanelLeaves(node.second)];
+}
+
 /** 布局树是否已包含指定面板。 */
 export function containsPanel(node: MosaicNode<PanelId> | null, id: PanelId): boolean {
   if (node === null) return false;
@@ -56,6 +66,66 @@ export function openPanelRoot(
   return root === null
     ? panelId
     : { direction: 'row', first: root, second: panelId, splitPercentage: 70 };
+}
+
+function replacePanelLeaf(
+  node: MosaicNode<PanelId>,
+  targetId: PanelId,
+  panelId: PanelId,
+): MosaicNode<PanelId> {
+  if (typeof node === 'string') return node === targetId ? panelId : node;
+  const first = replacePanelLeaf(node.first, targetId, panelId);
+  const second = replacePanelLeaf(node.second, targetId, panelId);
+  if (first === node.first && second === node.second) return node;
+  return { ...node, first, second };
+}
+
+function splitPanelLeaf(
+  node: MosaicNode<PanelId>,
+  targetId: PanelId,
+  panelId: PanelId,
+): MosaicNode<PanelId> {
+  if (typeof node === 'string') {
+    return node === targetId
+      ? {
+        direction: 'column',
+        first: node,
+        second: panelId,
+        splitPercentage: 50,
+      }
+      : node;
+  }
+  const first = splitPanelLeaf(node.first, targetId, panelId);
+  const second = splitPanelLeaf(node.second, targetId, panelId);
+  if (first === node.first && second === node.second) return node;
+  return { ...node, first, second };
+}
+
+/**
+ * 聚焦打开面板：最多保留 MAX_VISIBLE_PANELS 个叶子。
+ * 已存在时幂等；第二个面板沿用 70:30 插入；第三个在活跃 tile 下方 50:50 堆叠；
+ * 达到上限时替换活跃叶，活跃面板失效时稳定回退到 DFS 最后一个叶子。
+ */
+export function openFocusedPanelRoot(
+  root: MosaicNode<PanelId> | null,
+  panelId: PanelId,
+  activeId: PanelId | null,
+): MosaicNode<PanelId> {
+  if (containsPanel(root, panelId)) return root as MosaicNode<PanelId>;
+  const leaves = getPanelLeaves(root);
+  if (root === null || leaves.length < 2) {
+    return openPanelRoot(root, panelId);
+  }
+  if (leaves.length < MAX_VISIBLE_PANELS) {
+    const targetId = activeId !== null && leaves.includes(activeId)
+      ? activeId
+      : leaves[leaves.length - 1];
+    return splitPanelLeaf(root, targetId, panelId);
+  }
+  const targetId = activeId !== null && leaves.includes(activeId)
+    ? activeId
+    : leaves[leaves.length - 1];
+  return replacePanelLeaf(root, targetId, panelId);
 }
 
 /** 预设：固定树结构，由 applyPreset 写入。 */
@@ -123,15 +193,38 @@ export function sanitizeLayoutRoot(
   return first ?? second;
 }
 
+/** 按 DFS 顺序保留前三个面板，折叠因裁剪产生的单子分支。 */
+export function limitVisiblePanels(
+  root: MosaicNode<PanelId> | null,
+  limit = MAX_VISIBLE_PANELS,
+): MosaicNode<PanelId> | null {
+  let remaining = limit;
+  const visit = (node: MosaicNode<PanelId> | null): MosaicNode<PanelId> | null => {
+    if (node === null || remaining <= 0) return null;
+    if (typeof node === 'string') {
+      remaining -= 1;
+      return node;
+    }
+    const first = visit(node.first);
+    const second = visit(node.second);
+    if (first !== null && second !== null) {
+      return { ...node, first, second };
+    }
+    return first ?? second;
+  };
+  return visit(root);
+}
+
 function migrateLayoutState(persistedState: unknown, version: number): unknown {
-  if (version !== 0 || !persistedState || typeof persistedState !== 'object') {
-    return persistedState;
-  }
+  if (!persistedState || typeof persistedState !== 'object') return persistedState;
+  if (version !== 0 && version !== 1) return persistedState;
+
   const state = persistedState as {
     root?: MosaicNode<PanelId> | null;
     preset?: unknown;
   };
-  const root = sanitizeLayoutRoot(state.root ?? null);
+  const sanitized = sanitizeLayoutRoot(state.root ?? null);
+  const root = limitVisiblePanels(sanitized);
   const preset = isPresetId(state.preset) ? state.preset : null;
   return {
     ...state,
@@ -151,10 +244,12 @@ interface LayoutState {
   setRoot: (n: MosaicNode<PanelId> | null) => void;
   /** 应用预设（覆盖当前树并保持对应预设）。 */
   applyPreset: (id: PresetId) => void;
-  /** 打开面板；已存在时幂等，否则在当前树右侧按 70:30 插入。 */
-  openPanel: (panelId: PanelId) => void;
+  /** 聚焦打开面板；已存在时幂等，未达上限时插入，达到上限时替换活跃叶。 */
+  openPanel: (panelId: PanelId, activeId?: PanelId | null) => void;
   /** 把插件面板插入当前布局（兼容旧调用方）。 */
-  addPluginPanel: (panelId: `plugin:${string}`) => void;
+  addPluginPanel: (panelId: `plugin:${string}`, activeId?: PanelId | null) => void;
+  /** 只保留指定当前面板。 */
+  focusPanel: (panelId: PanelId) => void;
   /** 测试辅助：恢复默认。 */
   reset: () => void;
 }
@@ -162,8 +257,9 @@ interface LayoutState {
 function openPanelState(
   state: LayoutState,
   panelId: PanelId,
+  activeId: PanelId | null = null,
 ): LayoutState | Pick<LayoutState, 'root' | 'preset'> {
-  const root = openPanelRoot(state.root, panelId);
+  const root = openFocusedPanelRoot(state.root, panelId, activeId);
   return root === state.root ? state : { root, preset: null };
 }
 
@@ -202,13 +298,16 @@ export const useLayoutStore = create<LayoutState>()(
 
       setRoot: (n) => set({ root: n, preset: null }),
       applyPreset: (id) => set({ root: LAYOUT_PRESETS[id], preset: id }),
-      openPanel: (panelId) => set((s) => openPanelState(s, panelId)),
-      addPluginPanel: (panelId) => set((s) => openPanelState(s, panelId)),
+      openPanel: (panelId, activeId = null) => set((s) => openPanelState(s, panelId, activeId)),
+      addPluginPanel: (panelId, activeId = null) => set((s) => openPanelState(s, panelId, activeId)),
+      focusPanel: (panelId) => set((s) => containsPanel(s.root, panelId)
+        ? { root: panelId, preset: null }
+        : s),
       reset: () => set({ root: LAYOUT_PRESETS.classic, preset: 'classic' }),
     }),
     {
       name: 'codemgr:layout',
-      version: 1,
+      version: 2,
       migrate: migrateLayoutState,
       // 只持久化布局树 + 预设；setter 是函数不存。
       partialize: (s) => ({ root: s.root, preset: s.preset }),
