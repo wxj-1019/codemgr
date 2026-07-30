@@ -43,6 +43,8 @@ export const IPC = {
   RUN_RESTART: 'run:restart',
   // run 状态事件（F1）：main 推 run exit/状态变更给渲染层（事件，非 invoke）
   RUN_UPDATE: 'run:update',
+  // run 日志（子项目 C）：增量拉取某 run 的 stdout/stderr ring buffer
+  RUN_GET_LOGS: 'run:getLogs',
   // shell 跳转动作（子项目 A）：打开文件夹/终端/编辑器 + 浏览器打开 URL。
   // kind/路径/scheme 校验全在 main（shellActions.ts），渲染层只传 kind+path/url。
   OPEN_TARGET: 'shell:openTarget',
@@ -314,6 +316,8 @@ export interface ExposedApi {
   stopProfile(runId: string): Promise<number>;
   restartProfile(runId: string): Promise<{ runId: string; pid: number } | null>;
   onRunUpdate(cb: (update: RunState) => void): () => void;
+  // run 日志（子项目 C）。sinceSeq 传上次的 nextSeq 得增量；null=未知 runId。
+  getRunLogs(runId: string, sinceSeq?: number): Promise<RunLogChunk | null>;
   // shell 跳转动作（子项目 A）。返回 '' = 成功，非空 = 错误描述（UI 直接展示）。
   openTarget(kind: OpenTargetKind, path: string): Promise<string>;
   // 浏览器打开 URL，main 侧仅放行 http/https。

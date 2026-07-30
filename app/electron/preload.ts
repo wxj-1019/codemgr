@@ -43,6 +43,7 @@ const api: ExposedApi = {
   startProfile: (profileId) => ipcRenderer.invoke(IPC.RUN_START, profileId),
   stopProfile: (runId) => ipcRenderer.invoke(IPC.RUN_STOP, runId),
   restartProfile: (runId) => ipcRenderer.invoke(IPC.RUN_RESTART, runId),
+  getRunLogs: (runId: string, sinceSeq?: number) => ipcRenderer.invoke(IPC.RUN_GET_LOGS, runId, sinceSeq),
   onRunUpdate: (cb: (update: RunState) => void) => {
     const handler = (_e: unknown, update: RunState) => cb(update);
     ipcRenderer.on(IPC.RUN_UPDATE, handler as never);

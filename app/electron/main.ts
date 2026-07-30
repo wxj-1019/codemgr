@@ -522,6 +522,12 @@ ipcMain.handle(IPC.RUN_RESTART, (_evt, runId: string): { runId: string; pid: num
   } catch (e) { console.error('run:restart failed:', e); return null; }
 });
 
+// run 日志（子项目 C）：增量读 main 侧 ring buffer，未知 runId → null
+ipcMain.handle(IPC.RUN_GET_LOGS, (_evt, runId: string, sinceSeq?: number) => {
+  try { return runManager.getLogs(runId, sinceSeq ?? 0); }
+  catch (e) { console.error('run:getLogs failed:', e); return null; }
+});
+
 // ── 插件数据源 UtilityProcess（6c）──
 // UtilityProcess 承载 native 数据源采集，进程级隔离。主进程经 MessagePort 与之通信。
 // 这是可选增强——崩溃时重新 fork，不影响主功能（主 app 不依赖它）。
