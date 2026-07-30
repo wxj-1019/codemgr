@@ -32,6 +32,7 @@ import {
 import { useActivePanelStore } from './store/activePanelStore';
 import { usePluginRegistryStore } from './store/pluginRegistryStore';
 import { useThemeStore } from './store/themeStore';
+import { ToastHost } from './components/ToastHost';
 
 const PRESET_LABELS: Record<PresetId, string> = {
   classic: '经典布局',
@@ -185,6 +186,7 @@ export function App() {
 
       {rulesOpen && <LabelRuleEditor onClose={() => setRulesOpen(false)} />}
       <PluginHost />
+      <ToastHost />
     </div>
   );
 }
