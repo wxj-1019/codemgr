@@ -1,5 +1,6 @@
-import { useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -26,15 +27,12 @@ export function ConfirmDialog({
   details,
   onConfirm, onCancel,
 }: ConfirmDialogProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => { if (!o && !busy) onCancel(); }}
       title={title}
       description={message}
-      initialFocusRef={cancelRef}
       busy={busy}
       widthClass="w-96"
       showCloseButton={false}
@@ -45,23 +43,23 @@ export function ConfirmDialog({
         </div>
       )}
       <div className="flex justify-end gap-2">
-        <button
-          ref={cancelRef}
-          type="button"
+        <Button
+          variant="secondary"
+          size="md"
           onClick={onCancel}
           disabled={busy}
-          className="rounded-lg border border-line bg-surface-raised px-3 py-1.5 text-sm text-content-primary hover:bg-surface-overlay disabled:cursor-not-allowed disabled:opacity-50"
         >
           {cancelLabel}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="dangerQuiet"
+          size="md"
           onClick={onConfirm}
-          disabled={busy}
-          className="rounded-lg border border-danger/40 bg-transparent px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
+          busy={busy}
+          busyLabel="处理中…"
         >
-          {busy ? '处理中…' : confirmLabel}
-        </button>
+          {confirmLabel}
+        </Button>
       </div>
     </Dialog>
   );

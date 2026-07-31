@@ -76,8 +76,8 @@ describe('ConfirmDialog', () => {
         onCancel={onCancel}
       />
     );
-    const confirmBtn = screen.getByText('处理中…');
-    const cancelBtn = screen.getByText('取消');
+    const confirmBtn = screen.getByRole('button', { name: /处理中/ });
+    const cancelBtn = screen.getByRole('button', { name: '取消' });
     expect(confirmBtn).toBeDisabled();
     expect(cancelBtn).toBeDisabled();
     fireEvent.click(confirmBtn);
