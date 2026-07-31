@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ToastKind = 'success' | 'error' | 'info';
+export type ToastKind = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastItem {
   id: number;
@@ -10,7 +10,7 @@ export interface ToastItem {
 }
 
 const MAX_TOASTS = 5;
-const DURATION: Record<ToastKind, number> = { success: 4000, info: 4000, error: 8000 };
+const DURATION: Record<ToastKind, number> = { success: 4000, info: 4000, warning: 4000, error: 8000 };
 
 // 定时器句柄与 id 计数放模块级（不进 state，瞬态 UI 态不 persist）：
 // dismiss/丢弃最旧时清理对应定时器，防泄漏。

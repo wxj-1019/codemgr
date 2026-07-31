@@ -26,4 +26,10 @@ describe('ToastHost', () => {
     fireEvent.click(screen.getByRole('button', { name: '关闭通知' }));
     expect(useToastStore.getState().toasts).toHaveLength(0);
   });
+
+  it('warning 用 role=status 渲染', () => {
+    useToastStore.getState().push('warning', '部分成功');
+    render(<ToastHost />);
+    expect(screen.getByText('部分成功').closest('[role="status"]')).toBeTruthy();
+  });
 });

@@ -38,6 +38,15 @@ describe('toastStore.push', () => {
     expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 
+  it('warning kind：时长 4000ms，notify.warning 可达', () => {
+    const s = useToastStore.getState();
+    const id = s.push('warning', '部分成功');
+    expect(useToastStore.getState().toasts[0]).toMatchObject({ kind: 'warning', message: '部分成功', durationMs: 4000 });
+    s.dismiss(id);
+    notify.warning('警告');
+    expect(useToastStore.getState().toasts[0].kind).toBe('warning');
+  });
+
   it('dismiss 手动移除且幂等', () => {
     const s = useToastStore.getState();
     const id = s.push('info', 'x');

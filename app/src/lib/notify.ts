@@ -5,4 +5,5 @@ export const notify = {
   success: (message: string): void => { useToastStore.getState().push('success', message); },
   error: (message: string): void => { useToastStore.getState().push('error', message); },
   info: (message: string): void => { useToastStore.getState().push('info', message); },
+  warning: (message: string): void => { useToastStore.getState().push('warning', message); },
 };

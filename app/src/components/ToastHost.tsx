@@ -2,12 +2,13 @@ import { type ReactElement, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type ToastKind, useToastStore } from '../store/toastStore';
 import { IconButton } from './ui/IconButton';
-import { CheckCircle2, CircleX, Info, X } from './icons';
+import { CheckCircle2, CircleX, Info, TriangleAlert, X } from './icons';
 
 const KIND_META: Record<ToastKind, { icon: ReactElement; iconCls: string; role: 'status' | 'alert'; accentCls: string }> = {
   success: { icon: <CheckCircle2 size={15} aria-hidden="true" />, iconCls: 'text-success', role: 'status', accentCls: 'bg-success' },
   error: { icon: <CircleX size={15} aria-hidden="true" />, iconCls: 'text-danger', role: 'alert', accentCls: 'bg-danger' },
   info: { icon: <Info size={15} aria-hidden="true" />, iconCls: 'text-accent', role: 'status', accentCls: 'bg-accent' },
+  warning: { icon: <TriangleAlert size={15} aria-hidden="true" />, iconCls: 'text-warn', role: 'status', accentCls: 'bg-warn' },
 };
 
 interface ToastItemProps {
