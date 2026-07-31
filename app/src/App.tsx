@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Mosaic, MosaicWindow } from 'react-mosaic-component';
 import type { MosaicBranch, MosaicNode } from 'react-mosaic-component';
 import 'react-mosaic-component/react-mosaic-component.css';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoLaunchToggle } from './components/AutoLaunchToggle';
 import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
@@ -198,7 +199,28 @@ export function App() {
                     title={panel.title}
                     createNode={createNode}
                   >
-                    <Panel id={id}>{panel.content}</Panel>
+                    <Panel id={id}>
+                      {/* UX-15：面板级错误边界——单面板渲染崩溃不拖垮整个工作区 */}
+                      <ErrorBoundary
+                        fallback={(error, reset) => (
+                          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+                            <p className="text-sm text-danger">此面板渲染出错</p>
+                            <p className="max-w-sm break-all font-mono text-[11px] text-content-muted">
+                              {error.message}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={reset}
+                              className="rounded-lg border border-line px-3 py-1 text-xs text-content-primary hover:bg-surface-raised"
+                            >
+                              重试
+                            </button>
+                          </div>
+                        )}
+                      >
+                        {panel.content}
+                      </ErrorBoundary>
+                    </Panel>
                   </MosaicWindow>
                 </WorkspacePanelActivationBoundary>
               );

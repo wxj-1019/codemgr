@@ -99,3 +99,30 @@ describe('ErrorBoundary', () => {
     expect(spy.mock.calls.some((c) => String(c[0]).includes('ErrorBoundary caught'))).toBe(true);
   });
 });
+
+describe('ErrorBoundary 面板级隔离（UX-15）', () => {
+  it('崩溃的面板子树外内容不受影响', () => {
+    const Boom = () => { throw new Error('panel boom'); };
+    render(
+      <div>
+        <ErrorBoundary><Boom /></ErrorBoundary>
+        <p>其他面板正常</p>
+      </div>
+    );
+    expect(screen.getByText(/渲染出错/)).toBeInTheDocument();
+    expect(screen.getByText('其他面板正常')).toBeInTheDocument();
+  });
+
+  it('重试按钮 reset 后可恢复', () => {
+    let shouldThrow = true;
+    const Flaky = () => {
+      if (shouldThrow) throw new Error('flaky');
+      return <p>已恢复</p>;
+    };
+    render(<ErrorBoundary><Flaky /></ErrorBoundary>);
+    expect(screen.getByText(/渲染出错/)).toBeInTheDocument();
+    shouldThrow = false;
+    fireEvent.click(screen.getByText('重试'));
+    expect(screen.getByText('已恢复')).toBeInTheDocument();
+  });
+});
