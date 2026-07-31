@@ -36,6 +36,13 @@
 #### Phase 4：portal 浮层
 `ui/Dialog`（新）：createPortal 到 document.body + focus trap（Tab 循环）+ Escape（非 busy）+ 焦点恢复 + aria-modal/aria-labelledby。ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移到 Dialog。ContextMenu 加 portal。决策：LabelRuleEditor 保留现状（已有完整 focus trap，迁移收益边际且双重 trap 有冲突风险）；App 插件下拉迁移留后续。
 
+#### 视觉打磨轨道合并（2026-08-01，并行会话）
+- **Toast 通知系统**：`toastStore` + `ToastHost`（成功/错误/信息三态，最多 3 条、4s 自动消失）取代全部原生 alert，含 LabelRuleEditor 导入导出反馈（Phase 4 决策的例外项至此收口）。与面板内联反馈横幅（useNotice，kill/启动/停止结果）分工：全局通知走 Toast、面板上下文反馈走横幅。
+- **Aurora token 迁移清零**：全仓库零遗留旧 token（`bg-base-*`/`text-fg-*`），含 ProcessTable/PortTable/ConfirmDialog 等最后一批。
+- **Button 原语统一**：ConfirmDialog 等手写按钮迁移到 `ui/Button`（variant/size/busy 体系）。
+- **设计系统统一**：3 级圆角体系（8/14/999px）、表格间距统一、面板阴影、hover 过渡与 focus ring 参数统一、玻璃 blur 参数统一、布局 CSS 变量抽取。
+- **PerfPanel 玻璃升级 + LoadState→StateView**：错误/加载/空态统一走 `StateView`（LoadState 移除，其"自动重试"文案不再承诺——UX-31 的"暂停时承诺不存在"问题随迁移自然消除）。
+
 #### Run Profiles 可靠性修复（UX-05/UX-06，2026-07-31）
 - **spawn 失败不再永久卡「运行中」**：命令不在 PATH / cwd 被删等只触发 `error` 事件（不触发 `exit`），此前 run 状态永远停在 running。新增 `error` 监听 → run 置「启动失败」终态并携带错误原因；面板显示失败徽章（hover 见原因），失败后可直接重新启动。exit/error 双事件加终态守卫，错误信息不会被后到的 exit 覆盖。
 - **run 状态全量同步，杜绝重复启动同一服务**：面板关闭重开/应用重启后，面板关闭期间 run 退出的事件会丢失，UI 显示陈旧的「运行中」，可对同一服务重复拉起第二个实例（端口冲突）。新增 `run:getStates` 全量同步通道，面板挂载时「先订阅事件 → 拉快照 → 按序重放快照在途事件」，事件零丢失；快照拉取失败也重放缓冲事件并切直连。
