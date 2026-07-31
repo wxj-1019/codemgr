@@ -4,14 +4,12 @@ import { useSessionStore } from '../store/sessionStore';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
-import { useNotice } from '../hooks/useNotice';
 import { aggregateSession } from '../lib/sessionAggregate';
 import { formatBytes } from '../lib/format';
 import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
-import { PanelAlert } from './ui/PanelAlert';
 import { Badge } from './ui/Badge';
 
 export function SessionPanel() {
@@ -27,8 +25,6 @@ export function SessionPanel() {
 
   const [pendingStop, setPendingStop] = useState<{ rootPid: number; label: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
-  // 操作结果反馈横幅（UX-17 补漏：停止路径不再原生 alert）
-  const { notice, show: showNotice } = useNotice();
 
   async function doStop() {
     if (!pendingStop || killBusy) return;
@@ -36,14 +32,13 @@ export function SessionPanel() {
     try {
       const killed = await ipc.killTree(pendingStop.rootPid);
       setPendingStop(null);
-      showNotice(
-        killed > 0 ? 'success' : 'danger',
+      (killed > 0 ? notify.success : notify.error)(
         killed > 0 ? `已停止（结束 ${killed} 个进程）` : '未结束任何进程：根进程可能受保护、权限不足或已退出',
       );
       // session 在下次 processScan 刷新后自然消失
     } catch (e) {
       setPendingStop(null);
-      showNotice('danger', `停止会话失败：${String(e)}`);
+      notify.error(`停止会话失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -56,7 +51,6 @@ export function SessionPanel() {
     return (
       <div className="flex h-full flex-col">
         <PanelActionBar label="AI 会话" />
-        {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
         <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-content-muted">
           {scanning
             ? <>正在扫描进程…</>
@@ -69,7 +63,6 @@ export function SessionPanel() {
   return (
     <div className="flex h-full flex-col">
       <PanelActionBar label="AI 会话" summary={`${sessions.length} 个活跃会话`} />
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <div className="space-y-2">
           {sessions.map((s) => {

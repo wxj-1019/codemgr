@@ -5,6 +5,7 @@ import { ToastHost } from '../src/components/ToastHost';
 import { useSessionStore } from '../src/store/sessionStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import { ipc } from '../src/lib/ipc';
+import { __resetToastStoreForTests } from '../src/store/toastStore';
 import type { ProcessInfo } from '../electron/ipc-types';
 
 vi.mock('../src/hooks/useSessions', () => ({ useSessions: vi.fn() }));
@@ -24,6 +25,7 @@ describe('SessionPanel 空态与停止反馈（UX-16/UX-17 补漏）', () => {
     useSessionStore.getState().reset();
     useProcessPanelStore.getState().reset();
     vi.mocked(ipc.killTree).mockResolvedValue(3);
+    __resetToastStoreForTests();
   });
 
   it('进程扫描未完成时不误报「未检测到」', () => {
