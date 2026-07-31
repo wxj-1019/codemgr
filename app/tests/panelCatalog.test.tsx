@@ -35,7 +35,7 @@ describe('panelCatalog', () => {
 
     expect(getPanelTitle('port')).toBe('端口雷达');
     expect(renderPanel('port').type).toBe(PortRadar);
-    expect(getPanelTitle('run-profiles')).toBe('Run Profiles');
+    expect(getPanelTitle('run-profiles')).toBe('运行配置');
     expect(renderPanel('run-profiles').type).toBe(RunProfilesPanel);
   });
 
