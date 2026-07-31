@@ -12,6 +12,8 @@ import { RunLogView } from './RunLogView';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
 import { Globe } from './icons';
 import type { RunProfile } from '../../electron/ipc-types';
 
@@ -99,7 +101,7 @@ export function RunProfilesPanel() {
         label="Run Profiles"
         summary={`${profiles.length} 个配置 · ${runs.filter((r) => r.status === 'running').length} 个运行中`}
         actions={
-          <button onClick={() => setEditing(null)} className="rounded-md bg-accent px-2 py-1 text-xs text-on-accent hover:bg-accent-hover">新建</button>
+          <Button variant="primary" size="sm" onClick={() => setEditing(null)}>新建</Button>
         }
       />
       <div className="min-h-0 flex-1 overflow-auto p-3">
@@ -119,28 +121,28 @@ export function RunProfilesPanel() {
                 : '';
               const browseUrl = svc ? browseUrlForService(svc) : null;
               return (
-                <div key={p.id} className="rounded-lg border border-base-700 bg-base-800/60 p-3">
+                <div key={p.id} className="rounded-xl border border-line bg-surface-panel/60 p-3 transition-all duration-200 hover:bg-surface-raised/50">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-fg-primary">{p.name}</span>
-                      {run && <span className="ml-2 rounded bg-success/20 px-1 text-[10px] text-success">PID {run.pid}</span>}
-                      {svcBadge && svcBadge.text && (
-                        <span className={`ml-1 rounded px-1 text-[10px] ${svcBadge.cls}`} title={svcConflictInfo || undefined}>
+                      {run && <Badge tone="success" className="ml-2">PID {run.pid}</Badge>}
+                      {svcBadge && svcBadge.text && svc && (
+                        <Badge tone={svc.kind === 'listening' ? 'success' : svc.kind === 'conflict' ? 'danger' : svc.kind === 'exited' ? 'neutral' : 'warning'} className="ml-1" title={svcConflictInfo || undefined}>
                           {svcBadge.text}
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     <div className="flex gap-1">
                       {!run ? (
-                        <button onClick={() => start(p.id)} disabled={isBusy} className="rounded bg-accent/80 px-2 py-0.5 text-xs text-white hover:bg-accent disabled:opacity-50">启动</button>
+                        <Button variant="primary" size="xs" onClick={() => start(p.id)} disabled={isBusy}>启动</Button>
                       ) : (
                         <>
-                          <button onClick={() => restart(run.runId, p.id)} disabled={isBusy} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600 disabled:opacity-50">重启</button>
-                          <button onClick={() => stop(run.runId, p.id)} disabled={isBusy} className="rounded border border-danger/40 bg-transparent px-2 py-0.5 text-xs text-danger hover:bg-danger hover:text-on-accent disabled:opacity-50">停止</button>
+                          <Button variant="secondary" size="xs" onClick={() => restart(run.runId, p.id)} disabled={isBusy}>重启</Button>
+                          <Button variant="dangerQuiet" size="xs" onClick={() => stop(run.runId, p.id)} disabled={isBusy}>停止</Button>
                         </>
                       )}
-                      <button onClick={() => setEditing(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600">编辑</button>
-                      <button onClick={() => del(p.id)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-muted hover:bg-base-600">删</button>
+                      <Button variant="secondary" size="xs" onClick={() => setEditing(p)}>编辑</Button>
+                      <Button variant="ghost" size="xs" onClick={() => del(p.id)}>删</Button>
                       {browseUrl && (
                         <IconButton
                           label="在浏览器打开服务"
@@ -151,12 +153,9 @@ export function RunProfilesPanel() {
                         </IconButton>
                       )}
                       {latestRunOf(p.id) && (
-                        <button
-                          onClick={() => setLogOpenFor(logOpenFor === p.id ? null : p.id)}
-                          className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600"
-                        >
+                        <Button variant="secondary" size="xs" onClick={() => setLogOpenFor(logOpenFor === p.id ? null : p.id)}>
                           {logOpenFor === p.id ? '收起日志' : '日志'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>

@@ -12,3 +12,5 @@ release/
 .vscode/
 .idea/
 .zcode/
+# GUI 测试截图（web-gui-tester 产物）
+gui-test-screenshots/

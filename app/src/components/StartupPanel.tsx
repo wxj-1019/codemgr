@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useStartupStore } from '../store/startupStore';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
+import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import type { BadgeTone } from './ui/Badge';
 import { LoadState } from './LoadState';
@@ -33,7 +34,7 @@ export function StartupPanel() {
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
+            <thead className="sticky top-0 bg-surface-raised text-left text-xs uppercase text-fg-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">名称</th>
                 <th className="px-3 py-2 font-medium">来源</th>
@@ -47,7 +48,7 @@ export function StartupPanel() {
                 const src = SOURCE_BADGE[i.source];
                 const readOnly = i.source === 'hklm-run';
                 return (
-                  <tr key={i.id} className="border-b border-base-700/50">
+                  <tr key={i.id} className="border-b border-line transition-colors duration-150 hover:bg-surface-raised/50">
                     <td className="px-3 py-2 text-fg-primary">{i.name}</td>
                     <td className="px-3 py-2"><Badge tone={src.tone}>{src.text}</Badge></td>
                     <td className="max-w-[280px] truncate px-3 py-2 font-mono text-xs text-fg-muted" title={i.command}>{i.command}</td>
@@ -58,13 +59,14 @@ export function StartupPanel() {
                       {readOnly ? (
                         <span className="text-xs text-fg-muted" title="系统级启动项需要管理员权限，v1 只读">只读</span>
                       ) : (
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="xs"
                           disabled={toggling.has(i.id)}
                           onClick={() => void toggle(i.id)}
-                          className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600 disabled:opacity-50"
                         >
                           {i.enabled ? '禁用' : '恢复'}
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>

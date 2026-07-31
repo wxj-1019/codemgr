@@ -121,8 +121,8 @@ const ProcessRow = memo(function ProcessRow({
       tabIndex={isFocused || isKeyboardEntry ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
       data-pid={proc.pid}
-      className={`border-b border-base-700/30 hover:bg-base-700 cursor-pointer ${
-        multiSelectEnabled && isSelected ? 'bg-base-700/50' : ''
+      className={`border-b border-line transition-colors duration-200 hover:bg-accent/5 cursor-pointer ${
+        multiSelectEnabled && isSelected ? 'bg-gradient-to-r from-accent/15 to-transparent border-l-[3px] border-l-accent' : ''
       } ${memHighlight ? 'bg-warn/10' : ''} ${
         isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
       } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
@@ -131,7 +131,7 @@ const ProcessRow = memo(function ProcessRow({
       onKeyDown={(e) => onRowKeyDown(e, proc)}
     >
       {multiSelectEnabled && (
-        <td className="px-1 py-1">
+        <td className="px-1 py-1.5">
           <input
             type="checkbox"
             aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
@@ -143,7 +143,7 @@ const ProcessRow = memo(function ProcessRow({
           />
         </td>
       )}
-      <td className="px-2 py-1">
+      <td className="px-2 py-1.5">
         <div
           className="flex items-center gap-1"
           style={{ paddingLeft: depth * 16 }}
@@ -173,7 +173,7 @@ const ProcessRow = memo(function ProcessRow({
         </div>
       </td>
       <td
-        className={`px-2 py-1 text-right font-mono ${
+        className={`px-2 py-1.5 text-right font-mono ${
           cpuHighlight ? 'text-danger' : 'text-fg-primary'
         }`}
       >
@@ -181,32 +181,32 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
       <td
-        className={`px-2 py-1 text-right font-mono ${
+        className={`px-2 py-1.5 text-right font-mono ${
           gpuHighlight ? 'text-danger' : 'text-fg-primary'
         }`}
       >
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
       <td
-        className={`whitespace-nowrap px-2 py-1 text-right font-mono ${
+        className={`whitespace-nowrap px-2 py-1.5 text-right font-mono ${
           memHighlight ? 'text-warn' : 'text-fg-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1.5 text-right font-mono text-fg-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1.5 text-right font-mono text-fg-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1 font-mono text-fg-muted truncate max-w-[400px] text-xs"
+        className="px-2 py-1.5 font-mono text-fg-muted truncate max-w-[400px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
       </td>
-      <td className="px-2 py-1 text-right">
+      <td className="px-2 py-1.5 text-right">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -522,7 +522,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs text-fg-muted">
+        <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs text-fg-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">

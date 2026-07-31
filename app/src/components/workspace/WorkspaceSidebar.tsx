@@ -2,13 +2,17 @@ import type { ReactNode } from 'react';
 import type { MosaicNode } from 'react-mosaic-component';
 import type { PluginManifestEntry } from '../../../electron/ipc-types';
 import {
+  Activity,
+  BarChart3,
+  Camera,
   Download,
   Inbox,
-  Info,
+  Layers,
   Moon,
   Package,
   PanelTopClose,
   Play,
+  Rocket,
   Search,
   Settings,
   Square,
@@ -35,12 +39,13 @@ const GROUP_LABELS: Record<Exclude<PanelGroup, 'plugins'>, string> = {
 };
 
 const PANEL_ICONS: Record<string, ReactNode> = {
-  port: <Search aria-hidden="true" />,
-  process: <Package aria-hidden="true" />,
-  perf: <Info aria-hidden="true" />,
-  snapshot: <Download aria-hidden="true" />,
+  port: <Activity aria-hidden="true" />,
+  process: <Layers aria-hidden="true" />,
+  perf: <BarChart3 aria-hidden="true" />,
+  snapshot: <Camera aria-hidden="true" />,
   sessions: <Inbox aria-hidden="true" />,
   'run-profiles': <Play aria-hidden="true" />,
+  startup: <Rocket aria-hidden="true" />,
 };
 
 export function openAndActivate(
@@ -123,24 +128,32 @@ export function WorkspaceSidebar({
     <aside className="workspace-sidebar" aria-label="工作区导航">
       <div className="workspace-sidebar-brand workspace-drag-region">
         <span className="workspace-brand-mark" aria-hidden="true">C</span>
-        <span className="workspace-sidebar-label text-sm font-semibold text-content-primary">CodeMgr</span>
+        <span className="workspace-sidebar-label min-w-0 flex-1 truncate text-sm font-semibold text-content-primary">CodeMgr</span>
+        {version && (
+          <span
+            className="workspace-sidebar-version shrink-0 text-[10px] text-content-muted"
+            title={`CodeMgr v${version}`}
+          >
+            v{version}
+          </span>
+        )}
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         {(Object.keys(GROUP_LABELS) as Array<Exclude<PanelGroup, 'plugins'>>).map((group) => (
           <section
             key={group}
             role="group"
             aria-labelledby={`workspace-group-${group}`}
-            className="mb-3"
+            className="mb-4"
           >
             <h2
               id={`workspace-group-${group}`}
-              className="workspace-sidebar-group-label px-2 pb-1 pt-1 text-[10px] font-medium uppercase text-content-muted"
+              className="workspace-sidebar-group-label px-2 pb-1.5 pt-1 text-[11px] font-semibold text-content-muted/80"
             >
               {GROUP_LABELS[group]}
             </h2>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {grouped(group).map((definition) => (
                 <WorkspaceDestination
                   key={definition.id}
@@ -154,14 +167,14 @@ export function WorkspaceSidebar({
         ))}
 
         {pluginDefinitions.length > 0 && (
-          <section role="group" aria-labelledby="workspace-group-plugins" className="mb-3">
+          <section role="group" aria-labelledby="workspace-group-plugins" className="mb-4">
             <h2
               id="workspace-group-plugins"
-              className="workspace-sidebar-group-label px-2 pb-1 pt-1 text-[10px] font-medium uppercase text-content-muted"
+              className="workspace-sidebar-group-label px-2 pb-1.5 pt-1 text-[11px] font-semibold text-content-muted/80"
             >
               插件
             </h2>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {pluginDefinitions.map((definition) => (
                 <WorkspaceDestination
                   key={definition.id}
@@ -203,12 +216,6 @@ export function WorkspaceSidebar({
           </IconButton>
           <div className="workspace-sidebar-auto-launch min-w-0 flex-1">{autoLaunchControl}</div>
         </div>
-
-        {version && (
-          <div className="workspace-sidebar-version workspace-sidebar-label mt-1 px-1 text-[10px] text-content-muted" title={`CodeMgr v${version}`}>
-            v{version}
-          </div>
-        )}
       </div>
     </aside>
   );

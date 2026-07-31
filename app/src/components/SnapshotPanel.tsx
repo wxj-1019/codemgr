@@ -493,7 +493,7 @@ function DiffView({
 
       {/* added 组多选操作条 */}
       {tab === 'added' && counts.added > 0 && (
-        <div className="flex items-center gap-2 border-b border-base-700/50 bg-base-900/30 px-3 py-1.5">
+        <div className="flex items-center gap-2 border-b border-line bg-surface-panel/50 px-3 py-1.5">
           <button
             onClick={selectAllAdded}
             className="text-xs text-accent hover:underline"

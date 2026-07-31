@@ -22,7 +22,7 @@ export function Badge({ tone = 'neutral', className, children, ...props }: Badge
       {...props}
       data-tone={tone}
       className={cx(
-        'inline-flex min-h-5 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium leading-none ring-1 ring-inset',
+        'inline-flex min-h-5 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium leading-none ring-1 ring-inset transition-colors duration-200',
         TONE_CLASSES[tone],
         className,
       )}

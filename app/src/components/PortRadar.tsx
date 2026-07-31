@@ -82,8 +82,19 @@ export function PortRadar() {
                 placeholder="搜索端口/进程/PID/地址…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-7 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
+              {filter !== '' && (
+                <IconButton
+                  label="清除搜索"
+                  size="xs"
+                  variant="ghost"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-content-muted hover:text-content-primary"
+                  onClick={() => setFilter('')}
+                >
+                  <X size={12} aria-hidden="true" />
+                </IconButton>
+              )}
             </div>
             <IconButton label="导出" size="sm" onClick={(e) => setExportMenu({ x: e.clientX, y: e.clientY })}>
               <Download />
