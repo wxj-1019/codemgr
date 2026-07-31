@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SessionPanel } from '../src/components/SessionPanel';
+import { ToastHost } from '../src/components/ToastHost';
 import { useSessionStore } from '../src/store/sessionStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import { ipc } from '../src/lib/ipc';
@@ -27,14 +28,14 @@ describe('SessionPanel 空态与停止反馈（UX-16/UX-17 补漏）', () => {
 
   it('进程扫描未完成时不误报「未检测到」', () => {
     useProcessPanelStore.setState({ processes: [], loading: true, error: null });
-    render(<SessionPanel />);
+    render(<><ToastHost /><SessionPanel /></>);
     expect(screen.getByText(/正在扫描进程/)).toBeInTheDocument();
     expect(screen.queryByText(/未检测到 AI 开发会话/)).not.toBeInTheDocument();
   });
 
   it('扫描完成无会话显示正常空态', () => {
     useProcessPanelStore.setState({ processes: [], loading: false, error: null });
-    render(<SessionPanel />);
+    render(<><ToastHost /><SessionPanel /></>);
     expect(screen.getByText(/未检测到 AI 开发会话/)).toBeInTheDocument();
   });
 
@@ -43,7 +44,7 @@ describe('SessionPanel 空态与停止反馈（UX-16/UX-17 补漏）', () => {
     useSessionStore.getState().setSessions([SESSION]);
     useProcessPanelStore.setState({ processes: [proc(100, 'claude')], loading: false, error: null });
     vi.mocked(ipc.killTree).mockResolvedValueOnce(0);
-    render(<SessionPanel />);
+    render(<><ToastHost /><SessionPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '停止' }));
     fireEvent.click(screen.getByRole('button', { name: '停止会话' }));
     expect(await screen.findByText(/未结束任何进程/)).toBeInTheDocument();
@@ -53,7 +54,7 @@ describe('SessionPanel 空态与停止反馈（UX-16/UX-17 补漏）', () => {
   it('停止成功显示已停止反馈（含结束数量）', async () => {
     useSessionStore.getState().setSessions([SESSION]);
     useProcessPanelStore.setState({ processes: [proc(100, 'claude')], loading: false, error: null });
-    render(<SessionPanel />);
+    render(<><ToastHost /><SessionPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '停止' }));
     fireEvent.click(screen.getByRole('button', { name: '停止会话' }));
     expect(await screen.findByText(/已停止（结束 3 个进程）/)).toBeInTheDocument();

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { mockIpc } from './setup';
 import { RunProfilesPanel } from '../src/components/RunProfilesPanel';
+import { ToastHost } from '../src/components/ToastHost';
 import type { RunProfile, RunState } from '../electron/ipc-types';
 
 const PROFILE: RunProfile = {
@@ -27,7 +28,7 @@ describe('RunProfilesPanel 失败态展示（UX-05）', () => {
       listRunProfiles: vi.fn(() => Promise.resolve([PROFILE])),
       getRunStates: vi.fn(() => Promise.resolve([failed])),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     const badge = await screen.findByText('启动失败');
     expect(badge).toHaveAttribute('title', 'spawn pnpm ENOENT');
     expect(screen.getByRole('button', { name: '启动' })).toBeInTheDocument();
@@ -38,7 +39,7 @@ describe('RunProfilesPanel 失败态展示（UX-05）', () => {
       listRunProfiles: vi.fn(() => Promise.resolve([PROFILE])),
       getRunStates: vi.fn(() => Promise.resolve([RUNNING])),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     await screen.findByText('PID 1234');
     expect(screen.getByRole('button', { name: '停止' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '重启' })).toBeInTheDocument();
@@ -52,7 +53,7 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
       getRunStates: vi.fn(() => Promise.resolve([])),
       deleteRunProfile: vi.fn(() => Promise.resolve(false)),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     await screen.findByText('前端 dev');
     fireEvent.click(screen.getByRole('button', { name: '删' }));
     fireEvent.click(screen.getByRole('button', { name: '删除配置' }));
@@ -65,7 +66,7 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
       getRunStates: vi.fn(() => Promise.resolve([RUNNING])),
       stopProfile: vi.fn(() => Promise.resolve(0)),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     await screen.findByText('PID 1234');
     fireEvent.click(screen.getByRole('button', { name: '停止' }));
     expect(await screen.findByText(/未结束任何进程/)).toBeInTheDocument();
@@ -77,7 +78,7 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
       getRunStates: vi.fn(() => Promise.resolve([RUNNING])),
       stopProfile: vi.fn(() => Promise.resolve(3)),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     await screen.findByText('PID 1234');
     fireEvent.click(screen.getByRole('button', { name: '停止' }));
     expect(await screen.findByText(/已停止（结束 3 个进程）/)).toBeInTheDocument();
@@ -90,7 +91,7 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
       getRunStates: vi.fn(() => Promise.resolve([])),
       startProfile: vi.fn(() => Promise.resolve(null)),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     await screen.findByText('前端 dev');
     fireEvent.click(screen.getByRole('button', { name: '启动' }));
     expect(await screen.findByText(/启动失败/)).toBeInTheDocument();
@@ -110,7 +111,7 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
       listRunProfiles: vi.fn(() => Promise.resolve([PROFILE])),
       getRunStates: vi.fn(() => Promise.resolve([failed, running])),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     await screen.findByText('PID 1234');
     expect(screen.queryByText('启动失败')).not.toBeInTheDocument();
   });
@@ -120,7 +121,7 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
       listRunProfiles: vi.fn(() => Promise.reject(new Error('read failed'))),
       getRunStates: vi.fn(() => Promise.resolve([])),
     });
-    render(<RunProfilesPanel />);
+    render(<><ToastHost /><RunProfilesPanel /></>);
     expect(await screen.findByText(/加载 Run Profiles 失败/)).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { mockIpc } from './setup';
 import { PortRadar } from '../src/components/PortRadar';
+import { ToastHost } from '../src/components/ToastHost';
 
 vi.mock('../src/hooks/usePortRadar', () => ({ usePortRadar: vi.fn() }));
 vi.mock('../src/components/PortTable', () => ({
@@ -23,7 +24,7 @@ describe('PortRadar 单杀反馈（UX-03）', () => {
       } as never)),
       killProcess: vi.fn(() => Promise.resolve('killed')),
     });
-    render(<PortRadar />);
+    render(<><ToastHost /><PortRadar /></>);
     fireEvent.click(screen.getByRole('button', { name: 'kill-row' }));
     fireEvent.click(screen.getByRole('button', { name: '结束进程' }));
     expect(await screen.findByText(/已结束 node\.exe（PID 3000）/)).toBeInTheDocument();
@@ -38,7 +39,7 @@ describe('PortRadar 单杀反馈（UX-03）', () => {
       } as never)),
       killProcess: vi.fn(() => Promise.resolve('protected')),
     });
-    render(<PortRadar />);
+    render(<><ToastHost /><PortRadar /></>);
     fireEvent.click(screen.getByRole('button', { name: 'kill-row' }));
     fireEvent.click(screen.getByRole('button', { name: '结束进程' }));
     expect(await screen.findByText(/受保护进程，无法结束/)).toBeInTheDocument();
@@ -54,7 +55,7 @@ describe('PortRadar 仅监听/全部连接切换（UX-19）', () => {
         sampledAt: Date.now(),
       } as never)),
     });
-    render(<PortRadar />);
+    render(<><ToastHost /><PortRadar /></>);
     expect(screen.getByRole('button', { name: '仅监听' })).toBeInTheDocument();
     expect(screen.getByTestId('show-all-prop')).toHaveTextContent('false');
     fireEvent.click(screen.getByRole('button', { name: '仅监听' }));

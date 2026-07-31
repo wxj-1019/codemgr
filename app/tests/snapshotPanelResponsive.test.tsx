@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SnapshotPanel } from '../src/components/SnapshotPanel';
+import { ToastHost } from '../src/components/ToastHost';
 import { useSnapshotStore } from '../src/store/snapshotStore';
 import { mockIpc } from './setup';
 
@@ -37,7 +38,7 @@ describe('SnapshotPanel responsive controls', () => {
 
   it('uses compact top controls below 480px', async () => {
     mockWidth(479);
-    render(<SnapshotPanel />);
+    render(<><ToastHost /><SnapshotPanel /></>);
 
     expect(await screen.findByTestId('snapshot-compact-controls')).toBeInTheDocument();
     expect(screen.queryByTestId('snapshot-sidebar')).not.toBeInTheDocument();
@@ -46,7 +47,7 @@ describe('SnapshotPanel responsive controls', () => {
 
   it('keeps the sidebar at 480px and above', async () => {
     mockWidth(480);
-    render(<SnapshotPanel />);
+    render(<><ToastHost /><SnapshotPanel /></>);
 
     await waitFor(() => expect(screen.getByTestId('snapshot-sidebar')).toBeInTheDocument());
     expect(screen.queryByTestId('snapshot-compact-controls')).not.toBeInTheDocument();

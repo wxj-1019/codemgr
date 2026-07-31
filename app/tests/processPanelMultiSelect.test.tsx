@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ProcessInfo } from '../electron/ipc-types';
 import { ProcessPanel } from '../src/components/ProcessPanel';
+import { ToastHost } from '../src/components/ToastHost';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import { ipc } from '../src/lib/ipc';
 
@@ -83,7 +84,7 @@ describe('ProcessPanel multi-select mode', () => {
 
   it('hides stale selection from the default-mode summary', () => {
     seed(new Set([10]));
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
 
     expect(screen.queryByText(/已选 1 个/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /批量结束/ })).not.toBeInTheDocument();
@@ -91,7 +92,7 @@ describe('ProcessPanel multi-select mode', () => {
 
   it('toggles mode, clears selection on both transitions, and wires both views', () => {
     seed(new Set([10]));
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
 
     const modeButton = screen.getByRole('button', { name: '多选' });
     expect(modeButton).toHaveAttribute('aria-pressed', 'false');
@@ -116,7 +117,7 @@ describe('ProcessPanel multi-select mode', () => {
   });
 
   it('closes pending batch confirmation when mode is completed', () => {
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10]) });
@@ -130,7 +131,7 @@ describe('ProcessPanel multi-select mode', () => {
   });
 
   it('clears selection after successful batch kill and keeps mode enabled', async () => {
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10]) });
@@ -149,7 +150,7 @@ describe('ProcessPanel multi-select mode', () => {
 
   it('preserves selection when batch kill ends zero processes', async () => {
     vi.mocked(ipc.killByPids).mockResolvedValueOnce([{ pid: 10, status: 'protected' }]);
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10]) });
@@ -172,7 +173,7 @@ describe('ProcessPanel multi-select mode', () => {
       { pid: 30, status: 'denied' },
       { pid: 40, status: 'not-found' },
     ]);
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10, 20, 30, 40]) });
@@ -187,7 +188,7 @@ describe('ProcessPanel multi-select mode', () => {
 
   it('全部受保护时提示原因（UX-02 不再三合一）', async () => {
     vi.mocked(ipc.killByPids).mockResolvedValueOnce([{ pid: 10, status: 'protected' }]);
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10]) });
@@ -201,7 +202,7 @@ describe('ProcessPanel multi-select mode', () => {
   });
 
   it('keeps selection when batch confirmation is cancelled', () => {
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10]) });
@@ -214,7 +215,7 @@ describe('ProcessPanel multi-select mode', () => {
   });
 
   it('批量结束确认框列出目标进程清单（UX-01）', () => {
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
       useProcessPanelStore.setState({ selectedPids: new Set([10, 20]) });
@@ -227,7 +228,7 @@ describe('ProcessPanel multi-select mode', () => {
   });
 
   it('单杀成功显示成功反馈横幅（UX-03）', async () => {
-    render(<ProcessPanel />);
+    render(<><ToastHost /><ProcessPanel /></>);
     fireEvent.click(screen.getByRole('button', { name: 'kill-single' }));
     fireEvent.click(screen.getByRole('button', { name: '结束进程' }));
 
