@@ -94,7 +94,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
                 aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
                 onKeyDown={(e) => onRowKeyDown(e, i)}
-                className={`cursor-pointer border-b border-line hover:bg-surface-raised ${
+                className={`cursor-pointer border-b border-line hover:bg-surface-raised transition-colors duration-150 ease-out ${
                   selected ? 'bg-surface-raised/60' : ''
                 } ${focused ? 'ring-1 ring-inset ring-focus/60 outline-none' : ''}`}
               >

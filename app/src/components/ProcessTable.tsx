@@ -130,7 +130,7 @@ const ProcessRow = memo(function ProcessRow({
       tabIndex={isFocused || isKeyboardEntry ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
       data-pid={proc.pid}
-      className={`border-b border-line hover:bg-surface-raised cursor-pointer ${
+      className={`border-b border-line hover:bg-surface-raised cursor-pointer transition-colors duration-150 ease-out ${
         multiSelectEnabled && isSelected ? 'bg-surface-raised/50' : ''
       } ${memHighlight ? 'bg-warn/10' : ''} ${
         isFocused ? 'ring-1 ring-inset ring-focus/60 outline-none' : ''
@@ -163,7 +163,7 @@ const ProcessRow = memo(function ProcessRow({
                 e.stopPropagation();
                 onToggleExpand(proc.pid);
               }}
-              className="w-4 text-xs text-content-muted hover:text-content-primary"
+              className="w-4 text-xs text-content-muted hover:text-content-primary transition-colors duration-150"
             >
               {isExpanded ? '▾' : '▸'}
             </button>
@@ -605,7 +605,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'name' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="px-3 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="px-3 py-2 font-medium cursor-pointer select-none transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('name')}
               onKeyDown={(e) => onSortKeyDown(e, 'name')}
             >
@@ -615,7 +615,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'cpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('cpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'cpu')}
             >
@@ -626,7 +626,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'gpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('gpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'gpu')}
               title="数据来自性能面板轮询"
@@ -637,7 +637,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'memory' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-24 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-24 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('memory')}
               onKeyDown={(e) => onSortKeyDown(e, 'memory')}
             >
@@ -647,7 +647,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'pid' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('pid')}
               onKeyDown={(e) => onSortKeyDown(e, 'pid')}
             >
