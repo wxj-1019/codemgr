@@ -54,7 +54,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <table ref={tableRef} role="grid" className="w-full text-sm">
-        <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 bg-surface-panel text-left text-xs uppercase text-content-muted">
           <tr>
             <th className="px-3 py-2 font-medium">端口</th>
             <th className="px-3 py-2 font-medium">协议</th>
@@ -80,9 +80,9 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                 aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
                 onKeyDown={(e) => onRowKeyDown(e, i)}
-                className={`cursor-pointer border-b border-base-700/50 hover:bg-base-700 ${
-                  selected ? 'bg-base-700/60' : ''
-                } ${focused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''}`}
+                className={`cursor-pointer border-b border-line hover:bg-surface-raised ${
+                  selected ? 'bg-surface-raised/60' : ''
+                } ${focused ? 'ring-1 ring-inset ring-focus/60 outline-none' : ''}`}
               >
                 <td
                   className={`px-3 py-2 font-mono ${
@@ -93,10 +93,10 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                   {conflict && <TriangleAlert size={13} className="mr-1 inline-block align-[-2px]" aria-label="端口冲突" />}
                   {c.localPort}
                 </td>
-                <td className="px-3 py-2 uppercase text-fg-secondary">{c.protocol}</td>
-                <td className="px-3 py-2 text-fg-primary">{c.processName || '—'}</td>
-                <td className="px-3 py-2 font-mono text-fg-secondary">{c.pid}</td>
-                <td className="px-3 py-2 font-mono text-fg-muted">{c.localAddr}</td>
+                <td className="px-3 py-2 uppercase text-content-secondary">{c.protocol}</td>
+                <td className="px-3 py-2 text-content-primary">{c.processName || '—'}</td>
+                <td className="px-3 py-2 font-mono text-content-secondary">{c.pid}</td>
+                <td className="px-3 py-2 font-mono text-content-muted">{c.localAddr}</td>
                 <td className="px-3 py-2">
                   {label && (
                     <span
@@ -105,7 +105,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                           ? 'bg-accent/[0.14] text-accent'
                           : isDbPort(c.localPort)
                           ? 'bg-amber-500/[0.14] text-amber-400'
-                          : 'bg-slate-600/[0.14] text-fg-secondary'
+                          : 'bg-slate-600/[0.14] text-content-secondary'
                       }`}
                     >
                       {label}
@@ -125,7 +125,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-3 py-8 text-center text-fg-muted">暂无监听端口</td>
+              <td colSpan={7} className="px-3 py-8 text-center text-content-muted">暂无监听端口</td>
             </tr>
           )}
         </tbody>

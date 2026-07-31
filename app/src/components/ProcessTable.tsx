@@ -81,7 +81,7 @@ const KIND_COLORS: Record<string, string> = {
   build: 'bg-purple-500/[0.14] text-purple-400',
   container: 'bg-blue-500/[0.14] text-blue-400',
   db: 'bg-amber-500/[0.14] text-amber-400',
-  system: 'bg-slate-600/[0.14] text-fg-secondary',
+  system: 'bg-slate-600/[0.14] text-content-secondary',
   ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
   'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
 };
@@ -128,10 +128,10 @@ const ProcessRow = memo(function ProcessRow({
       tabIndex={isFocused || isKeyboardEntry ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
       data-pid={proc.pid}
-      className={`border-b border-base-700/30 hover:bg-base-700 cursor-pointer ${
-        multiSelectEnabled && isSelected ? 'bg-base-700/50' : ''
+      className={`border-b border-line hover:bg-surface-raised cursor-pointer ${
+        multiSelectEnabled && isSelected ? 'bg-surface-raised/50' : ''
       } ${memHighlight ? 'bg-warn/10' : ''} ${
-        isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
+        isFocused ? 'ring-1 ring-inset ring-focus/60 outline-none' : ''
       } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
       onClick={() => onActivate(proc.pid)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
@@ -161,20 +161,20 @@ const ProcessRow = memo(function ProcessRow({
                 e.stopPropagation();
                 onToggleExpand(proc.pid);
               }}
-              className="w-4 text-xs text-fg-muted hover:text-fg-primary"
+              className="w-4 text-xs text-content-muted hover:text-content-primary"
             >
               {isExpanded ? '▾' : '▸'}
             </button>
           )}
           {!hasChildren && <span className="w-4" />}
-          <span className="text-fg-primary truncate max-w-[200px]">
+          <span className="text-content-primary truncate max-w-[200px]">
             {proc.name}
           </span>
           {label && (
             <span
               className={`ml-1 rounded px-1 text-[10px] ${
                 KIND_COLORS[label.kind] ||
-                'bg-slate-600/[0.14] text-fg-secondary'
+                'bg-slate-600/[0.14] text-content-secondary'
               }`}
             >
               {label.label}
@@ -184,7 +184,7 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       <td
         className={`px-2 py-1 text-right font-mono ${
-          cpuHighlight ? 'text-danger' : 'text-fg-primary'
+          cpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
       >
         {cpu.toFixed(1)}
@@ -192,26 +192,26 @@ const ProcessRow = memo(function ProcessRow({
       {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
       <td
         className={`px-2 py-1 text-right font-mono ${
-          gpuHighlight ? 'text-danger' : 'text-fg-primary'
+          gpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
       >
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
       <td
         className={`whitespace-nowrap px-2 py-1 text-right font-mono ${
-          memHighlight ? 'text-warn' : 'text-fg-primary'
+          memHighlight ? 'text-warn' : 'text-content-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1 text-right font-mono text-content-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1 text-right font-mono text-content-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1 font-mono text-fg-muted truncate max-w-[400px] text-xs"
+        className="px-2 py-1 font-mono text-content-muted truncate max-w-[400px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
@@ -543,7 +543,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs text-fg-muted">
+        <thead className="sticky top-0 z-10 bg-surface-panel text-left text-xs text-content-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">
@@ -569,7 +569,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'name' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="px-2 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              className="px-2 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('name')}
               onKeyDown={(e) => onSortKeyDown(e, 'name')}
             >
@@ -579,7 +579,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'cpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('cpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'cpu')}
             >
@@ -590,7 +590,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'gpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('gpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'gpu')}
               title="数据来自性能面板轮询"
@@ -601,7 +601,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'memory' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-24 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              className="w-24 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('memory')}
               onKeyDown={(e) => onSortKeyDown(e, 'memory')}
             >
@@ -611,7 +611,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'pid' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('pid')}
               onKeyDown={(e) => onSortKeyDown(e, 'pid')}
             >
@@ -642,7 +642,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           )}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-content-muted">
                 无进程
               </td>
             </tr>
