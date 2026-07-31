@@ -21,7 +21,7 @@ import {
 } from './components/workspace/WorkspaceSidebar';
 import { WorkspaceTopbar } from './components/workspace/WorkspaceTopbar';
 import { ipc } from './lib/ipc';
-import { useNotice } from './hooks/useNotice';
+import { notify } from './lib/notify';
 import {
   MAX_VISIBLE_PANELS,
   getPanelLeaves,
@@ -36,8 +36,6 @@ import {
 import { useActivePanelStore } from './store/activePanelStore';
 import { usePluginRegistryStore } from './store/pluginRegistryStore';
 import { useThemeStore } from './store/themeStore';
-import { PanelAlert } from './components/ui/PanelAlert';
-import { ToastHost } from './components/ToastHost';
 
 const PRESET_LABELS: Record<PresetId, string> = {
   classic: '经典布局',
@@ -140,14 +138,11 @@ export function App() {
   const createNode = createWorkspaceNodeFactory(root);
 
   const openPanels = getPanelLeaves(root);
-  // UX-09：满员时打开新面板会替换活跃 tile——不再静默，横幅告知被替换的面板
-  const { notice, show: showNotice } = useNotice();
   const handleOpenPanel = (panelId: PanelId) => {
     const replaced = replacedPanelOf(root, panelId, activeId);
     openAndActivate(panelId, root, (id) => openPanel(id, activeId), setActive);
     if (replaced) {
-      showNotice(
-        'warning',
+      notify.warning(
         `已用「${getPanelTitle(panelId, findPlugin)}」替换「${getPanelTitle(replaced, findPlugin)}」（最多 ${MAX_VISIBLE_PANELS} 个面板）`,
       );
     }
@@ -186,7 +181,6 @@ export function App() {
           canFocusPanel={activeId !== null && openPanels.length > 1}
           onFocusPanel={handleFocusPanel}
         />
-        {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
         {showWelcome && <WelcomeBanner onClose={dismissWelcome} />}
         <div className="workspace-mosaic">
           <Mosaic<PanelId>
@@ -235,7 +229,6 @@ export function App() {
 
       {rulesOpen && <LabelRuleEditor onClose={() => setRulesOpen(false)} />}
       <PluginHost />
-      <ToastHost />
     </div>
   );
 }
