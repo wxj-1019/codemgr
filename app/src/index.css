@@ -47,6 +47,10 @@ html, body, #root {
   --info: rgb(var(--info-rgb));
   --on-accent: rgb(var(--on-accent-rgb));
 
+  --sidebar-width: 180px;
+  --topbar-height: 40px;
+  --brand-mark-size: 22px;
+
   /* Legacy aliases retained for existing Aurora and business components. */
   --bg-base: var(--surface-canvas);
   --bg-panel: var(--surface-panel);
@@ -118,6 +122,7 @@ body {
   backdrop-filter: blur(20px) saturate(1.15);
   -webkit-backdrop-filter: blur(20px) saturate(1.15);
   border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 /* 浮层材质（Dialog/ContextMenu/下拉）：明度阶梯第二格 --bg-elevated，
@@ -196,7 +201,7 @@ body {
 .workspace-shell {
   position: relative;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
   overflow: hidden;
@@ -217,8 +222,8 @@ body {
 
 .workspace-sidebar-brand {
   display: flex;
-  height: 40px;
-  flex: 0 0 40px;
+  height: var(--topbar-height);
+  flex: 0 0 var(--topbar-height);
   align-items: center;
   gap: 8px;
   padding: 0 12px;
@@ -227,9 +232,9 @@ body {
 
 .workspace-brand-mark {
   display: inline-flex;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
+  width: var(--brand-mark-size);
+  height: var(--brand-mark-size);
+  flex: 0 0 var(--brand-mark-size);
   align-items: center;
   justify-content: center;
   border: 1px solid rgb(var(--accent-rgb) / 0.38);
@@ -244,7 +249,7 @@ body {
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: 40px minmax(0, 1fr);
+  grid-template-rows: var(--topbar-height) minmax(0, 1fr);
 }
 
 .workspace-topbar {

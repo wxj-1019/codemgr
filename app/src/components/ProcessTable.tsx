@@ -140,7 +140,7 @@ const ProcessRow = memo(function ProcessRow({
       onKeyDown={(e) => onRowKeyDown(e, proc)}
     >
       {multiSelectEnabled && (
-        <td className="px-1 py-1">
+        <td className="px-3 py-1">
           <input
             type="checkbox"
             aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
@@ -152,7 +152,7 @@ const ProcessRow = memo(function ProcessRow({
           />
         </td>
       )}
-      <td className="px-2 py-1">
+      <td className="px-3 py-2">
         <div
           className="flex items-center gap-1"
           style={{ paddingLeft: depth * 16 }}
@@ -185,7 +185,7 @@ const ProcessRow = memo(function ProcessRow({
         </div>
       </td>
       <td
-        className={`px-2 py-1 text-right font-mono ${
+        className={`px-3 py-2 text-right font-mono ${
           cpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
       >
@@ -193,7 +193,7 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
       <td
-        className={`px-2 py-1 text-right font-mono ${
+        className={`px-3 py-2 text-right font-mono ${
           gpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
         title={gpu ? undefined : '性能面板未开启或无 GPU 数据'}
@@ -201,25 +201,25 @@ const ProcessRow = memo(function ProcessRow({
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
       <td
-        className={`whitespace-nowrap px-2 py-1 text-right font-mono ${
+        className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
           memHighlight ? 'text-warn' : 'text-content-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-content-secondary">
+      <td className="px-3 py-2 text-right font-mono text-content-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-content-secondary">
+      <td className="px-3 py-2 text-right font-mono text-content-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1 font-mono text-content-muted truncate max-w-[400px] text-xs"
+        className="px-3 py-2 font-mono text-content-muted truncate max-w-[400px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
       </td>
-      <td className="px-2 py-1 text-right">
+      <td className="px-3 py-2 text-right">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -605,7 +605,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'name' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="px-2 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="px-3 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('name')}
               onKeyDown={(e) => onSortKeyDown(e, 'name')}
             >
@@ -615,7 +615,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'cpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('cpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'cpu')}
             >
@@ -626,7 +626,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'gpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('gpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'gpu')}
               title="数据来自性能面板轮询"
@@ -637,7 +637,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'memory' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-24 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-24 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('memory')}
               onKeyDown={(e) => onSortKeyDown(e, 'memory')}
             >
@@ -647,15 +647,15 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'pid' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-3 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
               onClick={() => onSort('pid')}
               onKeyDown={(e) => onSortKeyDown(e, 'pid')}
             >
               PID {sortKey === 'pid' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
-            <th className="w-14 px-2 py-2 font-medium text-right">线程</th>
-            <th className="px-2 py-2 font-medium">命令行</th>
-            <th className="w-16 px-2 py-2 font-medium text-right">操作</th>
+            <th className="w-14 px-3 py-2 font-medium text-right">线程</th>
+            <th className="px-3 py-2 font-medium">命令行</th>
+            <th className="w-16 px-3 py-2 font-medium text-right">操作</th>
           </tr>
         </thead>
         <tbody>
