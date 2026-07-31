@@ -8,10 +8,12 @@ interface LoadStateProps {
   emptyText?: string;
   // 首次加载（尚无任何数据）时显示骨架，区别于"刷新中"
   isFirstLoad: boolean;
+  // 轮询已暂停（pollMs=0）：错误态的"自动重试"承诺不成立，文案区分（UX-31）
+  paused?: boolean;
 }
 
 export function LoadState({
-  loading, error, empty, emptyText = '暂无数据', isFirstLoad,
+  loading, error, empty, emptyText = '暂无数据', isFirstLoad, paused = false,
 }: LoadStateProps) {
   // 优先级：错误 > 首次加载 > 空
   if (error) {
@@ -21,7 +23,9 @@ export function LoadState({
           <div className="mb-2 text-2xl">⚠️</div>
           <p className="text-sm text-danger">加载失败</p>
           <p className="mt-1 max-w-md text-xs text-content-muted">{error}</p>
-          <p className="mt-2 text-xs text-content-muted">将在下次轮询时自动重试</p>
+          <p className="mt-2 text-xs text-content-muted">
+            {paused ? '轮询已暂停，恢复后自动重试' : '将在下次轮询时自动重试'}
+          </p>
         </div>
       </div>
     );

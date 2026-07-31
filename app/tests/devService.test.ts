@@ -69,3 +69,10 @@ describe('resolveServiceStatus', () => {
     expect(s.kind).toBe('starting');
   });
 });
+
+describe('resolveServiceStatus failed 分支', () => {
+  it('failed run 不落入端口判定（视为已退出）', () => {
+    const s = resolveServiceStatus(run({ status: 'failed', error: 'ENOENT' }), profile({ expectedPorts: [5173] }), [conn({ pid: 100, localPort: 5173 })]);
+    expect(s.kind).toBe('exited');
+  });
+});

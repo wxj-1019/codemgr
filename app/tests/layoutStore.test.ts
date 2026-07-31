@@ -5,6 +5,7 @@ import {
   getPanelLeaves,
   limitVisiblePanels,
   openFocusedPanelRoot,
+  validatePersistedRoot,
   useLayoutStore,
   type PanelId,
 } from '../src/store/layoutStore';
@@ -378,5 +379,38 @@ describe('layoutStore', () => {
       root: { direction: 'row', first: 'port', second: 'perf', splitPercentage: 50 },
       preset: 'port-perf',
     });
+  });
+});
+
+describe('validatePersistedRoot（UX-12 同版本损坏校验）', () => {
+  it('接受内置面板叶子与插件叶子', () => {
+    expect(validatePersistedRoot('process')).toBe('process');
+    expect(validatePersistedRoot('plugin:demo')).toBe('plugin:demo');
+  });
+
+  it('拒绝未知叶子 id 与非法类型', () => {
+    expect(validatePersistedRoot('nope')).toBeNull();
+    expect(validatePersistedRoot(123 as never)).toBeNull();
+    expect(validatePersistedRoot({})).toBeNull();
+  });
+
+  it('拒绝结构残缺/方向非法的分支', () => {
+    expect(validatePersistedRoot({ direction: 'row', first: 'port' } as never)).toBeNull();
+    expect(validatePersistedRoot({ direction: 'sideways', first: 'port', second: 'perf' } as never)).toBeNull();
+  });
+
+  it('接受完整嵌套分支并保留 splitPercentage', () => {
+    const v = validatePersistedRoot({
+      direction: 'row', first: 'process', splitPercentage: 70,
+      second: { direction: 'column', first: 'port', second: 'perf', splitPercentage: 50 },
+    } as never);
+    expect(v).toEqual({
+      direction: 'row', first: 'process', splitPercentage: 70,
+      second: { direction: 'column', first: 'port', second: 'perf', splitPercentage: 50 },
+    });
+  });
+
+  it('null 保持 null（用户主动关掉所有面板是合法状态）', () => {
+    expect(validatePersistedRoot(null)).toBeNull();
   });
 });

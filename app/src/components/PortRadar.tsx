@@ -109,6 +109,7 @@ export function PortRadar() {
             empty={connections.length === 0 && !loading && !error}
             emptyText="暂无监听端口"
             isFirstLoad={isFirstLoad}
+            paused={pollMs === 0}
           />
         ) : (
           <PortTable

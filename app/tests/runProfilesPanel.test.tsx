@@ -96,4 +96,22 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
     expect(await screen.findByText(/启动失败/)).toBeInTheDocument();
     expect(alertSpy).not.toHaveBeenCalled();
   });
+
+  it('重试成功后旧失败徽章不残留（仅无运行中 run 时展示失败）', async () => {
+    const failed: RunState = {
+      runId: 'run-f', profileId: PROFILE.id, pid: 0,
+      status: 'failed', exitCode: null, startedAt: 1, error: 'spawn ENOENT',
+    };
+    const running: RunState = {
+      runId: 'run-r', profileId: PROFILE.id, pid: 1234,
+      status: 'running', exitCode: null, startedAt: 2,
+    };
+    mockIpc({
+      listRunProfiles: vi.fn(() => Promise.resolve([PROFILE])),
+      getRunStates: vi.fn(() => Promise.resolve([failed, running])),
+    });
+    render(<RunProfilesPanel />);
+    await screen.findByText('PID 1234');
+    expect(screen.queryByText('启动失败')).not.toBeInTheDocument();
+  });
 });

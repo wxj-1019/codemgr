@@ -129,4 +129,22 @@ describe('RunManager', () => {
     expect(st.status).toBe('exited');
     expect(st.exitCode).toBe(0);
   });
+
+  it('同 profile 重试时清理旧的终态 run（防无界增长）', () => {
+    const child1 = fakeChild();
+    mockExecFile.mockReturnValueOnce(child1);
+    const res1 = manager.start(profile);
+    child1.emit('error', new Error('ENOENT'));
+    expect(manager.getState(res1!.runId)!.status).toBe('failed');
+
+    const child2 = fakeChild(5678);
+    mockExecFile.mockReturnValueOnce(child2);
+    const res2 = manager.start(profile);
+
+    const states = manager.allStates();
+    expect(states).toHaveLength(1);
+    expect(states[0].runId).toBe(res2!.runId);
+    expect(states[0].pid).toBe(5678);
+    expect(manager.getState(res1!.runId)).toBeNull();
+  });
 });

@@ -47,6 +47,7 @@ export function PerfPanel() {
         error={error}
         empty={false}
         isFirstLoad
+        paused={pollMs === 0}
       />
     );
   }

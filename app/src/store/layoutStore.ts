@@ -235,6 +235,34 @@ function migrateLayoutState(persistedState: unknown, version: number): unknown {
   };
 }
 
+/**
+ * 校验持久化 root 的结构（UX-12：同版本损坏也要兜底，不只依赖版本迁移）。
+ * - 叶子必须是内置面板 id 或 `plugin:*`；未知 id 视为损坏。
+ * - 分支必须 direction∈{row,column} 且两侧子树都合法，splitPercentage 非法时回退 50。
+ * - null 保持 null（用户主动关掉所有面板是合法状态）。
+ * 任何非法结构返回 null → rehydrate 时回退默认布局。
+ */
+export function validatePersistedRoot(root: unknown): MosaicNode<PanelId> | null {
+  if (root === null) return null;
+  if (typeof root === 'string') {
+    return isBuiltInPanel(root) || isPluginPanel(root) ? root : null;
+  }
+  if (typeof root !== 'object') return null;
+  const o = root as { direction?: unknown; first?: unknown; second?: unknown; splitPercentage?: unknown };
+  if (o.direction !== 'row' && o.direction !== 'column') return null;
+  const first = validatePersistedRoot(o.first);
+  const second = validatePersistedRoot(o.second);
+  if (first === null || second === null) return null;
+  return {
+    direction: o.direction,
+    first,
+    second,
+    splitPercentage: typeof o.splitPercentage === 'number' && Number.isFinite(o.splitPercentage)
+      ? o.splitPercentage
+      : 50,
+  };
+}
+
 interface LayoutState {
   /** mosaic 二叉树根。null = 空布局（用户关掉所有面板，显示 zero-state）。 */
   root: MosaicNode<PanelId> | null;
@@ -311,6 +339,21 @@ export const useLayoutStore = create<LayoutState>()(
       migrate: migrateLayoutState,
       // 只持久化布局树 + 预设；setter 是函数不存。
       partialize: (s) => ({ root: s.root, preset: s.preset }),
+      // UX-12：同版本损坏（未知面板 id / 坏结构）在 rehydrate 时校验，
+      // 非法布局回退默认并留下控制台线索，不再静默产出空白 tile。
+      onRehydrateStorage: () => (state) => {
+        if (state == null || state.root === null) return;
+        const root = validatePersistedRoot(state.root);
+        if (root === null) {
+          console.warn('[layout] 持久化布局损坏，已回退默认布局:', state.root);
+          state.root = LAYOUT_PRESETS.classic;
+          state.preset = 'classic';
+        } else if (!layoutNodesEqual(root, state.root)) {
+          // 结构被修复（如 splitPercentage 回退）→ 脱离预设；结构相同则保持原样
+          state.root = root;
+          state.preset = null;
+        }
+      },
     },
   ),
 );

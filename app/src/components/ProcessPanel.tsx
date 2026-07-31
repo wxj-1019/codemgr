@@ -298,6 +298,7 @@ export function ProcessPanel() {
             error={error}
             empty={false}
             isFirstLoad={isFirstLoad}
+            paused={pollMs === 0}
           />
         </div>
       ) : (

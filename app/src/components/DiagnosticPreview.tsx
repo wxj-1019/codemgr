@@ -36,7 +36,7 @@ export function DiagnosticPreview({
         <button
           ref={copyBtnRef}
           onClick={copy}
-          className="rounded bg-accent px-4 py-1.5 text-sm text-white hover:bg-accent/80"
+          className="rounded bg-accent px-4 py-1.5 text-sm text-on-accent hover:bg-accent/80"
         >
           复制到剪贴板
         </button>

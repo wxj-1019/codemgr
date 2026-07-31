@@ -4,11 +4,13 @@ import { useSessionStore } from '../store/sessionStore';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
+import { useNotice } from '../hooks/useNotice';
 import { aggregateSession } from '../lib/sessionAggregate';
 import { formatBytes } from '../lib/format';
 import { ipc } from '../lib/ipc';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { PanelAlert } from './ui/PanelAlert';
 import { Badge } from './ui/Badge';
 
 export function SessionPanel() {
@@ -18,11 +20,14 @@ export function SessionPanel() {
   const focusSession = useFocusStore((s) => s.focusSession);
   const focus = useFocusStore((s) => s.focus);
   const processes = useProcessPanelStore((s) => s.processes);
+  const loading = useProcessPanelStore((s) => s.loading);
   const cpuMap = useProcessPanelStore((s) => s.cpuMap);
   const connections = usePortRadarStore((s) => s.connections);
 
   const [pendingStop, setPendingStop] = useState<{ rootPid: number; label: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
+  // 操作结果反馈横幅（UX-17 补漏：停止路径不再原生 alert）
+  const { notice, show: showNotice } = useNotice();
 
   async function doStop() {
     if (!pendingStop || killBusy) return;
@@ -30,24 +35,31 @@ export function SessionPanel() {
     try {
       const killed = await ipc.killTree(pendingStop.rootPid);
       setPendingStop(null);
-      if (killed === 0) {
-        alert('未结束任何进程：根进程可能受保护、权限不足或已退出');
-      }
+      showNotice(
+        killed > 0 ? 'success' : 'danger',
+        killed > 0 ? `已停止（结束 ${killed} 个进程）` : '未结束任何进程：根进程可能受保护、权限不足或已退出',
+      );
       // session 在下次 processScan 刷新后自然消失
     } catch (e) {
       setPendingStop(null);
-      alert(`停止会话失败：${String(e)}`);
+      showNotice('danger', `停止会话失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
   }
 
+  // UX-16：进程扫描未完成（首帧 processes 为空）时不误报「未检测到」
+  const scanning = processes.length === 0 && loading;
+
   if (sessions.length === 0) {
     return (
       <div className="flex h-full flex-col">
         <PanelActionBar label="AI 会话" />
+        {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
         <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-content-muted">
-          未检测到 AI 开发会话。<br />Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。
+          {scanning
+            ? <>正在扫描进程…</>
+            : <>未检测到 AI 开发会话。<br />Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。</>}
         </div>
       </div>
     );
@@ -56,6 +68,7 @@ export function SessionPanel() {
   return (
     <div className="flex h-full flex-col">
       <PanelActionBar label="AI 会话" summary={`${sessions.length} 个活跃会话`} />
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <div className="space-y-2">
           {sessions.map((s) => {

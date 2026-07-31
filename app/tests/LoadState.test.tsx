@@ -33,4 +33,12 @@ describe('LoadState', () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  it('paused 时错误态文案改为「恢复后自动重试」（UX-31）', () => {
+    render(
+      <LoadState loading={false} error="boom" empty={false} isFirstLoad={false} paused />
+    );
+    expect(screen.getByText(/恢复后自动重试/)).toBeInTheDocument();
+    expect(screen.queryByText(/将在下次轮询时自动重试/)).not.toBeInTheDocument();
+  });
 });

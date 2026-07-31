@@ -22,7 +22,7 @@ export function resolveServiceStatus(
   profile: RunProfile,
   connections: NetConnection[],
 ): ServiceStatus {
-  if (run.status === 'exited') return { kind: 'exited' };
+  if (run.status === 'exited' || run.status === 'failed') return { kind: 'exited' };
   const expected = profile.expectedPorts ?? [];
   if (expected.length === 0) return { kind: 'no-ports' };
 

@@ -4,6 +4,7 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
 import { formatBytes, formatDuration, formatCpuTime } from '../lib/format';
+import { isListenLike } from '../lib/portFilter';
 import { MiniChart } from './MiniChart';
 import { ipc } from '../lib/ipc';
 import { buildDiagnostic } from '../lib/diagnostic';
@@ -222,6 +223,8 @@ export function ProcessDetailSidebar({
 
   const uptimeMs = Date.now() - proc.createTimeMs;
   const cpuTotalMs = proc.kernelTimeMs + proc.userTimeMs;
+  // UX-18：进程→端口联动——该进程监听中的端口（数据已在 portRadarStore，纯渲染）
+  const listenPorts = connections.filter((c) => c.pid === proc.pid && isListenLike(c));
 
   async function copyCmd() {
     try {
@@ -298,6 +301,14 @@ export function ProcessDetailSidebar({
             </dd>
           </div>
           <Row label="父进程 PID" value={String(proc.ppid)} mono />
+          <div>
+            <dt className="text-fg-muted">监听端口</dt>
+            <dd className="mt-0.5 font-mono text-fg-secondary">
+              {listenPorts.length === 0
+                ? '—'
+                : listenPorts.map((c) => `${c.localAddr}:${c.localPort} (${c.protocol.toUpperCase()})`).join('、')}
+            </dd>
+          </div>
           <Row label="运行时长" value={formatDuration(uptimeMs)} />
           <Row label="累计 CPU 时间" value={formatCpuTime(cpuTotalMs)} />
           <Row label="内存" value={formatBytes(proc.workingSetBytes)} mono />

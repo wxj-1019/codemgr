@@ -64,6 +64,11 @@ export class RunManager {
         runId, profileId: profile.id, pid, status: 'running', exitCode: null, startedAt: Date.now(),
       };
       this.runs.set(runId, { child, state });
+      // UX：同 profile 重试时清理旧的终态 run（failed/exited），防 runs 无界增长。
+      // 被删 run 的 exit/error 闭包因 get 不到而自然 no-op。
+      for (const [id, r] of this.runs) {
+        if (r.state.profileId === profile.id && r.state.status !== 'running') this.runs.delete(id);
+      }
       child.on('exit', (code) => {
         const r = this.runs.get(runId);
         // 终态守卫：error 已把 run 置 failed 后，Node 可能仍补发 exit（或反之），

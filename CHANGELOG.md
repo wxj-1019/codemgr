@@ -45,6 +45,15 @@
 - **操作结果反馈横幅取代原生 alert**：全部 kill 路径（单杀/批量/全杀 node/组杀/进程树）与 Run Profiles（启动/停止/重启/删除）、快照（拍摄/批量结束）的操作结果改为面板内自动消失的反馈横幅（成功/部分成功/失败三态），不再弹原生 alert——单杀成功终于有明确回执，不再靠轮询间接推断。
 - **Run Profiles 删除/停止不再静默**：删除迁移到 ConfirmDialog（原生 confirm 移除），失败（文件写入出错）有反馈；停止按 killTree 实际结束数反馈——结束 0 个（受保护/已退出）明确提示，成功显示「已停止（结束 N 个进程）」；启动/重启失败反馈取代原生 alert。
 
+#### 审查迭代第三批（UX-12/UX-16/UX-18/UX-24/UX-31 + 回归修复，2026-07-31）
+- **修复：重试成功后旧「启动失败」徽章永久残留 + runs 无界增长**——native 侧同 profile 再启动时清理旧终态 run（failed/exited），面板侧仅当无运行中实例时才展示失败徽章。
+- **AI 会话面板补漏（UX-16/UX-17）**：进程扫描未完成时显示「正在扫描进程…」不再误报「未检测到」；停止会话路径迁移到反馈横幅（含结束数量），原生 alert 全库清零（LabelRuleEditor 按 Phase 4 决策除外）。
+- **进程→端口联动（UX-18）**：详情侧栏新增「监听端口」行——该进程正在监听的端口（地址:端口 + 协议）直接可见，不必跳端口雷达再搜 PID。
+- **快照定位不再"点了没反应"（UX-24）**：进程面板不在当前布局时点击「定位」自动打开进程面板并聚焦。
+- **暂停轮询时错误文案不再说谎（UX-31）**：LoadState 在 pollMs=0 时显示「轮询已暂停，恢复后自动重试」，替换不会发生的「将在下次轮询时自动重试」。
+- **布局持久化同版本损坏兜底（UX-12）**：rehydrate 时校验布局树结构（未知面板 id/坏分支回退默认并留控制台线索），不再静默产出空白 tile。
+- **小修**：ContextMenu 菜单项 hover 高亮同色不可见（raised→overlay）；三处 accent 按钮白字对比度不足（text-white→text-on-accent）；`resolveServiceStatus` 对 failed 状态不再误入端口判定；测试 mockIpc 补齐全部通道防漂移。
+
 ### 测试
 - app 308→433（新增 layoutStore 聚焦上限/持久化迁移、WorkspaceTopbar 聚焦操作、Mosaic 放大高度链、进程多选模式，以及工作台 Phase 1-6 回归），全过。native 49/49 全过（含 disk/gpu）。共 482 PASS。
 - **修复**：`codemgr-native/scripts/build.mjs` 的 CMake 发现逻辑——`vswhere -latest` 只取最新 VS 实例，若其无 CMake 组件（如只装 BuildTools）会失败回退 PATH。改为：最新实例无 CMake 时遍历**所有** VS 实例找第一个带 CMake 的（如本机 VS2022 BuildTools 无 CMake → 回退到 VS2019 Community）。

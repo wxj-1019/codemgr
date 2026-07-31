@@ -34,8 +34,10 @@ export function RunProfilesPanel() {
     return runs.find((r) => r.profileId === profileId && r.status === 'running');
   }
 
-  // 最近一次失败（UX-05：spawn error 后展示原因，用户据此重试）
+  // 最近一次失败（UX-05：spawn error 后展示原因，用户据此重试）。
+  // 已有运行中实例时不展示旧失败——重试成功后徽章不残留（UX 回归修复）。
   function failedRunOf(profileId: string) {
+    if (runOf(profileId)) return undefined;
     return runs
       .filter((r) => r.profileId === profileId && r.status === 'failed')
       .sort((a, b) => b.startedAt - a.startedAt)[0];
@@ -134,7 +136,7 @@ export function RunProfilesPanel() {
                     </div>
                     <div className="flex gap-1">
                       {!run ? (
-                        <button onClick={() => start(p.id)} disabled={isBusy} className="rounded bg-accent/80 px-2 py-0.5 text-xs text-white hover:bg-accent disabled:opacity-50">启动</button>
+                        <button onClick={() => start(p.id)} disabled={isBusy} className="rounded bg-accent/80 px-2 py-0.5 text-xs text-on-accent hover:bg-accent disabled:opacity-50">启动</button>
                       ) : (
                         <>
                           <button onClick={() => restart(run.runId, p.id)} disabled={isBusy} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600 disabled:opacity-50">重启</button>

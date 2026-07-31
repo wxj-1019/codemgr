@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
+import { useLayoutStore, containsPanel } from '../store/layoutStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { formatKillTargets } from '../lib/killConfirm';
@@ -208,6 +209,15 @@ export function SnapshotPanel() {
     setSelectedPids(new Set());
   }
 
+  // UX-24：定位前检查进程面板是否在布局中，不在则自动打开——避免"点了没反应"
+  function locateProcess(pid: number) {
+    useFocusStore.getState().focus(pid, 'snapshot');
+    const { root } = useLayoutStore.getState();
+    if (!containsPanel(root, 'process')) {
+      useLayoutStore.getState().openPanel('process');
+    }
+  }
+
   async function doBatchKill() {
     if (killBusy) return;
     setKillBusy(true);
@@ -307,6 +317,7 @@ export function SnapshotPanel() {
               selectAllAdded={selectAllAdded}
               clearSelection={clearSelection}
               onBatchKill={() => setBatchKillName('selected')}
+              onLocate={locateProcess}
               baseName={baseSnapshot.name}
             />
           )}
@@ -458,7 +469,7 @@ function SnapshotSidebar({
 function DiffView({
   diff, tab, setTab,
   selectedPids, toggleSelect, selectAllAdded, clearSelection,
-  onBatchKill, baseName,
+  onBatchKill, onLocate, baseName,
 }: {
   diff: SnapshotDiff;
   tab: TabId;
@@ -468,6 +479,7 @@ function DiffView({
   selectAllAdded: () => void;
   clearSelection: () => void;
   onBatchKill: () => void;
+  onLocate: (pid: number) => void;
   baseName: string;
 }) {
   const counts = {
@@ -539,6 +551,7 @@ function DiffView({
             mode="added"
             selectedPids={selectedPids}
             toggleSelect={toggleSelect}
+            onLocate={onLocate}
           />
         )}
         {tab === 'removed' && (
@@ -563,12 +576,13 @@ function groupSnapshotEntries(entries: SnapshotEntry[]) {
 
 /** added/removed 分组列表：按项目分组展示（复用 groupByProject）。 */
 function EntryGroupList({
-  entries, mode, selectedPids, toggleSelect,
+  entries, mode, selectedPids, toggleSelect, onLocate,
 }: {
   entries: SnapshotEntry[];
   mode: 'added' | 'removed';
   selectedPids?: Set<number>;
   toggleSelect?: (pid: number) => void;
+  onLocate?: (pid: number) => void;
 }) {
   const groups = useMemo(() => groupSnapshotEntries(entries), [entries]);
   const rowColor = mode === 'added' ? 'text-danger' : 'text-fg-muted';
@@ -615,9 +629,9 @@ function EntryGroupList({
                       {mode === 'added' && (
                         <td className="w-12 px-2 py-1 text-right">
                           <button
-                            onClick={() => useFocusStore.getState().focus(e.pid, 'snapshot')}
+                            onClick={() => onLocate?.(e.pid)}
                             className="text-accent hover:underline text-xs"
-                            title="在进程表定位此进程（若仍存活）"
+                            title="在进程表定位此进程（若仍存活；面板未打开会自动打开）"
                           >
                             定位
                           </button>

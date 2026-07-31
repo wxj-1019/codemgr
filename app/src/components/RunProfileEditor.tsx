@@ -79,7 +79,7 @@ export function RunProfileEditor({
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button onClick={onClose} className="rounded border border-base-600 px-4 py-1.5 text-sm text-fg-secondary hover:bg-base-700">取消</button>
-        <button onClick={save} disabled={saving} className="rounded bg-accent px-4 py-1.5 text-sm text-white hover:bg-accent/80 disabled:opacity-50">
+        <button onClick={save} disabled={saving} className="rounded bg-accent px-4 py-1.5 text-sm text-on-accent hover:bg-accent/80 disabled:opacity-50">
           {saving ? '保存中…' : '保存'}
         </button>
       </div>

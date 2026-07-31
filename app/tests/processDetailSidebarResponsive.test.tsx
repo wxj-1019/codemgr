@@ -4,6 +4,7 @@ import type { ProcessInfo } from '../electron/ipc-types';
 import { ProcessDetailSidebar } from '../src/components/ProcessDetailSidebar';
 import { useFocusStore } from '../src/store/focusStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
+import { usePortRadarStore } from '../src/store/portRadarStore';
 
 const processInfo: ProcessInfo = {
   pid: 4321,
@@ -69,5 +70,21 @@ describe('ProcessDetailSidebar tile responsiveness', () => {
 
     const message = screen.getByText('选中一个进程查看详情');
     expect(message.closest('aside')).not.toHaveClass('hidden', 'lg:flex', 'lg:block');
+  });
+
+  it('shows the focused process listening ports（UX-18 进程→端口联动）', () => {
+    usePortRadarStore.getState().setConnections([
+      { protocol: 'tcp', localAddr: '0.0.0.0', localPort: 3000, remoteAddr: '', remotePort: 0, state: 'LISTENING', pid: processInfo.pid, processName: 'node.exe' },
+      { protocol: 'tcp', localAddr: '0.0.0.0', localPort: 5173, remoteAddr: '', remotePort: 0, state: 'LISTENING', pid: processInfo.pid, processName: 'node.exe' },
+      { protocol: 'tcp', localAddr: '0.0.0.0', localPort: 8080, remoteAddr: '', remotePort: 0, state: 'LISTENING', pid: 999, processName: 'other.exe' },
+    ]);
+    useFocusStore.getState().focus(processInfo.pid, 'port');
+    render(<ProcessDetailSidebar onKill={() => {}} onKillTree={() => {}} />);
+
+    expect(screen.getByText('监听端口')).toBeInTheDocument();
+    expect(screen.getByText(/3000/)).toBeInTheDocument();
+    expect(screen.getByText(/5173/)).toBeInTheDocument();
+    // 非本进程的端口不出现
+    expect(screen.queryByText(/8080/)).not.toBeInTheDocument();
   });
 });
