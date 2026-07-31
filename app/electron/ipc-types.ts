@@ -41,6 +41,9 @@ export const IPC = {
   RUN_START: 'run:start',
   RUN_STOP: 'run:stop',
   RUN_RESTART: 'run:restart',
+  // run 状态全量快照（UX-06）：面板挂载时拉取，修复"面板关闭期间事件丢失 →
+  // 重开显示陈旧 running / 可重复启动同一服务"。与 RUN_UPDATE 事件互补。
+  RUN_STATES: 'run:getStates',
   // run 状态事件（F1）：main 推 run exit/状态变更给渲染层（事件，非 invoke）
   RUN_UPDATE: 'run:update',
 } as const;
@@ -127,9 +130,11 @@ export interface RunState {
   runId: string;
   profileId: string;
   pid: number;
-  status: 'running' | 'exited';
+  status: 'running' | 'exited' | 'failed';
   exitCode: number | null;
   startedAt: number;
+  /** failed 时的错误信息（如 spawn ENOENT），UI 展示并允许重试。 */
+  error?: string;
 }
 
 /**
@@ -290,5 +295,7 @@ export interface ExposedApi {
   startProfile(profileId: string): Promise<{ runId: string; pid: number } | null>;
   stopProfile(runId: string): Promise<number>;
   restartProfile(runId: string): Promise<{ runId: string; pid: number } | null>;
+  // 当前所有 run 状态快照（UX-06）：挂载时全量同步，与 onRunUpdate 增量事件互补
+  getRunStates(): Promise<RunState[]>;
   onRunUpdate(cb: (update: RunState) => void): () => void;
 }

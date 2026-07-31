@@ -36,6 +36,10 @@
 #### Phase 4：portal 浮层
 `ui/Dialog`（新）：createPortal 到 document.body + focus trap（Tab 循环）+ Escape（非 busy）+ 焦点恢复 + aria-modal/aria-labelledby。ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移到 Dialog。ContextMenu 加 portal。决策：LabelRuleEditor 保留现状（已有完整 focus trap，迁移收益边际且双重 trap 有冲突风险）；App 插件下拉迁移留后续。
 
+#### Run Profiles 可靠性修复（UX-05/UX-06，2026-07-31）
+- **spawn 失败不再永久卡「运行中」**：命令不在 PATH / cwd 被删等只触发 `error` 事件（不触发 `exit`），此前 run 状态永远停在 running。新增 `error` 监听 → run 置「启动失败」终态并携带错误原因；面板显示失败徽章（hover 见原因），失败后可直接重新启动。exit/error 双事件加终态守卫，错误信息不会被后到的 exit 覆盖。
+- **run 状态全量同步，杜绝重复启动同一服务**：面板关闭重开/应用重启后，面板关闭期间 run 退出的事件会丢失，UI 显示陈旧的「运行中」，可对同一服务重复拉起第二个实例（端口冲突）。新增 `run:getStates` 全量同步通道，面板挂载时「先订阅事件 → 拉快照 → 按序重放快照在途事件」，事件零丢失；快照拉取失败也重放缓冲事件并切直连。
+
 ### 测试
 - app 308→433（新增 layoutStore 聚焦上限/持久化迁移、WorkspaceTopbar 聚焦操作、Mosaic 放大高度链、进程多选模式，以及工作台 Phase 1-6 回归），全过。native 49/49 全过（含 disk/gpu）。共 482 PASS。
 - **修复**：`codemgr-native/scripts/build.mjs` 的 CMake 发现逻辑——`vswhere -latest` 只取最新 VS 实例，若其无 CMake 组件（如只装 BuildTools）会失败回退 PATH。改为：最新实例无 CMake 时遍历**所有** VS 实例找第一个带 CMake 的（如本机 VS2022 BuildTools 无 CMake → 回退到 VS2019 Community）。

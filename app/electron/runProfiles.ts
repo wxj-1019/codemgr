@@ -58,16 +58,29 @@ export class RunManager {
         shell: false,           // 关键：不经 shell，args 数组直接传，无注入面
         windowsHide: false,
       });
-      const pid = child.pid!;
+      // spawn 同步失败（如 cwd 不存在）时 pid 可能未定，error 事件随后补齐状态
+      const pid = child.pid ?? 0;
       const state: RunState = {
         runId, profileId: profile.id, pid, status: 'running', exitCode: null, startedAt: Date.now(),
       };
       this.runs.set(runId, { child, state });
       child.on('exit', (code) => {
         const r = this.runs.get(runId);
-        if (r) {
+        // 终态守卫：error 已把 run 置 failed 后，Node 可能仍补发 exit（或反之），
+        // 不得覆盖先到的终态（failed 的错误信息不能被 exit 抹掉）。
+        if (r && r.state.status === 'running') {
           r.state.status = 'exited';
           r.state.exitCode = code;
+          this.onUpdate(r.state);
+        }
+      });
+      // UX-05：spawn 失败（命令不在 PATH/cwd 被删/权限）只触发 'error' 不触发 'exit'，
+      // 此前会让 run 永久卡在 running。置 failed + 错误信息，UI 展示并允许重试。
+      child.on('error', (err: NodeJS.ErrnoException) => {
+        const r = this.runs.get(runId);
+        if (r && r.state.status === 'running') {
+          r.state.status = 'failed';
+          r.state.error = err?.message || String(err);
           this.onUpdate(r.state);
         }
       });

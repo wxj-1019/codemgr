@@ -22,6 +22,14 @@ export function mockIpc(
     saveSnapshot: () => Promise<any>;
     deleteSnapshot: () => Promise<boolean>;
     loadSnapshot: () => Promise<any>;
+    listRunProfiles: () => Promise<any[]>;
+    getRunStates: () => Promise<any[]>;
+    saveRunProfile: () => Promise<any>;
+    deleteRunProfile: () => Promise<boolean>;
+    startProfile: () => Promise<any>;
+    stopProfile: () => Promise<number>;
+    restartProfile: () => Promise<any>;
+    onRunUpdate: () => () => void;
   }> = {}
 ) {
   const base = {
@@ -39,6 +47,7 @@ export function mockIpc(
     loadSnapshot: vi.fn(() => Promise.resolve(null)),
     fetchGitIdentity: vi.fn(() => Promise.resolve(null)),
     listRunProfiles: vi.fn(() => Promise.resolve([])),
+    getRunStates: vi.fn(() => Promise.resolve([])),
     saveRunProfile: vi.fn(() => Promise.resolve(null)),
     deleteRunProfile: vi.fn(() => Promise.resolve(true)),
     startProfile: vi.fn(() => Promise.resolve(null)),

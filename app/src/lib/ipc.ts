@@ -60,6 +60,7 @@ export const ipc: ExposedApi = {
   startProfile: (...a) => invoke('startProfile', ...a),
   stopProfile: (...a) => invoke('stopProfile', ...a),
   restartProfile: (...a) => invoke('restartProfile', ...a),
+  getRunStates: (...a) => invoke('getRunStates', ...a),
   onRunUpdate: (...a) => subscribe('onRunUpdate', ...a),
 };
 

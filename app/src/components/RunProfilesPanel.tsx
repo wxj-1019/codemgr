@@ -28,6 +28,13 @@ export function RunProfilesPanel() {
     return runs.find((r) => r.profileId === profileId && r.status === 'running');
   }
 
+  // 最近一次失败（UX-05：spawn error 后展示原因，用户据此重试）
+  function failedRunOf(profileId: string) {
+    return runs
+      .filter((r) => r.profileId === profileId && r.status === 'failed')
+      .sort((a, b) => b.startedAt - a.startedAt)[0];
+  }
+
   async function start(profileId: string) {
     setBusy(profileId);
     try {
@@ -75,6 +82,7 @@ export function RunProfilesPanel() {
           <div className="space-y-2">
             {profiles.map((p) => {
               const run = runOf(p.id);
+              const failedRun = failedRunOf(p.id);
               const isBusy = busy === p.id;
               return (
                 <div key={p.id} className="rounded-lg border border-base-700 bg-base-800/60 p-3">
@@ -82,6 +90,14 @@ export function RunProfilesPanel() {
                     <div>
                       <span className="text-sm font-medium text-fg-primary">{p.name}</span>
                       {run && <span className="ml-2 rounded bg-success/20 px-1 text-[10px] text-success">PID {run.pid}</span>}
+                      {failedRun && (
+                        <span
+                          className="ml-1 rounded bg-danger/20 px-1 text-[10px] text-danger"
+                          title={failedRun.error ?? '启动失败'}
+                        >
+                          启动失败
+                        </span>
+                      )}
                       {run && (() => {
                         const svc = resolveServiceStatus(run as RunState, p, connections);
                         const badge = STATUS_BADGE[svc.kind];

@@ -11,6 +11,7 @@
 - **差异化定位**：System Informer 把进程当"系统资源"管理；CodeMgr 把进程当"开发工件"管理。
 - **不做的事**：内核级调试、内存编辑、反恶意软件——这些 SI 已做到极致，不与之竞争。
 - **完整设计背景**：`docs/superpowers/specs/2026-07-29-codemgr-design.md`
+- **目标用户画像**：设计文档 §1.4（3 人群：多项目并行全栈 / AI 开发+本地模型 / 多技术栈杂食；共同画像与明确排除）。功能取舍判据："三个画像里谁会用、多久用一次"。
 
 ---
 
@@ -146,8 +147,8 @@ scope:  native | app | ci | docs（可选）
 
 ## 8. 当前版本状态
 
-- **v2.4**（未发版）：桌面工作台（Apple × Codex Desktop Workbench）Phase 1-6。Phase 1 workspace shell（侧栏+顶栏+panelCatalog）+ 设计系统（语义令牌 surface/content/line/focus/success、lucide facade、UI 原语 Button/IconButton/Badge/StateView/PanelActionBar/PanelAlert、kindStyles）+ 布局引擎（openPanel 幂等/preset/persist/活跃面板协调）。Phase 2 六面板 chrome 统一（去 h1→PanelActionBar、emoji→IconButton+lucide、硬编码色→语义令牌/Badge、ProcessTable colSpan 8→9、PluginPanel bg-base-panel→bg-surface-panel）。Phase 3 响应式 tile（useContainerWidth hook + container query，ProcessPanel 侧栏按 tile 宽度≥720px 而非 matchMedia；Snapshot <480px 切换紧凑顶部控制条；PanelActionBar 窄 tile 自动换行）。Phase 4 portal 浮层（Dialog 组件 createPortal+focus trap+Esc+焦点恢复，ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移，ContextMenu 加 portal）。Phase 5 桌面交互收口（侧栏紧凑左对齐、完整 flex 滚动链、表格初始 Tab 入口、进程详情跨面板聚焦、Snapshot ARIA tabs/ConfirmDialog/reusable StateView、preload 缺失防白屏）。Phase 6 聚焦工作区（最多 3 个可见面板；第二个保持 70/30 主次布局、第三个在活跃 tile 下方 50/50 堆叠，第 4 个替换活跃 tile；顶栏面板计数与「只保留当前面板」；persist v2 将旧拥挤布局收敛到前三个叶子）。设计/计划文档：`docs/superpowers/specs/2026-07-30-codemgr-desktop-workbench-design.md`、`docs/superpowers/plans/2026-07-30-codemgr-desktop-workbench-remainder.md`。
-- 测试：app 433/433 + native 49/49，共 482 PASS。
+- **v2.4**（未发版）：桌面工作台（Apple × Codex Desktop Workbench）Phase 1-6。Phase 1 workspace shell（侧栏+顶栏+panelCatalog）+ 设计系统（语义令牌 surface/content/line/focus/success、lucide facade、UI 原语 Button/IconButton/Badge/StateView/PanelActionBar/PanelAlert、kindStyles）+ 布局引擎（openPanel 幂等/preset/persist/活跃面板协调）。Phase 2 六面板 chrome 统一（去 h1→PanelActionBar、emoji→IconButton+lucide、硬编码色→语义令牌/Badge、ProcessTable colSpan 8→9、PluginPanel bg-base-panel→bg-surface-panel）。Phase 3 响应式 tile（useContainerWidth hook + container query，ProcessPanel 侧栏按 tile 宽度≥720px 而非 matchMedia；Snapshot <480px 切换紧凑顶部控制条；PanelActionBar 窄 tile 自动换行）。Phase 4 portal 浮层（Dialog 组件 createPortal+focus trap+Esc+焦点恢复，ConfirmDialog/DiagnosticPreview/RunProfileEditor 迁移，ContextMenu 加 portal）。Phase 5 桌面交互收口（侧栏紧凑左对齐、完整 flex 滚动链、表格初始 Tab 入口、进程详情跨面板聚焦、Snapshot ARIA tabs/ConfirmDialog/reusable StateView、preload 缺失防白屏）。Phase 6 聚焦工作区（最多 3 个可见面板；第二个保持 70/30 主次布局、第三个在活跃 tile 下方 50/50 堆叠，第 4 个替换活跃 tile；顶栏面板计数与「只保留当前面板」；persist v2 将旧拥挤布局收敛到前三个叶子）。Run Profiles 可靠性修复（UX-05/UX-06：spawn 失败置 failed 终态 + 失败徽章；run:getStates 全量同步通道，面板挂载时先订阅→拉快照→重放在途事件，杜绝重复启动同一服务）。设计/计划文档：`docs/superpowers/specs/2026-07-29-codemgr-design.md`、`docs/superpowers/specs/2026-07-30-codemgr-desktop-workbench-design.md`、`docs/superpowers/plans/2026-07-30-codemgr-desktop-workbench-remainder.md`、`docs/superpowers/specs/2026-07-31-codemgr-ux-audit.md`。
+- 测试：app 445/445 + native 49/49，共 494 PASS。
 - **v2.3**（未发版）：Aurora UI 视觉重设计（spec `docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md` v1.2 "Linear 纪律 × Apple 毛玻璃"：明度阶梯中性黑 + 玻璃浮层 + 安静危险按钮 + Siri 辉光聚焦描边 + mosaic 白底渗入修复 + 控制按钮 CSS 图标）。
 - **v2.2**（tag `v2.2`）：进程快照对比（受控文件 IO `userData/snapshots/` + diff 引擎 identity=pid:createTimeMs + SnapshotPanel 挂 mosaic，完成 spec D6/D7）。
 - **v2.1**（tag `v2.1`）：AI 开发工具默认标签（Claude/Kimi/Aider/Codex/Cursor/Ollama/LM Studio，新 kind `ai`/`ai-ide`）+ 开机自启开关（setLoginItemSettings，nav toggle）+ GPU/显存监控（PDH English GPU Engine counters + DXGI 显存 + perf GPU 子标签 + 进程 GPU% 列，完成 spec D5，无 GPU 降级；GPU 采集经预热 + 三层优化）。

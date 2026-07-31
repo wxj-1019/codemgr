@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { validateProfile, RUN_COMMAND_WHITELIST } from '../electron/runProfiles';
+import { EventEmitter } from 'node:events';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { RunProfile, RunState } from '../electron/ipc-types';
+import { validateProfile, RUN_COMMAND_WHITELIST, RunManager } from '../electron/runProfiles';
+// vitest 对 CJS 内置模块（node:child_process）的命名导入经 `default` 解析——
+// mock 必须挂在 default 下才被 runProfiles.ts 的 import 命中（实验 D 验证）。
+const { mockExecFile } = vi.hoisted(() => ({ mockExecFile: vi.fn() }));
+vi.mock('node:child_process', () => ({ execFile: mockExecFile, default: { execFile: mockExecFile } }));
+import { execFile } from 'node:child_process';
 
 const valid = {
   id: '11111111-2222-3333-4444-555555555555',
@@ -55,5 +62,71 @@ describe('validateProfile', () => {
   it('preserves optional expectedPorts', () => {
     const p = validateProfile({ ...valid, expectedPorts: [5173, 3000] });
     expect(p!.expectedPorts).toEqual([5173, 3000]);
+  });
+});
+
+describe('RunManager', () => {
+  const profile: RunProfile = {
+    id: '11111111-2222-3333-4444-555555555555',
+    name: '前端 dev',
+    command: 'pnpm',
+    args: ['dev'],
+    cwd: 'E:\\repo\\app',
+  };
+  let updates: RunState[] = [];
+  let manager: RunManager;
+
+  function fakeChild(pid = 1234) {
+    const child = new EventEmitter() as unknown as ReturnType<typeof execFile>;
+    (child as { pid: number }).pid = pid;
+    return child;
+  }
+
+  beforeEach(() => {
+    updates = [];
+    manager = new RunManager({ killTree: () => 0 }, (s) => updates.push(s));
+    mockExecFile.mockReset();
+  });
+
+  it('spawn error → run 置 failed 并携带错误信息，且推送更新（UX-05）', () => {
+    const child = fakeChild();
+    mockExecFile.mockReturnValue(child);
+    const res = manager.start(profile);
+    expect(res).not.toBeNull();
+    const err = Object.assign(new Error('spawn pnpm ENOENT'), { code: 'ENOENT' });
+    child.emit('error', err);
+    const st = manager.getState(res!.runId)!;
+    expect(st.status).toBe('failed');
+    expect(st.error).toContain('ENOENT');
+    expect(updates.map((u) => u.status)).toEqual(['failed']);
+  });
+
+  it('spawn 同步失败（无 pid）也能记录 run，pid 回退 0', () => {
+    const child = new EventEmitter() as unknown as ReturnType<typeof execFile>;
+    mockExecFile.mockReturnValue(child);
+    const res = manager.start(profile);
+    expect(res).not.toBeNull();
+    expect(manager.getState(res!.runId)!.pid).toBe(0);
+  });
+
+  it('error 后跟来的 exit 不再覆盖 failed 状态（双事件守卫）', () => {
+    const child = fakeChild();
+    mockExecFile.mockReturnValue(child);
+    const res = manager.start(profile);
+    child.emit('error', new Error('boom'));
+    child.emit('exit', null);
+    const st = manager.getState(res!.runId)!;
+    expect(st.status).toBe('failed');
+    expect(st.error).toBe('boom');
+  });
+
+  it('正常 exit 仍走 exited（回归）', () => {
+    const child = fakeChild();
+    mockExecFile.mockReturnValue(child);
+    const res = manager.start(profile);
+    child.emit('exit', 0);
+    const st = manager.getState(res!.runId)!;
+    expect(st.status).toBe('exited');
+    expect(st.exitCode).toBe(0);
   });
 });

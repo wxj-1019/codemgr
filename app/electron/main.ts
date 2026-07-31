@@ -495,6 +495,13 @@ ipcMain.handle(IPC.RUN_RESTART, (_evt, runId: string): { runId: string; pid: num
   } catch (e) { console.error('run:restart failed:', e); return null; }
 });
 
+// run 状态全量快照（UX-06）：面板挂载时拉取，与 RUN_UPDATE 增量事件互补，
+// 修复"面板关闭期间事件丢失 → 重开显示陈旧 running / 可重复启动同一服务"。
+ipcMain.handle(IPC.RUN_STATES, (): RunState[] => {
+  try { return runManager.allStates(); }
+  catch (e) { console.error('run:getStates failed:', e); return []; }
+});
+
 // ── 插件数据源 UtilityProcess（6c）──
 // UtilityProcess 承载 native 数据源采集，进程级隔离。主进程经 MessagePort 与之通信。
 // 这是可选增强——崩溃时重新 fork，不影响主功能（主 app 不依赖它）。
