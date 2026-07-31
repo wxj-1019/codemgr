@@ -56,7 +56,7 @@ export function SessionPanel() {
   return (
     <div className="flex h-full flex-col">
       <PanelActionBar label="AI 会话" summary={`${sessions.length} 个活跃会话`} />
-      <div className="flex-1 overflow-auto p-3">
+      <div className="min-h-0 flex-1 overflow-auto p-3">
         <div className="space-y-2">
           {sessions.map((s) => {
             const agg = aggregateSession(s.pids, processes, cpuMap, connections);

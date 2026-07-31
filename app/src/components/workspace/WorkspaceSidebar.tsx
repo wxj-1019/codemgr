@@ -81,7 +81,7 @@ function WorkspaceDestination({
       variant="ghost"
       size="sm"
       className={cx(
-        'workspace-sidebar-item w-full grid-cols-[20px_minmax(0,1fr)] justify-start px-2 text-left font-normal',
+        'workspace-sidebar-item !w-full shrink grid-cols-[1fr] justify-items-start justify-start gap-1.5 px-2 text-left font-normal',
         active && 'bg-surface-raised text-content-primary',
       )}
       aria-label={definition.title}
@@ -90,10 +90,12 @@ function WorkspaceDestination({
       title={definition.title}
       onClick={() => onOpen(definition.id)}
     >
-      <span className="flex h-5 w-5 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">
-        {PANEL_ICONS[definition.id] ?? <Square aria-hidden="true" />}
+      <span className="flex !w-full items-center justify-start gap-1.5">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">
+          {PANEL_ICONS[definition.id] ?? <Square aria-hidden="true" />}
+        </span>
+        <span className="workspace-sidebar-label min-w-0 truncate text-left">{definition.title}</span>
       </span>
-      <span className="workspace-sidebar-label min-w-0 truncate">{definition.title}</span>
     </Button>
   );
 }

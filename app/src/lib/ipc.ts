@@ -1,101 +1,71 @@
-import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot, GitIdentity, RunProfile, RunState } from '../../electron/ipc-types';
+import type { NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload, PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot, GitIdentity, RunProfile, RunState, ExposedApi } from '../../electron/ipc-types';
 
-// 渲染层统一通过此封装访问 native（绝不直接 require）
-export const ipc = {
-  async fetchConnections() {
-    return window.codemgr.fetchConnections();
-  },
-  async killProcess(pid: number): Promise<boolean> {
-    return window.codemgr.killProcess(pid);
-  },
-  async killByName(name: string): Promise<number> {
-    return window.codemgr.killByName(name);
-  },
-  async killByPids(pids: number[]): Promise<number> {
-    return window.codemgr.killByPids(pids);
-  },
-  async killTree(pid: number): Promise<number> {
-    return window.codemgr.killTree(pid);
-  },
-  async fetchProcessEnv(pid: number): Promise<Record<string, string> | null> {
-    return window.codemgr.fetchProcessEnv(pid);
-  },
-  async fetchCwd(pid: number): Promise<string | null> {
-    return window.codemgr.fetchCwd(pid);
-  },
-  async fetchProcesses() {
-    return window.codemgr.fetchProcesses();
-  },
-  async fetchCpu(): Promise<CpuUsage[]> {
-    return window.codemgr.fetchCpu();
-  },
-  async fetchPerf() {
-    return window.codemgr.fetchPerf();
-  },
-  // 文件路径由 main 对话框决定，渲染层不持有路径（守红线）
-  async exportLabelRules(payload: LabelRulesPayload): Promise<boolean> {
-    return window.codemgr.exportLabelRules(payload);
-  },
-  async importLabelRules(): Promise<LabelRulesPayload | null> {
-    return window.codemgr.importLabelRules();
-  },
-  async listPlugins(): Promise<PluginManifestEntry[]> {
-    return window.codemgr.listPlugins();
-  },
-  // 插件数据源（6c）：请求某 capability 数据（结果经 onDataSourceResult 异步回调推回）
-  async requestDataSource(capability: string): Promise<void> {
-    return window.codemgr.requestDataSource(capability);
-  },
-  // 数据源结果事件订阅（6c）。返回取消订阅函数。
-  onDataSourceResult(cb: (capability: string, data: unknown) => void): () => void {
-    return window.codemgr.onDataSourceResult(cb);
-  },
-  async getAppVersion(): Promise<string> {
-    return window.codemgr.getAppVersion();
-  },
-  // 开机自启：读当前状态 / 设置后返回实际状态
-  async getAutoLaunch(): Promise<boolean> {
-    return window.codemgr.getAutoLaunch();
-  },
-  async setAutoLaunch(enabled: boolean): Promise<boolean> {
-    return window.codemgr.setAutoLaunch(enabled);
-  },
-  // 进程快照对比（v2.2）：文件 IO 封在 main，渲染层只收发数据，拿不到路径（守红线）。
-  async listSnapshots(): Promise<SnapshotMeta[]> {
-    return window.codemgr.listSnapshots();
-  },
-  async saveSnapshot(name: string, entries: SnapshotEntry[]): Promise<ProcessSnapshot | null> {
-    return window.codemgr.saveSnapshot(name, entries);
-  },
-  async deleteSnapshot(id: string): Promise<boolean> {
-    return window.codemgr.deleteSnapshot(id);
-  },
-  async loadSnapshot(id: string): Promise<ProcessSnapshot | null> {
-    return window.codemgr.loadSnapshot(id);
-  },
-  async fetchGitIdentity(cwd: string): Promise<GitIdentity | null> {
-    return window.codemgr.fetchGitIdentity(cwd);
-  },
-  // Run Profiles（F1）
-  async listRunProfiles(): Promise<RunProfile[]> {
-    return window.codemgr.listRunProfiles();
-  },
-  async saveRunProfile(profile: Omit<RunProfile, 'id'> & { id?: string }): Promise<RunProfile | null> {
-    return window.codemgr.saveRunProfile(profile);
-  },
-  async deleteRunProfile(id: string): Promise<boolean> {
-    return window.codemgr.deleteRunProfile(id);
-  },
-  async startProfile(profileId: string): Promise<{ runId: string; pid: number } | null> {
-    return window.codemgr.startProfile(profileId);
-  },
-  async stopProfile(runId: string): Promise<number> {
-    return window.codemgr.stopProfile(runId);
-  },
-  async restartProfile(runId: string): Promise<{ runId: string; pid: number } | null> {
-    return window.codemgr.restartProfile(runId);
-  },
-  onRunUpdate(cb: (update: RunState) => void): () => void {
-    return window.codemgr.onRunUpdate(cb);
-  },
+// 渲染层统一通过此封装访问 native（绝不直接 require）。
+// 防护：preload 缺失时（如浏览器调试、preload 加载失败）window.codemgr 为 undefined，
+// 直接访问会抛 "Cannot read properties of undefined" 导致整屏白屏崩溃。
+// 这里每次调用动态读取 window.codemgr（不在模块加载时缓存，以便测试能在用例内替换 mock）：
+// preload 缺失时异步方法返回 reject 的 Promise（被各 hook 的 .catch 吞掉），
+// 事件订阅返回 no-op，保证渲染层在无 preload 环境也能渲染壳子（可用于浏览器 UI 审查）。
+const getApi = (): ExposedApi | undefined =>
+  typeof window !== 'undefined'
+    ? (window as unknown as { codemgr?: ExposedApi }).codemgr
+    : undefined;
+const unavailable = <T>(): Promise<T> =>
+  Promise.reject(new Error('codemgr preload API 不可用（window.codemgr 未注入）'));
+// 透传到真实 api；缺失时走降级（异步 reject / 订阅 no-op）。
+const invoke = <K extends keyof ExposedApi>(
+  name: K,
+  ...args: unknown[]
+): ReturnType<ExposedApi[K]> => {
+  const a = getApi();
+  if (!a) return unavailable() as ReturnType<ExposedApi[K]>;
+  return (a[name] as (...x: unknown[]) => unknown)(...args) as ReturnType<ExposedApi[K]>;
+};
+const subscribe = <K extends keyof ExposedApi>(
+  name: K,
+  ...args: unknown[]
+): (() => void) => {
+  const a = getApi();
+  if (!a) return () => {};
+  return (a[name] as (...x: unknown[]) => () => void)(...args);
+};
+
+export const ipc: ExposedApi = {
+  fetchConnections: (...a) => invoke('fetchConnections', ...a),
+  killProcess: (...a) => invoke('killProcess', ...a),
+  killByName: (...a) => invoke('killByName', ...a),
+  killByPids: (...a) => invoke('killByPids', ...a),
+  killTree: (...a) => invoke('killTree', ...a),
+  fetchProcessEnv: (...a) => invoke('fetchProcessEnv', ...a),
+  fetchCwd: (...a) => invoke('fetchCwd', ...a),
+  fetchProcesses: (...a) => invoke('fetchProcesses', ...a),
+  fetchCpu: (...a) => invoke('fetchCpu', ...a),
+  fetchPerf: (...a) => invoke('fetchPerf', ...a),
+  exportLabelRules: (...a) => invoke('exportLabelRules', ...a),
+  importLabelRules: (...a) => invoke('importLabelRules', ...a),
+  listPlugins: (...a) => invoke('listPlugins', ...a),
+  requestDataSource: (...a) => invoke('requestDataSource', ...a),
+  onDataSourceResult: (...a) => subscribe('onDataSourceResult', ...a),
+  getAppVersion: (...a) => invoke('getAppVersion', ...a),
+  getAutoLaunch: (...a) => invoke('getAutoLaunch', ...a),
+  setAutoLaunch: (...a) => invoke('setAutoLaunch', ...a),
+  listSnapshots: (...a) => invoke('listSnapshots', ...a),
+  saveSnapshot: (...a) => invoke('saveSnapshot', ...a),
+  deleteSnapshot: (...a) => invoke('deleteSnapshot', ...a),
+  loadSnapshot: (...a) => invoke('loadSnapshot', ...a),
+  fetchGitIdentity: (...a) => invoke('fetchGitIdentity', ...a),
+  listRunProfiles: (...a) => invoke('listRunProfiles', ...a),
+  saveRunProfile: (...a) => invoke('saveRunProfile', ...a),
+  deleteRunProfile: (...a) => invoke('deleteRunProfile', ...a),
+  startProfile: (...a) => invoke('startProfile', ...a),
+  stopProfile: (...a) => invoke('stopProfile', ...a),
+  restartProfile: (...a) => invoke('restartProfile', ...a),
+  onRunUpdate: (...a) => subscribe('onRunUpdate', ...a),
+};
+
+// 保留未使用类型导入的引用，避免 TS noUnusedLocals 报错（类型已通过 ExposedApi 间接使用）。
+export type {
+  NetConnection, ProcessInfo, CpuUsage, PerfData, LabelRulesPayload,
+  PluginManifestEntry, SnapshotEntry, SnapshotMeta, ProcessSnapshot,
+  GitIdentity, RunProfile, RunState,
 };

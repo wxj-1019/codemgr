@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { ProcessTable } from '../src/components/ProcessTable';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
+import { useFocusStore } from '../src/store/focusStore';
 import type { ProcessInfo } from '../electron/ipc-types';
 
 // 与 processTableVirtual.test.tsx 相同的 store 种子模式（真实 zustand store 直接灌数据）。
@@ -24,6 +25,7 @@ describe('ProcessTable keyboard navigation (non-virtualized, ≤100 rows)', () =
   beforeEach(() => {
     localStorage.clear();
     useProcessPanelStore.getState().reset();
+    useFocusStore.getState().focus(null);
     useProcessPanelStore.getState().setProcesses(flatProcs(3));
   });
 
@@ -65,23 +67,24 @@ describe('ProcessTable keyboard navigation (non-virtualized, ≤100 rows)', () =
     expect(getRows(container)[2]).not.toHaveAttribute('data-row-focused', 'true');
   });
 
-  it('Enter toggles selection of the focused row (pid-anchored)', () => {
+  it.each(['Enter', ' '])('%s focuses without selecting by default', (key) => {
     const { container } = render(
       <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,
     );
-    fireEvent.keyDown(getRows(container)[1], { key: 'Enter' });
-    expect(useProcessPanelStore.getState().selectedPids.has(2)).toBe(true);
-    // 再按一次取消选中（toggle 语义）
-    fireEvent.keyDown(getRows(container)[1], { key: 'Enter' });
-    expect(useProcessPanelStore.getState().selectedPids.has(2)).toBe(false);
+    fireEvent.keyDown(getRows(container)[1], { key });
+    expect(useFocusStore.getState()).toMatchObject({ focusedPid: 2, sourcePanel: 'process' });
+    expect(useProcessPanelStore.getState().selectedPids).toEqual(new Set());
   });
 
-  it('Space toggles selection of the focused row', () => {
+  it.each(['Enter', ' '])('%s toggles selection and focuses in multi-select mode', (key) => {
     const { container } = render(
-      <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,
+      <ProcessTable multiSelectEnabled onKillSingle={() => {}} onKillTree={() => {}} />,
     );
-    fireEvent.keyDown(getRows(container)[0], { key: ' ' });
-    expect(useProcessPanelStore.getState().selectedPids.has(1)).toBe(true);
+    fireEvent.keyDown(getRows(container)[1], { key });
+    expect(useProcessPanelStore.getState().selectedPids).toEqual(new Set([2]));
+    expect(useFocusStore.getState()).toMatchObject({ focusedPid: 2, sourcePanel: 'process' });
+    fireEvent.keyDown(getRows(container)[1], { key });
+    expect(useProcessPanelStore.getState().selectedPids).toEqual(new Set());
   });
 
   it('Home/End jump to first/last row', () => {

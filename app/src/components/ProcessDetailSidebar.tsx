@@ -19,13 +19,12 @@ export function ProcessDetailSidebar({
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
 }) {
-  const { processes, selectedPids, procHistory, cpuMap, preciseCwdByPid, setPreciseCwd: setStoreCwd,
+  const { processes, procHistory, cpuMap, preciseCwdByPid, setPreciseCwd: setStoreCwd,
     gitIdentityByPid, setGitIdentity } = useProcessPanelStore();
   const connections = usePortRadarStore((s) => s.connections);
   const focusedPid = useFocusStore((s) => s.focusedPid);
-  // pid 在组件顶部推导：下方有多个条件早退 return，hooks 必须放在它们之前
-  // 优先级：单选态 > 全局聚焦。无单选时侧栏跟随全局聚焦（C）。
-  const pid = selectedPids.size === 1 ? [...selectedPids][0] : focusedPid;
+  // 详情检查与批量选择相互独立，始终跟随全局聚焦（C）。
+  const pid = focusedPid;
 
   // 环境变量：按需加载，切换选中进程时重置（不做轮询，避免高频 ReadProcessMemory）
   const [envVars, setEnvVars] = useState<Record<string, string> | null>(null);
@@ -204,13 +203,6 @@ export function ProcessDetailSidebar({
     }
   }
 
-  if (selectedPids.size > 1) {
-    return (
-      <aside className="h-full border-l border-line bg-surface-raised p-4">
-        <p className="text-sm text-content-muted">已选 {selectedPids.size} 个进程。选择单个查看详情。</p>
-      </aside>
-    );
-  }
   if (pid == null) {
     return (
       <aside className="flex h-full items-center justify-center border-l border-line bg-surface-raised p-4">
@@ -238,12 +230,12 @@ export function ProcessDetailSidebar({
   }
 
   return (
-    <aside className="flex h-full flex-col border-l border-line bg-surface-raised">
+    <aside className="flex h-full min-w-0 flex-col border-l border-line bg-surface-raised">
       <div className="border-b border-base-600 px-4 py-3">
-        <h3 className="text-sm font-semibold text-fg-primary">{proc.name}</h3>
+        <h3 className="truncate text-sm font-semibold text-fg-primary" title={proc.name}>{proc.name}</h3>
         <p className="text-xs text-fg-muted">PID {proc.pid}</p>
       </div>
-      <div className="flex-1 overflow-auto p-4 text-xs">
+      <div className="min-w-0 flex-1 overflow-auto p-4 text-xs">
         <dl className="space-y-2">
           <div>
             <dt className="text-fg-muted">命令行</dt>

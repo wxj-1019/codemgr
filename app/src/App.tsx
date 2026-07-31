@@ -20,6 +20,8 @@ import {
 import { WorkspaceTopbar } from './components/workspace/WorkspaceTopbar';
 import { ipc } from './lib/ipc';
 import {
+  MAX_VISIBLE_PANELS,
+  getPanelLeaves,
   isBuiltInPanel,
   prunePluginLeaves,
   type BuiltInPanelId,
@@ -44,6 +46,7 @@ function builtinLeaves(node: MosaicNode<PanelId> | null): Set<BuiltInPanelId> {
 }
 
 export function createWorkspaceNodeFactory(root: MosaicNode<PanelId> | null) {
+  if (getPanelLeaves(root).length >= MAX_VISIBLE_PANELS) return undefined;
   const used = builtinLeaves(root);
   const next = BUILTIN_PANEL_DEFINITIONS.find((panel) => !used.has(panel.id));
   return next ? () => Promise.resolve(next.id) : undefined;
@@ -60,7 +63,11 @@ export function WorkspacePanelActivationBoundary({
 }) {
   const activate = () => setActive(panelId);
   return (
-    <div className="h-full w-full" onPointerDownCapture={activate} onFocusCapture={activate}>
+    <div
+      className="workspace-panel-activation-boundary h-full w-full"
+      onPointerDownCapture={activate}
+      onFocusCapture={activate}
+    >
       {children}
     </div>
   );
@@ -88,7 +95,7 @@ export function WorkspaceZeroState({ onRestore }: { onRestore: () => void }) {
 }
 
 export function App() {
-  const { root, setRoot, applyPreset, openPanel, preset } = useLayoutStore();
+  const { root, setRoot, applyPreset, openPanel, focusPanel, preset } = useLayoutStore();
   const activeId = useActivePanelStore((state) => state.activeId);
   const setActive = useActivePanelStore((state) => state.setActive);
   const reconcileActive = useActivePanelStore((state) => state.reconcile);
@@ -118,8 +125,12 @@ export function App() {
 
   const createNode = createWorkspaceNodeFactory(root);
 
+  const openPanels = getPanelLeaves(root);
   const handleOpenPanel = (panelId: PanelId) => {
-    openAndActivate(panelId, root, openPanel, setActive);
+    openAndActivate(panelId, root, (id) => openPanel(id, activeId), setActive);
+  };
+  const handleFocusPanel = () => {
+    if (activeId) focusPanel(activeId);
   };
   const currentContext = activeId
     ? getPanelTitle(activeId as PanelId, findPlugin)
@@ -148,6 +159,9 @@ export function App() {
           contextLabel={currentContext}
           pluginCount={pluginEntries.length}
           registryLoaded={registryLoaded}
+          openPanelCount={openPanels.length}
+          canFocusPanel={activeId !== null && openPanels.length > 1}
+          onFocusPanel={handleFocusPanel}
         />
         <div className="workspace-mosaic">
           <Mosaic<PanelId>

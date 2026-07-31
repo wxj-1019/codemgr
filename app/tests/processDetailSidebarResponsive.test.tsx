@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProcessInfo } from '../electron/ipc-types';
 import { ProcessDetailSidebar } from '../src/components/ProcessDetailSidebar';
@@ -34,6 +34,34 @@ describe('ProcessDetailSidebar tile responsiveness', () => {
     expect(screen.getByText('node.exe')).toBeInTheDocument();
     expect(screen.getByText('PID 4321')).toBeInTheDocument();
     expect(screen.getByText('node.exe').closest('aside')).not.toHaveClass('hidden');
+  });
+
+  it('always inspects the focused process regardless of batch selection mode', () => {
+    const focusedProcess = { ...processInfo, pid: 9876, name: 'python.exe' };
+    const otherSelectedProcess = { ...processInfo, pid: 2468, name: 'vite.exe' };
+    useProcessPanelStore.getState().setProcesses([processInfo, focusedProcess, otherSelectedProcess]);
+    useProcessPanelStore.setState({ selectedPids: new Set([processInfo.pid]) });
+    useFocusStore.getState().focus(focusedProcess.pid, 'port');
+
+    const { rerender } = render(
+      <ProcessDetailSidebar onKill={() => {}} onKillTree={() => {}} />,
+    );
+    expect(screen.getByText('python.exe')).toBeInTheDocument();
+    expect(screen.queryByText('node.exe')).not.toBeInTheDocument();
+
+    rerender(
+      <ProcessDetailSidebar multiSelectEnabled onKill={() => {}} onKillTree={() => {}} />,
+    );
+    expect(screen.getByText('python.exe')).toBeInTheDocument();
+    expect(screen.queryByText('node.exe')).not.toBeInTheDocument();
+
+    act(() => {
+      useProcessPanelStore.setState({
+        selectedPids: new Set([processInfo.pid, otherSelectedProcess.pid]),
+      });
+    });
+    expect(screen.getByText('python.exe')).toBeInTheDocument();
+    expect(screen.queryByText('已选 2 个进程。选择单个查看详情。')).not.toBeInTheDocument();
   });
 
   it('does not apply viewport lg visibility classes to the empty state', () => {

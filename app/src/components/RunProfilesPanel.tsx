@@ -66,7 +66,7 @@ export function RunProfilesPanel() {
           <button onClick={() => setEditing(null)} className="rounded-md bg-accent px-2 py-1 text-xs text-on-accent hover:bg-accent-hover">新建</button>
         }
       />
-      <div className="flex-1 overflow-auto p-3">
+      <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
             尚无 Run Profile。点「新建」配置一个开发服务（如 pnpm dev）。
