@@ -3,15 +3,14 @@ import type { ProcessSnapshot, SnapshotEntry, SnapshotMeta } from '../../electro
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
 import { containsPanel, useLayoutStore } from '../store/layoutStore';
-import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { formatKillFailureSummary, formatKillTargets, summarizeKillOutcomes } from '../lib/killConfirm';
 import { Camera, FolderIcon, PackageIcon, RefreshCw, Trash2 } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
-import { PanelAlert } from './ui/PanelAlert';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { StateView } from './ui/StateView';
@@ -97,8 +96,6 @@ export function SnapshotPanel() {
   const panelRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(panelRef);
   const compact = containerWidth !== null && containerWidth < 480;
-  // 操作结果反馈横幅（UX-17）：取代原生 alert，自动消失
-  const { notice, show: showNotice } = useNotice();
 
   // 挂载时拉一次列表
   useEffect(() => {
@@ -158,7 +155,7 @@ export function SnapshotPanel() {
     if (capturing) return;
     const name = nameInput.trim();
     if (!name) {
-      showNotice('danger', '请先输入快照名称（如「agent 开工前」）');
+      notify.error('请先输入快照名称（如「agent 开工前」）');
       return;
     }
     setCapturing(true);
@@ -166,7 +163,7 @@ export function SnapshotPanel() {
       // 拍快照时刻取当前进程（独立于面板已缓存的 currentEntries，确保是「按下按钮这一刻」的快照）
       const result = await ipc.fetchProcesses();
       if (!result.ok) {
-        showNotice('danger', `取当前进程失败：${result.error.message}`);
+        notify.error(`取当前进程失败：${result.error.message}`);
         return;
       }
       const entries = result.data.map(toSnapshotEntry);
@@ -179,7 +176,7 @@ export function SnapshotPanel() {
         // save 内部已 setError，这里不再重复提示
       }
     } catch (e) {
-      showNotice('danger', `拍快照失败：${String(e)}`);
+      notify.error(`拍快照失败：${String(e)}`);
     } finally {
       setCapturing(false);
     }
@@ -228,17 +225,17 @@ export function SnapshotPanel() {
       setBatchKillName(null);
       clearSelection();
       if (s.killed === 0) {
-        showNotice('danger', `未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
+        notify.error(`未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
       } else if (s.killed < targets.length) {
-        showNotice('warning', `已结束 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
+        notify.warning(`已结束 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
       } else {
-        showNotice('success', `已结束 ${s.killed} 个进程`);
+        notify.success(`已结束 ${s.killed} 个进程`);
       }
       // kill 后立即刷新当前进程，让 diff 反映最新态
       await refreshCurrent();
     } catch (e) {
       setBatchKillName(null);
-      showNotice('danger', `批量结束失败：${String(e)}`);
+      notify.error(`批量结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -268,8 +265,6 @@ export function SnapshotPanel() {
           {error || currentFetchError}
         </div>
       )}
-
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
 
       <div className={`flex min-h-0 flex-1 overflow-hidden ${compact ? 'flex-col' : ''}`}>
         {compact ? (

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SnapshotPanel } from '../src/components/SnapshotPanel';
 import { ToastHost } from '../src/components/ToastHost';
 import { useSnapshotStore } from '../src/store/snapshotStore';
+import { __resetToastStoreForTests } from '../src/store/toastStore';
 import { mockIpc } from './setup';
 
 const snapshot = {
@@ -24,6 +25,7 @@ function mockWidth(width: number) {
 describe('SnapshotPanel responsive controls', () => {
   beforeEach(() => {
     localStorage.clear();
+    __resetToastStoreForTests();
     useSnapshotStore.getState().reset();
     mockIpc({
       listSnapshots: () => Promise.resolve([snapshot]),
