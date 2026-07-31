@@ -4,6 +4,7 @@ import type { ProcessInfo } from '../electron/ipc-types';
 import { ProcessPanel } from '../src/components/ProcessPanel';
 import { ToastHost } from '../src/components/ToastHost';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
+import { __resetToastStoreForTests } from '../src/store/toastStore';
 import { ipc } from '../src/lib/ipc';
 
 vi.mock('../src/hooks/useProcessPanel', () => ({ useProcessPanel: vi.fn() }));
@@ -75,6 +76,7 @@ describe('ProcessPanel multi-select mode', () => {
     vi.mocked(ipc.killByPids).mockResolvedValue([{ pid: 10, status: 'killed' }]);
     localStorage.clear();
     useProcessPanelStore.getState().reset();
+    __resetToastStoreForTests();
     seed();
   });
 

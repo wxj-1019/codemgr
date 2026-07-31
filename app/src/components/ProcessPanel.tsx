@@ -4,7 +4,6 @@ import 'allotment/dist/style.css';
 import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
 import { useFocusStore } from '../store/focusStore';
-import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { mostCommonName } from '../lib/batchKill';
@@ -23,7 +22,6 @@ import { StateView } from './ui/StateView';
 import { Dialog } from './ui/Dialog';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
-import { PanelAlert } from './ui/PanelAlert';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Check, Download, ListChecks, Search, Trash2, X } from './icons';
@@ -93,9 +91,6 @@ export function ProcessPanel() {
   // 任一 kill 路径进行中时禁用确认按钮，防止连点重复 TerminateProcess。
   const [killBusy, setKillBusy] = useState(false);
 
-  // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
-  const { notice, show: showNotice } = useNotice();
-
   // 单杀失败原因（UX-02/04）：native 返回枚举，UI 给准确文案，不再三合一
   const KILL_FAILURE_TEXT: Record<Exclude<KillStatus, 'killed'>, string> = {
     protected: '受保护进程，无法结束',
@@ -112,14 +107,14 @@ export function ProcessPanel() {
     try {
       const status = await ipc.killProcess(pendingKill.pid);
       if (status === 'killed') {
-        showNotice('success', `已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
+        notify.success(`已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
       } else {
-        showNotice('danger', `结束失败：${KILL_FAILURE_TEXT[status]}`);
+        notify.error(`结束失败：${KILL_FAILURE_TEXT[status]}`);
       }
       setPendingKill(null);
     } catch (e) {
       setPendingKill(null);
-      showNotice('danger', `结束失败：${String(e)}`);
+      notify.error(`结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -134,17 +129,17 @@ export function ProcessPanel() {
       const s = summarizeKillOutcomes(outcomes);
       setBatchKillName(null);
       if (s.killed === 0) {
-        showNotice('danger', `未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
+        notify.error(`未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
       } else if (s.killed < targets.length) {
         clearSelection();
-        showNotice('warning', `已结束 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
+        notify.warning(`已结束 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
       } else {
         clearSelection();
-        showNotice('success', `已结束 ${s.killed} 个进程`);
+        notify.success(`已结束 ${s.killed} 个进程`);
       }
     } catch (e) {
       setBatchKillName(null);
-      showNotice('danger', `批量结束失败：${String(e)}`);
+      notify.error(`批量结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -157,15 +152,14 @@ export function ProcessPanel() {
       const killed = await ipc.killByName('node.exe');
       setConfirmKillAllNode(false);
       clearSelection();
-      showNotice(
-        killed === 0 ? 'danger' : 'success',
+      (killed === 0 ? notify.error : notify.success)(
         killed === 0
           ? '未结束任何 node.exe：可能权限不足或进程已退出'
           : `已结束 ${killed} 个 node.exe 进程`,
       );
     } catch (e) {
       setConfirmKillAllNode(false);
-      showNotice('danger', `结束 node.exe 失败：${String(e)}`);
+      notify.error(`结束 node.exe 失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -181,15 +175,15 @@ export function ProcessPanel() {
       const s = summarizeKillOutcomes(outcomes);
       setGroupKill(null);
       if (s.killed === 0) {
-        showNotice('danger', `「${name}」组内未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
+        notify.error(`「${name}」组内未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
       } else if (s.killed < targets.length) {
-        showNotice('warning', `已结束「${name}」组内 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
+        notify.warning(`已结束「${name}」组内 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
       } else {
-        showNotice('success', `已结束「${name}」组内 ${s.killed} 个进程`);
+        notify.success(`已结束「${name}」组内 ${s.killed} 个进程`);
       }
     } catch (e) {
       setGroupKill(null);
-      showNotice('danger', `结束本组失败：${String(e)}`);
+      notify.error(`结束本组失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -202,15 +196,14 @@ export function ProcessPanel() {
       const killed = await ipc.killTree(pendingKillTree.pid);
       setPendingKillTree(null);
       clearSelection();
-      showNotice(
-        killed === 0 ? 'danger' : 'success',
+      (killed === 0 ? notify.error : notify.success)(
         killed === 0
           ? '未结束任何进程：根进程可能受保护、权限不足或已退出'
           : `已结束进程树，共 ${killed} 个进程`,
       );
     } catch (e) {
       setPendingKillTree(null);
-      showNotice('danger', `结束进程树失败：${String(e)}`);
+      notify.error(`结束进程树失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -373,8 +366,6 @@ export function ProcessPanel() {
           </IconButton>
         </div>
       )}
-
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
 
       {/* 加载/错误/空状态，或进程表 + 可拖宽侧栏 */}
       {showLoadState ? (
