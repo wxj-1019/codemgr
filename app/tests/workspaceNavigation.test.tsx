@@ -42,7 +42,7 @@ function renderSidebar(overrides: Partial<ComponentProps<typeof WorkspaceSidebar
 }
 
 describe('WorkspaceSidebar', () => {
-  it('groups all six built-in destinations under monitoring and workflow', () => {
+  it('groups all seven built-in destinations under monitoring and workflow', () => {
     renderSidebar();
 
     const monitoring = screen.getByRole('group', { name: '监控' });
@@ -57,6 +57,7 @@ describe('WorkspaceSidebar', () => {
       '快照',
       'AI 会话',
       '运行配置',
+      '启动项',
     ]);
   });
 

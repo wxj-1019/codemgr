@@ -4,6 +4,22 @@
 
 ---
 
+## [Unreleased]
+
+### 开发者体验增强包（dev-experience-pack，2026-07-31）
+
+- **开发者跳转动作闭环**：进程右键菜单/详情侧栏/项目分组行新增「打开所在文件夹 / 在终端打开（wt 优先回退 cmd）/ 在编辑器打开（VS Code）/ 复制工作目录」；端口表新增右键菜单（在浏览器打开/定位到进程/复制端口/复制 PID/结束进程）与 TCP 监听行「在浏览器打开」按钮。shell 动作经 main 侧白名单校验（kind/绝对路径/http(s) scheme），渲染层不可构造任意命令。
+- **Toast 通知系统**：全部操作反馈（kill 结果/快照/标签规则导入导出/RunProfile 启停/shell 打开失败）从原生 `alert`/`confirm` 迁移为非阻塞 toast（右下角堆叠上限 5 条，success/info 4s、error 8s 自动消失，可手动关闭，error 用 `role="alert"`）；标签规则「导入替换」与 RunProfile「删除」改用 ConfirmDialog。
+- **RunProfile 日志闭环**：启动的开发服务 stdout/stderr 按 run 捕获进 ring buffer（2000 行上限，退出后保留，ANSI 转义剥离）；profile 行可展开日志视图（2s 增量拉取、跟随滚动、丢弃行数提示、本地清空）。新增 `run:getLogs` IPC 通道。
+- **服务守望与就绪跳转**：RunProfile 服务状态跃迁主动通知（就绪 success / 端口冲突 error 含占用 PID，状态不变不重复）；服务就绪后行内出现「在浏览器打开」按钮一键访问。
+- **数据导出**：进程面板与端口雷达新增「导出」按钮，当前过滤视图可导出 CSV（Excel 兼容 CRLF）或 JSON；文件路径经 main 保存对话框（文件名白名单校验 + 10MB 上限），导出结果 toast 反馈。新增通用 `config:exportDataFile` IPC 通道。
+- **环境变量对比**：进程面板恰好选中 2 个进程时可「对比环境变量」，弹窗展示值不同/仅 A 有/仅 B 有三组差异（Windows env 键大小写不敏感，保留原大小写显示）。
+- **启动项管理**：新「启动项」面板（workflow 组）列出 HKCU/HKLM Run 注册表项与启动文件夹项；HKCU 与文件夹项可逆禁用/恢复（备份键搬移 / `.codemgr-disabled` 后缀，不删数据），HKLM 系统级项只读。新增 `startup:list`/`startup:setEnabled` IPC 通道。
+- **项目分组视图对齐树形视图能力**：组级按项目名/合计内存排序、组内进程按名称/CPU%/内存/PID 排序（点击表头切换）；总行数 >100 启用虚拟滚动（组头与进程行混合窗口化）。
+- **一致性收尾**：进程 kind 配色收敛为 `lib/kindColors` 单处定义（原三处重复）；`lib/processFilter` 抽出共享（表格过滤与导出入口）；PLUGINS.md 头部滞后声明与 CONTRIBUTING roadmap 按实际发布修正（自定义列/排序预设评审后决策不做）。
+
+---
+
 ## [v2.4] — 2026-07-30
 
 ### 桌面工作台（Apple × Codex Desktop Workbench）

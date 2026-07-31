@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
-import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
-import { TriangleAlert } from './icons';
-import { isListenLike, conflictPorts, conflictHolders } from '../lib/portFilter';
+import { isDbPort, isDevPort, labelForPort } from '../lib/portLabels';
+import { Globe, TriangleAlert } from './icons';
+import { conflictHolders, conflictPorts, isListenLike } from '../lib/portFilter';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { IconButton } from './ui/IconButton';
+import { browseUrlFor, buildPortMenuItems } from '../lib/portActions';
+import { copyText, openExternalUrlOrNotify } from '../lib/shellClient';
 
 interface PortTableProps {
   connections: NetConnection[];
@@ -18,6 +22,17 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
   const conflicts = useMemo(() => conflictPorts(connections), [connections]);
   // UX-20：冲突端口 → 持有者 PID 列表（tooltip 指明"冲突对方是谁"）
   const holders = useMemo(() => conflictHolders(connections), [connections]);
+
+  // ── 右键菜单（端口行动作：浏览器打开/定位/复制/结束）──
+  const [menu, setMenu] = useState<{ x: number; y: number; conn: NetConnection } | null>(null);
+  const menuItems: ContextMenuItem[] = menu
+    ? buildPortMenuItems(menu.conn, {
+        onBrowse: (url) => void openExternalUrlOrNotify(url),
+        onCopy: copyText,
+        onLocate: (pid) => onSelect(pid),
+        onKill: (pid, name) => onKill(pid, name),
+      })
+    : [];
 
   // ── 键盘导航（纯导航模型：焦点框与 selectedPid 分离）──
   // 端口表同一 pid 可能在多行（多端口监听），焦点用 index 锚定更准确。
@@ -68,7 +83,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <table ref={tableRef} role="grid" className="w-full text-sm">
-        <thead className="sticky top-0 bg-surface-panel text-left text-xs uppercase text-content-muted">
+        <thead className="sticky top-0 bg-surface-raised text-left text-xs uppercase text-fg-muted">
           <tr>
             <th className="px-3 py-2 font-medium">端口</th>
             <th className="px-3 py-2 font-medium">协议</th>
@@ -85,6 +100,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
             const selected = c.pid === selectedPid;
             const focused = i === focusedIdx;
             const conflict = conflicts.has(`${c.protocol}:${c.localPort}`);
+            const browseUrl = browseUrlFor(c);
             return (
               <tr
                 key={`${c.pid}-${c.localPort}-${i}`}
@@ -93,10 +109,11 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
                 data-row-focused={focused ? 'true' : undefined}
                 aria-selected={selected}
                 onClick={() => onSelect(c.pid)}
+                onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, conn: c }); }}
                 onKeyDown={(e) => onRowKeyDown(e, i)}
-                className={`cursor-pointer border-b border-line hover:bg-surface-raised transition-colors duration-150 ease-out ${
-                  selected ? 'bg-surface-raised/60' : ''
-                } ${focused ? 'ring-1 ring-inset ring-focus/60 outline-none' : ''}`}
+                className={`cursor-pointer border-b border-line transition-colors duration-200 hover:bg-accent/5 ${
+                  selected ? 'bg-gradient-to-r from-accent/15 to-transparent border-l-[3px] border-l-accent' : ''
+                } ${focused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''}`}
               >
                 <td
                   className={`px-3 py-2 font-mono ${
@@ -137,6 +154,16 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  {browseUrl && (
+                    <IconButton
+                      label="在浏览器打开"
+                      size="xs"
+                      className="mr-1"
+                      onClick={(e) => { e.stopPropagation(); void openExternalUrlOrNotify(browseUrl); }}
+                    >
+                      <Globe />
+                    </IconButton>
+                  )}
                   <button
                     onClick={(e) => { e.stopPropagation(); onKill(c.pid, c.processName || `PID ${c.pid}`); }}
                     className="btn-danger-quiet rounded-lg px-2 py-1 text-xs"
@@ -154,6 +181,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
           )}
         </tbody>
       </table>
+      <ContextMenu open={menu !== null} x={menu?.x ?? 0} y={menu?.y ?? 0} items={menuItems} onClose={() => setMenu(null)} />
     </div>
   );
 }

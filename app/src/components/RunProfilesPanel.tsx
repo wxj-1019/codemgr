@@ -1,15 +1,23 @@
-import { useState } from 'react';
-import { useRunProfiles, refreshProfiles } from '../hooks/useRunProfiles';
+import { useEffect, useRef, useState } from 'react';
+import { refreshProfiles, useRunProfiles } from '../hooks/useRunProfiles';
 import { useRunProfileStore } from '../store/runProfileStore';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
-import { resolveServiceStatus, type ServiceStatus } from '../lib/devService';
+import { notify } from '../lib/notify';
+import { resolveServiceStatus, type ServiceStatus, type ServiceStatusKind } from '../lib/devService';
+import { browseUrlForService, diffServiceEvents } from '../lib/serviceWatch';
+import { openExternalUrlOrNotify } from '../lib/shellClient';
 import { RunProfileEditor } from './RunProfileEditor';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { PanelAlert } from './ui/PanelAlert';
 import type { RunProfile, RunState } from '../../electron/ipc-types';
+import { RunLogView } from './RunLogView';
+import { IconButton } from './ui/IconButton';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { Globe } from './icons';
 
 const STATUS_BADGE: Record<ServiceStatus['kind'], { text: string; cls: string }> = {
   listening: { text: '就绪', cls: 'bg-success/20 text-success' },
@@ -43,6 +51,28 @@ export function RunProfilesPanel() {
       .filter((r) => r.profileId === profileId && r.status === 'failed')
       .sort((a, b) => b.startedAt - a.startedAt)[0];
   }
+  // 行内日志（子项目 C）：一次只展开一行；取该 profile 最近一次 run（运行中或已退出均可查日志）
+  const [logOpenFor, setLogOpenFor] = useState<string | null>(null);
+  const latestRunOf = (profileId: string) =>
+    runs.filter((r) => r.profileId === profileId).at(-1) ?? null;
+
+  // 服务守望（子项目 D）：状态跃迁 toast（就绪/端口冲突），kind 不变不重复
+  const prevKindsRef = useRef<Map<string, ServiceStatusKind>>(new Map());
+  useEffect(() => {
+    const next = new Map<string, { name: string; status: ServiceStatus }>();
+    for (const p of profiles) {
+      const run = runs.filter((r) => r.profileId === p.id).at(-1);
+      if (run) next.set(p.id, { name: p.name, status: resolveServiceStatus(run, p, connections) });
+    }
+    for (const e of diffServiceEvents(prevKindsRef.current, next)) {
+      if (e.type === 'listening') {
+        notify.success(`「${e.profileName}」就绪：${e.ports.map((p) => ':' + p).join(', ')}`);
+      } else {
+        notify.error(`「${e.profileName}」端口被占用：${e.ports.map((p) => ':' + p).join(', ')}${e.heldBy.length ? `（PID ${e.heldBy.join(', ')}）` : ''}`);
+      }
+    }
+    prevKindsRef.current = new Map([...next].map(([id, v]) => [id, v.status.kind]));
+  }, [runs, connections, profiles]);
 
   async function start(profileId: string) {
     setBusy(profileId);
@@ -92,7 +122,7 @@ export function RunProfilesPanel() {
         label="Run Profiles"
         summary={`${profiles.length} 个配置 · ${runs.filter((r) => r.status === 'running').length} 个运行中`}
         actions={
-          <button onClick={() => setEditing(null)} className="rounded-lg bg-accent px-2 py-1 text-xs text-on-accent hover:bg-accent-hover">新建</button>
+          <Button variant="primary" size="sm" onClick={() => setEditing(null)}>新建</Button>
         }
       />
       {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
@@ -108,49 +138,59 @@ export function RunProfilesPanel() {
               const run = runOf(p.id);
               const failedRun = failedRunOf(p.id);
               const isBusy = busy === p.id;
+              const svc = run ? resolveServiceStatus(run, p, connections) : null;
+              const svcBadge = svc ? STATUS_BADGE[svc.kind] : null;
+              const svcConflictInfo = svc?.kind === 'conflict' && svc.ports
+                ? ' 占用: ' + svc.ports.filter((x) => x.conflict).map((x) => `:${x.port}(PID ${x.heldBy})`).join(', ')
+                : '';
+              const browseUrl = svc ? browseUrlForService(svc) : null;
               return (
-                <div key={p.id} className="rounded-lg border border-line bg-surface-panel/60 p-3">
+                <div key={p.id} className="rounded-xl border border-line bg-surface-panel/60 p-3 transition-all duration-200 hover:bg-surface-raised/50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-content-primary">{p.name}</span>
-                      {run && <span className="ml-2 rounded bg-success/20 px-1 text-[10px] text-success">PID {run.pid}</span>}
-                      {failedRun && (
-                        <span
-                          className="ml-1 rounded bg-danger/20 px-1 text-[10px] text-danger"
-                          title={failedRun.error ?? '启动失败'}
-                        >
-                          启动失败
-                        </span>
+                      <span className="text-sm font-medium text-fg-primary">{p.name}</span>
+                      {run && <Badge tone="success" className="ml-2">PID {run.pid}</Badge>}
+                      {!run && failedRun && (
+                        <Badge tone="danger" className="ml-2" title={failedRun.error ?? undefined}>启动失败</Badge>
                       )}
-                      {run && (() => {
-                        const svc = resolveServiceStatus(run as RunState, p, connections);
-                        const badge = STATUS_BADGE[svc.kind];
-                        if (!badge.text) return null;
-                        const conflictInfo = svc.kind === 'conflict' && svc.ports
-                          ? ' 占用: ' + svc.ports.filter((x) => x.conflict).map((x) => `:${x.port}(PID ${x.heldBy})`).join(', ')
-                          : '';
-                        return (
-                          <span className={`ml-1 rounded px-1 text-[10px] ${badge.cls}`} title={conflictInfo || undefined}>
-                            {badge.text}
-                          </span>
-                        );
-                      })()}
+                      {svcBadge && svcBadge.text && svc && (
+                        <Badge tone={svc.kind === 'listening' ? 'success' : svc.kind === 'conflict' ? 'danger' : svc.kind === 'exited' ? 'neutral' : 'warning'} className="ml-1" title={svcConflictInfo || undefined}>
+                          {svcBadge.text}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex gap-1">
                       {!run ? (
-                        <button onClick={() => start(p.id)} disabled={isBusy} className="rounded bg-accent/80 px-2 py-0.5 text-xs text-on-accent hover:bg-accent disabled:opacity-50">启动</button>
+                        <Button variant="primary" size="xs" onClick={() => start(p.id)} disabled={isBusy}>启动</Button>
                       ) : (
                         <>
-                          <button onClick={() => restart(run.runId, p.id)} disabled={isBusy} className="rounded bg-surface-raised px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-raised disabled:opacity-50">重启</button>
-                          <button onClick={() => stop(run.runId, p.id)} disabled={isBusy} className="rounded border border-danger/40 bg-transparent px-2 py-0.5 text-xs text-danger hover:bg-danger hover:text-on-accent disabled:opacity-50">停止</button>
+                          <Button variant="secondary" size="xs" onClick={() => restart(run.runId, p.id)} disabled={isBusy}>重启</Button>
+                          <Button variant="dangerQuiet" size="xs" onClick={() => stop(run.runId, p.id)} disabled={isBusy}>停止</Button>
                         </>
                       )}
-                      <button onClick={() => setEditing(p)} className="rounded bg-surface-raised px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-raised">编辑</button>
-                      <button onClick={() => setPendingDelete(p)} className="rounded bg-surface-raised px-2 py-0.5 text-xs text-content-muted hover:bg-surface-raised">删</button>
+                      <Button variant="secondary" size="xs" onClick={() => setEditing(p)}>编辑</Button>
+                      <Button variant="ghost" size="xs" onClick={() => setPendingDelete(p)}>删</Button>
+                      {browseUrl && (
+                        <IconButton
+                          label="在浏览器打开服务"
+                          size="xs"
+                          onClick={() => void openExternalUrlOrNotify(browseUrl)}
+                        >
+                          <Globe />
+                        </IconButton>
+                      )}
+                      {latestRunOf(p.id) && (
+                        <Button variant="secondary" size="xs" onClick={() => setLogOpenFor(logOpenFor === p.id ? null : p.id)}>
+                          {logOpenFor === p.id ? '收起日志' : '日志'}
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-1 font-mono text-xs text-content-muted">{p.command} {p.args.join(' ')}</div>
-                  <div className="font-mono text-xs text-content-muted truncate">{p.cwd}</div>
+                  <div className="mt-1 font-mono text-xs text-fg-muted">{p.command} {p.args.join(' ')}</div>
+                  <div className="font-mono text-xs text-fg-muted truncate">{p.cwd}</div>
+                  {logOpenFor === p.id && latestRunOf(p.id) && (
+                    <RunLogView runId={latestRunOf(p.id)!.runId} />
+                  )}
                 </div>
               );
             })}

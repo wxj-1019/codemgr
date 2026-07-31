@@ -8,6 +8,7 @@ import { useNotice } from '../hooks/useNotice';
 import { aggregateSession } from '../lib/sessionAggregate';
 import { formatBytes } from '../lib/format';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { PanelAlert } from './ui/PanelAlert';
@@ -78,8 +79,8 @@ export function SessionPanel() {
               <div
                 key={s.id}
                 onClick={() => { focusSession(s.id); focus(s.rootPid, 'process'); }}
-                className={`cursor-pointer rounded-lg border p-3 hover:bg-surface-panel ${
-                  isFocused ? 'border-accent/70 ring-1 ring-accent/40' : 'border-line bg-surface-panel/60'
+                className={`cursor-pointer rounded-xl border p-3 transition-all duration-200 hover:bg-surface-raised/50 hover:shadow-sm ${
+                  isFocused ? 'border-accent/70 ring-1 ring-accent/40 bg-accent/5' : 'border-line bg-surface-panel/60'
                 }`}
               >
                 <div className="flex items-center justify-between">

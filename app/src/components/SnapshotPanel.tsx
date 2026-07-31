@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electron/ipc-types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ProcessSnapshot, SnapshotEntry, SnapshotMeta } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
-import { useLayoutStore, containsPanel } from '../store/layoutStore';
+import { containsPanel, useLayoutStore } from '../store/layoutStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
-import { formatKillTargets, summarizeKillOutcomes, formatKillFailureSummary } from '../lib/killConfirm';
-import { FolderIcon, PackageIcon, Camera, RefreshCw, Trash2 } from './icons';
+import { formatKillFailureSummary, formatKillTargets, summarizeKillOutcomes } from '../lib/killConfirm';
+import { Camera, FolderIcon, PackageIcon, RefreshCw, Trash2 } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -520,7 +520,7 @@ function DiffView({
 
       {/* added 组多选操作条 */}
       {tab === 'added' && counts.added > 0 && (
-        <div className="flex items-center gap-2 border-b border-line/50 bg-surface-canvas/30 px-3 py-1.5">
+        <div className="flex items-center gap-2 border-b border-line bg-surface-panel/50 px-3 py-1.5">
           <button
             onClick={selectAllAdded}
             className="text-xs text-accent hover:underline"

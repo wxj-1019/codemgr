@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { AlertCircle, RefreshCw } from './icons';
+import { Button } from './ui/Button';
 
 interface Props {
   children: ReactNode;
@@ -39,26 +41,21 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex h-full items-center justify-center p-8">
           <div className="max-w-md text-center">
-            <div className="mb-2 text-2xl">⚠️</div>
-            <p className="text-sm text-danger">界面渲染出错</p>
-            <p className="mt-2 break-all font-mono text-xs text-content-muted">
+            <div className="mb-3 flex justify-center">
+              <AlertCircle className="h-10 w-10 text-danger/50" aria-hidden="true" />
+            </div>
+            <p className="text-sm font-medium text-danger">界面渲染出错</p>
+            <p className="mt-2 break-all font-mono text-xs text-fg-muted">
               {this.state.error.message}
             </p>
             <div className="mt-4 flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={this.reset}
-                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent hover:opacity-90"
-              >
+              <Button variant="primary" size="sm" onClick={this.reset}>
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 重试
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="rounded-lg border border-line px-3 py-1.5 text-sm text-content-primary hover:bg-surface-raised"
-              >
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
                 刷新页面
-              </button>
+              </Button>
             </div>
           </div>
         </div>

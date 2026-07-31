@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry, type RunState } from './ipc-types';
+import { IPC, type ExposedApi, type LabelRulesPayload, type SnapshotEntry, type RunState, type OpenTargetKind } from './ipc-types';
 
 // 安全红线：只暴露封装后的方法，绝不暴露 ipcRenderer 本身
 const api: ExposedApi = {
@@ -44,11 +44,17 @@ const api: ExposedApi = {
   stopProfile: (runId) => ipcRenderer.invoke(IPC.RUN_STOP, runId),
   restartProfile: (runId) => ipcRenderer.invoke(IPC.RUN_RESTART, runId),
   getRunStates: () => ipcRenderer.invoke(IPC.RUN_STATES),
+  getRunLogs: (runId: string, sinceSeq?: number) => ipcRenderer.invoke(IPC.RUN_GET_LOGS, runId, sinceSeq),
   onRunUpdate: (cb: (update: RunState) => void) => {
     const handler = (_e: unknown, update: RunState) => cb(update);
     ipcRenderer.on(IPC.RUN_UPDATE, handler as never);
     return () => ipcRenderer.removeListener(IPC.RUN_UPDATE, handler as never);
   },
+  openTarget: (kind: OpenTargetKind, path: string) => ipcRenderer.invoke(IPC.OPEN_TARGET, kind, path),
+  openExternalUrl: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL_URL, url),
+  exportDataFile: (defaultName: string, content: string) => ipcRenderer.invoke(IPC.EXPORT_DATA_FILE, defaultName, content),
+  listStartupItems: () => ipcRenderer.invoke(IPC.STARTUP_LIST),
+  setStartupItemEnabled: (id: string, enabled: boolean) => ipcRenderer.invoke(IPC.STARTUP_SET_ENABLED, id, enabled),
 };
 
 contextBridge.exposeInMainWorld('codemgr', api);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PluginManifestEntry } from '../../electron/ipc-types';
 import { useLabelRulesStore } from '../store/labelRulesStore';
-import { validatePluginRules, type PluginToHostMsg } from '../lib/pluginProtocol';
+import { type PluginToHostMsg, validatePluginRules } from '../lib/pluginProtocol';
 
 /**
  * 单个插件的 iframe 沙箱承载 + postMessage 双向通信。

@@ -15,6 +15,11 @@ export const IPC = {
   IMPORT_LABEL_RULES: 'config:importLabelRules',
   // 插件 manifest：main 读 userData/plugins.json，渲染层只拿校验过的条目列表（红线）
   LIST_PLUGINS: 'config:listPlugins',
+  // 数据导出（子项目 E）：渲染层传建议文件名+内容，main 保存对话框持路径（红线同 EXPORT_LABEL_RULES）
+  EXPORT_DATA_FILE: 'config:exportDataFile',
+  // 启动项（子项目 G）：列出/启停系统启动项。禁用在 main 经备份键搬移/改后缀（可逆）。
+  STARTUP_LIST: 'startup:list',
+  STARTUP_SET_ENABLED: 'startup:setEnabled',
   // 插件数据源（6c）：renderer 请求某 capability 的数据，main 转发 UtilityProcess 采集
   REQUEST_DATA_SOURCE: 'plugin:requestDataSource',
   // 插件数据源（6c）：main 把 UtilityProcess 采集结果推回 renderer（事件，非 invoke）
@@ -46,6 +51,12 @@ export const IPC = {
   RUN_STATES: 'run:getStates',
   // run 状态事件（F1）：main 推 run exit/状态变更给渲染层（事件，非 invoke）
   RUN_UPDATE: 'run:update',
+  // run 日志（子项目 C）：增量拉取某 run 的 stdout/stderr ring buffer
+  RUN_GET_LOGS: 'run:getLogs',
+  // shell 跳转动作（子项目 A）：打开文件夹/终端/编辑器 + 浏览器打开 URL。
+  // kind/路径/scheme 校验全在 main（shellActions.ts），渲染层只传 kind+path/url。
+  OPEN_TARGET: 'shell:openTarget',
+  OPEN_EXTERNAL_URL: 'shell:openExternalUrl',
 } as const;
 
 /**
@@ -133,6 +144,20 @@ export interface KillOutcome {
   pid: number;
   status: KillStatus;
 }
+/** shell 打开目标类型（子项目 A）。folder=Explorer；terminal=wt 优先回退 cmd；editor=VS Code。 */
+export type OpenTargetKind = 'folder' | 'terminal' | 'editor';
+
+/** 数据导出结果（子项目 E）：cancelled 用户取消（UI 静默），error 失败。 */
+export type ExportDataResult = 'ok' | 'cancelled' | 'error';
+
+/** 系统启动项（子项目 G）。id 编码来源：hkcu:<value名> / hklm:<value名> / folder:<当前文件名>。 */
+export interface StartupItem {
+  id: string;
+  name: string;
+  command: string;
+  source: 'hkcu-run' | 'hklm-run' | 'startup-folder';
+  enabled: boolean;
+}
 
 /** 一个运行中的 profile 实例（main spawn 后产生）。 */
 export interface RunState {
@@ -144,6 +169,22 @@ export interface RunState {
   startedAt: number;
   /** failed 时的错误信息（如 spawn ENOENT），UI 展示并允许重试。 */
   error?: string;
+}
+
+/** Run 日志行（子项目 C）。seq 由 main 按到达顺序单调分配（1 起）。 */
+export interface RunLogLine {
+  seq: number;
+  text: string;
+}
+
+/**
+ * 日志增量块（run:getLogs 返回）。nextSeq = 当前已分配的最大 seq（无行为 0），
+ * 下次请求传 sinceSeq=nextSeq 即得增量。ring buffer 满 2000 行丢最老并累计 droppedBefore。
+ */
+export interface RunLogChunk {
+  lines: RunLogLine[];
+  droppedBefore: number;
+  nextSeq: number;
 }
 
 /**
@@ -309,4 +350,15 @@ export interface ExposedApi {
   // 当前所有 run 状态快照（UX-06）：挂载时全量同步，与 onRunUpdate 增量事件互补
   getRunStates(): Promise<RunState[]>;
   onRunUpdate(cb: (update: RunState) => void): () => void;
+  // run 日志（子项目 C）。sinceSeq 传上次的 nextSeq 得增量；null=未知 runId。
+  getRunLogs(runId: string, sinceSeq?: number): Promise<RunLogChunk | null>;
+  // shell 跳转动作（子项目 A）。返回 '' = 成功，非空 = 错误描述（UI 直接展示）。
+  openTarget(kind: OpenTargetKind, path: string): Promise<string>;
+  // 浏览器打开 URL，main 侧仅放行 http/https。
+  openExternalUrl(url: string): Promise<string>;
+  // 数据导出（子项目 E）。文件名/大小 main 校验；内容已由渲染层序列化（CSV/JSON 文本）。
+  exportDataFile(defaultName: string, content: string): Promise<ExportDataResult>;
+  // 启动项（子项目 G）。setEnabled 返回 ''=成功，非空=错误描述（HKLM 只读 → 错误文本）。
+  listStartupItems(): Promise<StartupItem[]>;
+  setStartupItemEnabled(id: string, enabled: boolean): Promise<string>;
 }

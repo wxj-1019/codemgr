@@ -6,8 +6,12 @@ import { usePerfStore } from '../store/perfStore';
 import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
 import { formatBytes } from '../lib/format';
-import { useNotice } from '../hooks/useNotice';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { buildProcessMenuItems } from '../lib/processMenu';
+import { filterProcesses } from '../lib/processFilter';
+import { kindColorOf } from '../lib/kindColors';
+import { copyText, openTargetOrNotify } from '../lib/shellClient';
+import { useNotice } from '../hooks/useNotice';
 import { PanelAlert } from './ui/PanelAlert';
 
 interface ProcessTableProps {
@@ -77,17 +81,6 @@ const VIRTUALIZE_THRESHOLD = 100;
 const ROW_HEIGHT = 29;
 
 /** Color classes for each process-label kind（Aurora v1.2：底色降到 14% 透明度，字色不变）。 */
-const KIND_COLORS: Record<string, string> = {
-  dev: 'bg-accent/[0.14] text-accent',
-  test: 'bg-green-500/[0.14] text-green-400',
-  build: 'bg-purple-500/[0.14] text-purple-400',
-  container: 'bg-blue-500/[0.14] text-blue-400',
-  db: 'bg-amber-500/[0.14] text-amber-400',
-  system: 'bg-slate-600/[0.14] text-content-secondary',
-  ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
-  'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
-};
-
 // ---- Memoized row: only re-renders when its own inputs change ----
 interface ProcessRowProps {
   proc: ProcessInfo;
@@ -130,17 +123,17 @@ const ProcessRow = memo(function ProcessRow({
       tabIndex={isFocused || isKeyboardEntry ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
       data-pid={proc.pid}
-      className={`border-b border-line hover:bg-surface-raised cursor-pointer transition-colors duration-150 ease-out ${
-        multiSelectEnabled && isSelected ? 'bg-surface-raised/50' : ''
+      className={`border-b border-line transition-colors duration-200 hover:bg-accent/5 cursor-pointer ${
+        multiSelectEnabled && isSelected ? 'bg-gradient-to-r from-accent/15 to-transparent border-l-[3px] border-l-accent' : ''
       } ${memHighlight ? 'bg-warn/10' : ''} ${
-        isFocused ? 'ring-1 ring-inset ring-focus/60 outline-none' : ''
+        isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
       } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
       onClick={() => onActivate(proc.pid)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
       onKeyDown={(e) => onRowKeyDown(e, proc)}
     >
       {multiSelectEnabled && (
-        <td className="px-3 py-1">
+        <td className="px-1 py-1.5">
           <input
             type="checkbox"
             aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
@@ -152,7 +145,7 @@ const ProcessRow = memo(function ProcessRow({
           />
         </td>
       )}
-      <td className="px-3 py-2">
+      <td className="px-2 py-1.5">
         <div
           className="flex items-center gap-1"
           style={{ paddingLeft: depth * 16 }}
@@ -163,21 +156,18 @@ const ProcessRow = memo(function ProcessRow({
                 e.stopPropagation();
                 onToggleExpand(proc.pid);
               }}
-              className="w-4 text-xs text-content-muted hover:text-content-primary transition-colors duration-150"
+              className="w-4 text-xs text-fg-muted hover:text-fg-primary"
             >
               {isExpanded ? '▾' : '▸'}
             </button>
           )}
           {!hasChildren && <span className="w-4" />}
-          <span className="text-content-primary truncate max-w-[200px]">
+          <span className="text-fg-primary truncate max-w-[200px]">
             {proc.name}
           </span>
           {label && (
             <span
-              className={`ml-1 rounded px-1 text-[10px] ${
-                KIND_COLORS[label.kind] ||
-                'bg-slate-600/[0.14] text-content-secondary'
-              }`}
+              className={`ml-1 rounded px-1 text-[10px] ${kindColorOf(label.kind)}`}
             >
               {label.label}
             </span>
@@ -185,41 +175,41 @@ const ProcessRow = memo(function ProcessRow({
         </div>
       </td>
       <td
-        className={`px-3 py-2 text-right font-mono ${
-          cpuHighlight ? 'text-danger' : 'text-content-primary'
+        className={`px-2 py-1.5 text-right font-mono ${
+          cpuHighlight ? 'text-danger' : 'text-fg-primary'
         }`}
       >
         {cpu.toFixed(1)}
       </td>
       {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
       <td
-        className={`px-3 py-2 text-right font-mono ${
-          gpuHighlight ? 'text-danger' : 'text-content-primary'
+        className={`px-2 py-1.5 text-right font-mono ${
+          gpuHighlight ? 'text-danger' : 'text-fg-primary'
         }`}
         title={gpu ? undefined : '性能面板未开启或无 GPU 数据'}
       >
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
       <td
-        className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
-          memHighlight ? 'text-warn' : 'text-content-primary'
+        className={`whitespace-nowrap px-2 py-1.5 text-right font-mono ${
+          memHighlight ? 'text-warn' : 'text-fg-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-3 py-2 text-right font-mono text-content-secondary">
+      <td className="px-2 py-1.5 text-right font-mono text-fg-secondary">
         {proc.pid}
       </td>
-      <td className="px-3 py-2 text-right font-mono text-content-secondary">
+      <td className="px-2 py-1.5 text-right font-mono text-fg-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-3 py-2 font-mono text-content-muted truncate max-w-[400px] text-xs"
+        className="px-2 py-1.5 font-mono text-fg-muted truncate max-w-[400px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
       </td>
-      <td className="px-3 py-2 text-right">
+      <td className="px-2 py-1.5 text-right">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -281,17 +271,8 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
     focus(pid, 'process');
   }, [multiSelectEnabled, toggleSelect, focus]);
 
-  // ---- Filter ----
-  const filtered = useMemo(() => {
-    if (!filter.trim()) return processes;
-    const q = filter.toLowerCase();
-    return processes.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.cmdline.toLowerCase().includes(q) ||
-        String(p.pid).includes(q),
-    );
-  }, [processes, filter]);
+  // ---- Filter（谓词抽 lib/processFilter，与 ProcessPanel 导出入口共用）----
+  const filtered = useMemo(() => filterProcesses(processes, filter), [processes, filter]);
 
   // ---- Sort ----
   // UX-14：按 CPU/GPU（volatile 列）排序时行序会随每轮轮询重排，用户瞄准的
@@ -401,12 +382,6 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY, proc });
   }, []);
-
-  // UX-22：复制失败不再静默（剪贴板被占用/权限被禁时用户需要知道）
-  const { notice, show: showNotice } = useNotice();
-  const copyText = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => showNotice('danger', '复制失败：剪贴板不可用'));
-  }, [showNotice]);
 
   // ── 键盘导航（纯导航模型：焦点框与 selectedPids 分离）──
   // 焦点用 pid 锚定（非 index）：排序/折叠/过滤后行序会变，按 pid 定位才稳定。
@@ -526,15 +501,24 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
     }
   }, [onRowActivate]);
 
-  // 按 menu.proc 动态构造菜单项。kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）
-  const menuItems: ContextMenuItem[] = menu ? [
-    { label: '结束进程', danger: true, onSelect: () => onKillSingle(menu.proc.pid, menu.proc.name) },
-    ...(childrenParentSet.has(menu.proc.pid) && menu.proc.pid > 4
-      ? [{ label: '结束进程树', danger: true, onSelect: () => onKillTree(menu.proc.pid, menu.proc.name) }]
-      : []),
-    { label: '复制命令行', dividerBefore: true, onSelect: () => copyText(menu.proc.cmdline), disabled: !menu.proc.cmdline },
-    { label: '复制 PID', onSelect: () => copyText(String(menu.proc.pid)) },
-  ] : [];
+  // 菜单项由共享构建器生成（与 ProjectGroupView 一致）：打开三项 → 复制三项 → kill 沉底。
+  // kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）。
+  // UX-22：复制失败不再静默（剪贴板被占用/权限被禁时用户需要知道）
+  const { notice, show: showNotice } = useNotice();
+  const copyTextWithFeedback = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text).catch(() => showNotice('danger', '复制失败：剪贴板不可用'));
+  }, [showNotice]);
+
+  const menuItems: ContextMenuItem[] = menu ? buildProcessMenuItems(
+    menu.proc,
+    { hasChildren: childrenParentSet.has(menu.proc.pid) },
+    {
+      onOpenTarget: (kind, path) => void openTargetOrNotify(kind, path),
+      onCopy: copyTextWithFeedback,
+      onKillSingle,
+      onKillTree,
+    },
+  ) : [];
 
   // 虚拟化渲染窗口：上下用等高占位 <tr> 撑出总高度（保持 <table> 布局/列宽对齐，
   // 不切换为绝对定位）。行高固定，无需逐行测量。
@@ -566,6 +550,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
     />
   );
 
+
   return (
     <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
       {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
@@ -578,13 +563,13 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-surface-panel text-left text-xs text-content-muted">
+        <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs text-fg-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">
                 <input
-                  ref={selectAllRef}
                   type="checkbox"
+                  ref={selectAllRef}
                   aria-label="全选可见行"
                   checked={allSelected}
                   onChange={() => {
@@ -605,7 +590,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'name' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="px-3 py-2 font-medium cursor-pointer select-none transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="px-2 py-2 font-medium cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('name')}
               onKeyDown={(e) => onSortKeyDown(e, 'name')}
             >
@@ -615,7 +600,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'cpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('cpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'cpu')}
             >
@@ -626,7 +611,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'gpu' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('gpu')}
               onKeyDown={(e) => onSortKeyDown(e, 'gpu')}
               title="数据来自性能面板轮询"
@@ -637,7 +622,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'memory' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-24 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-24 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('memory')}
               onKeyDown={(e) => onSortKeyDown(e, 'memory')}
             >
@@ -647,15 +632,15 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
               tabIndex={0}
               role="button"
               aria-sort={sortKey === 'pid' ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-              className="w-16 px-3 py-2 font-medium cursor-pointer text-right transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-focus/60"
+              className="w-16 px-2 py-2 font-medium cursor-pointer text-right focus:outline-none focus:ring-1 focus:ring-inset focus:ring-accent/60"
               onClick={() => onSort('pid')}
               onKeyDown={(e) => onSortKeyDown(e, 'pid')}
             >
               PID {sortKey === 'pid' ? (sortAsc ? '↑' : '↓') : ''}
             </th>
-            <th className="w-14 px-3 py-2 font-medium text-right">线程</th>
-            <th className="px-3 py-2 font-medium">命令行</th>
-            <th className="w-16 px-3 py-2 font-medium text-right">操作</th>
+            <th className="w-14 px-2 py-2 font-medium text-right">线程</th>
+            <th className="px-2 py-2 font-medium">命令行</th>
+            <th className="w-16 px-2 py-2 font-medium text-right">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -678,7 +663,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           )}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-content-muted">
+              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-fg-muted">
                 无进程
               </td>
             </tr>

@@ -6,7 +6,7 @@ import { usePortRadarStore } from '../store/portRadarStore';
 import { useVisibilityStore } from '../store/visibilityStore';
 import { useThemeStore } from '../store/themeStore';
 import { ipc } from '../lib/ipc';
-import type { HostToPluginMsg, ReadonlyProcessInfo, ReadonlyConnection } from '../lib/pluginProtocol';
+import type { HostToPluginMsg, ReadonlyConnection, ReadonlyProcessInfo } from '../lib/pluginProtocol';
 
 const SNAPSHOT_INTERVAL_MS = 2000;
 

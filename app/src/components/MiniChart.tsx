@@ -1,6 +1,6 @@
 // 单进程迷你曲线：从 PerfPanel 的 AreaChart 提炼，适配侧栏窄宽度（无 X 轴 label、80px 高）。
 // 复用 Recharts（已是依赖），与性能面板风格一致。
-import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
 interface MiniChartProps<D> {
   data: D[];

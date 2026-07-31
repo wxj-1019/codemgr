@@ -163,7 +163,7 @@ function CpuView({
               <span className="w-12 text-xs text-content-muted">Core {i}</span>
               <div className="h-2 flex-1 overflow-hidden rounded bg-surface-raised">
                 <div
-                  className="h-full bg-accent"
+                  className="h-full rounded-full bg-gradient-to-r from-accent to-accent-data transition-all duration-500 ease-in-out"
                   style={{ width: `${Math.min(100, c)}%` }}
                 />
               </div>
@@ -270,7 +270,7 @@ function DiskView({ current }: { current: PerfData }) {
               </div>
               <div className="h-2 overflow-hidden rounded bg-surface-raised">
                 <div
-                  className={`h-full ${color}`}
+                  className={`h-full rounded-full transition-all duration-500 ease-in-out ${color}`}
                   style={{ width: `${usedPct}%` }}
                 />
               </div>

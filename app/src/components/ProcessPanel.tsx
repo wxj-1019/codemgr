@@ -6,10 +6,15 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { useFocusStore } from '../store/focusStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { mostCommonName } from '../lib/batchKill';
-import { formatKillTargets, summarizeKillOutcomes, formatKillFailureSummary } from '../lib/killConfirm';
+import { formatKillFailureSummary, formatKillTargets, summarizeKillOutcomes } from '../lib/killConfirm';
+import { filterProcesses } from '../lib/processFilter';
+import { buildExportName, processesToCsv, toPrettyJson } from '../lib/exportData';
+import { ContextMenu } from './ContextMenu';
+import { EnvDiffDialog } from './EnvDiffDialog';
+import type { KillStatus, ProcessInfo } from '../../electron/ipc-types';
 import { formatRelativeTime } from '../lib/format';
-import type { KillStatus } from '../../electron/ipc-types';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
 import { ProcessDetailSidebar } from './ProcessDetailSidebar';
@@ -21,7 +26,7 @@ import { PanelActionBar } from './ui/PanelActionBar';
 import { PanelAlert } from './ui/PanelAlert';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Check, ListChecks, Search, Trash2, X } from './icons';
+import { Check, Download, ListChecks, Search, Trash2, X } from './icons';
 import { useContainerWidth } from '../hooks/useContainerWidth';
 
 export function ProcessPanel() {
@@ -36,8 +41,22 @@ export function ProcessPanel() {
   const {
     processes, loading, error, lastErrorAt, selectedPids, filter, setFilter, clearSelection,
     viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
-    pollMs, setPollMs, staleAt,
+    pollMs, setPollMs, staleAt, cpuMap,
   } = useProcessPanelStore();
+
+  // 数据导出（子项目 E）：当前过滤视图 → CSV/JSON，main 保存对话框持路径
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
+
+  async function doExport(format: 'csv' | 'json') {
+    const rows = filterProcesses(processes, filter);
+    const content = format === 'csv' ? processesToCsv(rows, cpuMap) : toPrettyJson(rows);
+    const res = await ipc.exportDataFile(buildExportName('processes', format), content);
+    if (res === 'ok') notify.success('已导出');
+    else if (res === 'error') notify.error('导出失败');
+  }
+
+  // 环境变量对比（子项目 F）：多选模式恰好选中 2 个进程时可用，点击快照两个 ProcessInfo
+  const [envDiffPair, setEnvDiffPair] = useState<{ a: ProcessInfo; b: ProcessInfo } | null>(null);
 
   const [multiSelectEnabled, setMultiSelectEnabled] = useState(false);
 
@@ -242,9 +261,23 @@ export function ProcessPanel() {
                 placeholder="搜索进程/命令行/PID…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full max-w-48 rounded-lg border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas"
+                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-7 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
+              {filter !== '' && (
+                <IconButton
+                  label="清除搜索"
+                  size="xs"
+                  variant="ghost"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-content-muted hover:text-content-primary"
+                  onClick={() => setFilter('')}
+                >
+                  <X size={12} aria-hidden="true" />
+                </IconButton>
+              )}
             </div>
+            <IconButton label="导出" size="sm" onClick={(e) => setExportMenu({ x: e.clientX, y: e.clientY })}>
+              <Download />
+            </IconButton>
           </>
         }
         secondaryActions={
@@ -264,14 +297,15 @@ export function ProcessPanel() {
               size="xs"
               variant={multiSelectEnabled ? 'primary' : 'secondary'}
               aria-pressed={multiSelectEnabled}
+              title={multiSelectEnabled ? '退出多选模式' : '进入多选模式（点击行切换选择）'}
               onClick={toggleMultiSelectMode}
             >
               {multiSelectEnabled ? <Check size={13} aria-hidden="true" /> : <ListChecks size={13} aria-hidden="true" />}
               {multiSelectEnabled ? '完成' : '多选'}
             </Button>
             <Button
-              variant="ghost"
               size="xs"
+              variant="secondary"
               onClick={toggleViewMode}
               title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
             >
@@ -302,6 +336,21 @@ export function ProcessPanel() {
               >
                 <Trash2 size={13} aria-hidden="true" />
                 批量结束 ({selectedPids.size})
+              </Button>
+            )}
+            {multiSelectEnabled && selectedPids.size === 2 && (
+              <Button
+                size="xs"
+                variant="secondary"
+                title="对比两个进程的环境变量差异"
+                onClick={() => {
+                  const [p1, p2] = [...selectedPids]
+                    .map((pid) => processes.find((p) => p.pid === pid))
+                    .filter((x): x is ProcessInfo => !!x);
+                  if (p1 && p2) setEnvDiffPair({ a: p1, b: p2 });
+                }}
+              >
+                对比环境变量
               </Button>
             )}
           </>
@@ -424,6 +473,19 @@ export function ProcessPanel() {
           <ProcessDetailSidebar onKill={onKillSingle} onKillTree={onKillTree} />
         </div>
       </Dialog>
+      <ContextMenu
+        open={exportMenu !== null}
+        x={exportMenu?.x ?? 0}
+        y={exportMenu?.y ?? 0}
+        items={[
+          { label: '导出 CSV', onSelect: () => void doExport('csv') },
+          { label: '导出 JSON', onSelect: () => void doExport('json') },
+        ]}
+        onClose={() => setExportMenu(null)}
+      />
+      {envDiffPair && (
+        <EnvDiffDialog a={envDiffPair.a} b={envDiffPair.b} onClose={() => setEnvDiffPair(null)} />
+      )}
     </div>
   );
 }

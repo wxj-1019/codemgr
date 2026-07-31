@@ -4,16 +4,19 @@ import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
+import { notify } from '../lib/notify';
 import { filterConnections, isListenLike } from '../lib/portFilter';
+import { buildExportName, connectionsToCsv, toPrettyJson } from '../lib/exportData';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
 import { StateView } from './ui/StateView';
+import { ContextMenu } from './ContextMenu';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { PanelAlert } from './ui/PanelAlert';
 import { IconButton } from './ui/IconButton';
-import { Search, X } from './icons';
+import { Download, Search, X } from './icons';
 
 export function PortRadar() {
   usePortRadar();  // 启动轮询
@@ -28,6 +31,16 @@ export function PortRadar() {
   const [showAll, setShowAll] = useState(false);
   // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
   const { notice, show: showNotice } = useNotice();
+
+  // 数据导出（子项目 E）：当前过滤视图 → CSV/JSON，main 保存对话框持路径
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
+
+  async function doExport(format: 'csv' | 'json') {
+    const content = format === 'csv' ? connectionsToCsv(visible) : toPrettyJson(visible);
+    const res = await ipc.exportDataFile(buildExportName('ports', format), content);
+    if (res === 'ok') notify.success('已导出');
+    else if (res === 'error') notify.error('导出失败');
+  }
 
   async function doKill() {
     if (!pendingKill || killBusy) return;
@@ -99,9 +112,23 @@ export function PortRadar() {
                 placeholder="搜索端口/进程/PID/地址…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full max-w-48 rounded-lg border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas"
+                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-7 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
+              {filter !== '' && (
+                <IconButton
+                  label="清除搜索"
+                  size="xs"
+                  variant="ghost"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-content-muted hover:text-content-primary"
+                  onClick={() => setFilter('')}
+                >
+                  <X size={12} aria-hidden="true" />
+                </IconButton>
+              )}
             </div>
+            <IconButton label="导出" size="sm" onClick={(e) => setExportMenu({ x: e.clientX, y: e.clientY })}>
+              <Download />
+            </IconButton>
           </>
         }
       />
@@ -151,6 +178,16 @@ export function PortRadar() {
         busy={killBusy}
         onConfirm={doKill}
         onCancel={() => { if (!killBusy) setPendingKill(null); }}
+      />
+      <ContextMenu
+        open={exportMenu !== null}
+        x={exportMenu?.x ?? 0}
+        y={exportMenu?.y ?? 0}
+        items={[
+          { label: '导出 CSV', onSelect: () => void doExport('csv') },
+          { label: '导出 JSON', onSelect: () => void doExport('json') },
+        ]}
+        onClose={() => setExportMenu(null)}
       />
     </div>
   );

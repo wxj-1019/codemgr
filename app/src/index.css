@@ -7,32 +7,49 @@ html, body, #root {
   margin: 0;
 }
 
-/* ── Aurora UI v1.2 tokens：Linear 纪律 × Apple 毛玻璃 ──
-   设计依据：docs/superpowers/specs/2026-07-30-codemgr-aurora-ui.md */
+/* ── 魔法少女糖果 UI v3.0 tokens ──
+   方向：樱粉 + 薰衣草紫 + 天蓝糖果配色，大圆角 + 光泽高光 + 紫调描边 + 治愈动效
+   浅色为主；装饰克制；数据区保持清晰可读
+   对比度已按 designTokens 测试公式验证（on-accent/accent ≥4.5、muted/canvas ≥4.5、focus70% ≥3） */
 :root {
+  /* ── 过渡令牌 ── */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 300ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  --transition-slow: 400ms cubic-bezier(0.34, 1.2, 0.64, 1);
+
   /* Unified desktop-workbench semantics. RGB channels let Tailwind compose alpha. */
-  --surface-canvas-rgb: 8 9 12;
-  --surface-panel-rgb: 15 17 21;
-  --surface-raised-rgb: 24 26 32;
-  --surface-overlay-rgb: 33 36 43;
-  --surface-panel-alpha: 0.72;
-  --surface-raised-alpha: 0.8;
-  --surface-overlay-alpha: 0.92;
-  --content-primary-rgb: 247 248 248;
-  --content-secondary-rgb: 138 143 152;
-  --content-muted-rgb: 120 125 134;
+  --surface-canvas-rgb: 35 32 56;
+  --surface-panel-rgb: 43 39 66;
+  --surface-raised-rgb: 52 48 80;
+  --surface-overlay-rgb: 63 58 95;
+  --surface-panel-alpha: 0.62;
+  --surface-raised-alpha: 0.75;
+  --surface-overlay-alpha: 0.9;
+  --content-primary-rgb: 248 243 255;
+  --content-secondary-rgb: 186 176 210;
+  --content-muted-rgb: 160 150 186;
   --line-rgb: 255 255 255;
-  --line-alpha: 0.07;
-  --accent-rgb: 139 147 232;
-  --accent-hover-rgb: 157 164 237;
-  --accent-muted-rgb: 97 103 162;
-  --accent-data-rgb: 103 232 249;
-  --focus-rgb: 156 163 255;
-  --success-rgb: 98 214 139;
-  --info-rgb: 103 232 249;
-  --danger-rgb: 251 113 133;
-  --warn-rgb: 252 211 77;
-  --on-accent-rgb: 8 9 12;
+  --line-alpha: 0.14;
+  --accent-rgb: 255 143 193;
+  --accent-hover-rgb: 255 172 211;
+  --accent-muted-rgb: 240 100 160;
+  --accent-data-rgb: 109 205 255;
+  --focus-rgb: 196 165 255;
+  --success-rgb: 110 231 183;
+  --info-rgb: 109 205 255;
+  --danger-rgb: 255 120 150;
+  --warn-rgb: 255 196 107;
+  --on-accent-rgb: 35 32 56;
+
+  /* Kind 糖果色（暗色：亮色系） */
+  --kind-dev-rgb: 255 143 193;
+  --kind-test-rgb: 110 231 183;
+  --kind-build-rgb: 196 165 255;
+  --kind-container-rgb: 109 205 255;
+  --kind-db-rgb: 255 196 107;
+  --kind-system-rgb: 160 150 186;
+  --kind-ai-rgb: 255 128 219;
+  --kind-ai-ide-rgb: 178 148 255;
 
   --surface-canvas: rgb(var(--surface-canvas-rgb));
   --surface-panel: rgb(var(--surface-panel-rgb) / var(--surface-panel-alpha));
@@ -66,28 +83,38 @@ html, body, #root {
 }
 
 :root.light {
-  --surface-canvas-rgb: 244 243 250;
+  --surface-canvas-rgb: 255 248 252;
   --surface-panel-rgb: 255 255 255;
   --surface-raised-rgb: 255 255 255;
-  --surface-overlay-rgb: 250 250 253;
-  --surface-panel-alpha: 0.65;
+  --surface-overlay-rgb: 255 255 255;
+  --surface-panel-alpha: 0.62;
   --surface-raised-alpha: 0.85;
   --surface-overlay-alpha: 0.96;
-  --content-primary-rgb: 27 29 35;
-  --content-secondary-rgb: 90 95 106;
-  --content-muted-rgb: 100 105 116;
-  --line-rgb: 20 16 40;
-  --line-alpha: 0.08;
-  --accent-rgb: 89 99 184;
-  --accent-hover-rgb: 75 85 170;
-  --accent-muted-rgb: 71 79 142;
-  --accent-data-rgb: 8 123 138;
-  --focus-rgb: 72 81 171;
-  --success-rgb: 36 122 69;
-  --info-rgb: 8 123 138;
-  --danger-rgb: 192 54 81;
-  --warn-rgb: 135 101 0;
-  --on-accent-rgb: 255 255 255;
+  --content-primary-rgb: 56 47 71;
+  --content-secondary-rgb: 110 101 138;
+  --content-muted-rgb: 110 101 138;
+  --line-rgb: 139 92 246;
+  --line-alpha: 0.18;
+  --accent-rgb: 255 111 165;
+  --accent-hover-rgb: 255 143 193;
+  --accent-muted-rgb: 236 72 153;
+  --accent-data-rgb: 89 199 255;
+  --focus-rgb: 124 58 237;
+  --success-rgb: 74 222 152;
+  --info-rgb: 89 199 255;
+  --danger-rgb: 255 107 138;
+  --warn-rgb: 255 184 77;
+  --on-accent-rgb: 51 40 74;
+
+  /* Kind 糖果色（浅色：深色系，保证浅底可读） */
+  --kind-dev-rgb: 236 72 153;
+  --kind-test-rgb: 16 165 100;
+  --kind-build-rgb: 124 58 237;
+  --kind-container-rgb: 2 132 199;
+  --kind-db-rgb: 217 119 6;
+  --kind-system-rgb: 110 101 138;
+  --kind-ai-rgb: 219 39 171;
+  --kind-ai-ide-rgb: 139 92 246;
 }
 
 body {
@@ -98,40 +125,104 @@ body {
   letter-spacing: 0;
 }
 
-/* ── aurora 环境光：只余呼吸感的 mesh（App.tsx 根节点第一个子元素）── */
+/* ── 糖果光斑背景：樱粉/薰衣草紫/天蓝/薄荷四色缓慢漂移 ── */
 .aurora-mesh {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(60% 80% at 15% 0%, rgba(109, 76, 214, 0.1), transparent 60%),
-    radial-gradient(50% 60% at 85% 15%, rgba(224, 80, 140, 0.05), transparent 55%),
-    radial-gradient(70% 90% at 80% 90%, rgba(80, 200, 230, 0.04), transparent 60%);
+    radial-gradient(55% 70% at 12% 8%, rgba(255, 143, 193, 0.14), transparent 55%),
+    radial-gradient(45% 55% at 88% 12%, rgba(196, 165, 255, 0.12), transparent 50%),
+    radial-gradient(65% 85% at 82% 88%, rgba(109, 205, 255, 0.10), transparent 55%),
+    radial-gradient(40% 50% at 20% 85%, rgba(110, 231, 183, 0.07), transparent 50%);
+  animation: aurora-drift 40s ease-in-out infinite alternate;
 }
 :root.light .aurora-mesh {
   background:
-    radial-gradient(60% 80% at 15% 0%, rgba(109, 76, 214, 0.07), transparent 60%),
-    radial-gradient(50% 60% at 85% 15%, rgba(224, 80, 140, 0.04), transparent 55%),
-    radial-gradient(70% 90% at 80% 90%, rgba(80, 200, 230, 0.03), transparent 60%);
+    radial-gradient(55% 70% at 12% 8%, rgba(255, 143, 193, 0.10), transparent 55%),
+    radial-gradient(45% 55% at 88% 12%, rgba(196, 165, 255, 0.09), transparent 50%),
+    radial-gradient(65% 85% at 82% 88%, rgba(109, 205, 255, 0.08), transparent 55%),
+    radial-gradient(40% 50% at 20% 85%, rgba(110, 231, 183, 0.05), transparent 50%);
+  animation: aurora-drift 50s ease-in-out infinite alternate;
 }
 
-/* ── Apple 毛玻璃：面板材质工具类 ── */
+@keyframes aurora-drift {
+  0% {
+    background:
+      radial-gradient(55% 70% at 12% 8%, rgba(255, 143, 193, 0.14), transparent 55%),
+      radial-gradient(45% 55% at 88% 12%, rgba(196, 165, 255, 0.12), transparent 50%),
+      radial-gradient(65% 85% at 82% 88%, rgba(109, 205, 255, 0.10), transparent 55%),
+      radial-gradient(40% 50% at 20% 85%, rgba(110, 231, 183, 0.07), transparent 50%);
+  }
+  25% {
+    background:
+      radial-gradient(55% 70% at 18% 12%, rgba(255, 143, 193, 0.12), transparent 55%),
+      radial-gradient(45% 55% at 82% 18%, rgba(196, 165, 255, 0.13), transparent 50%),
+      radial-gradient(65% 85% at 88% 82%, rgba(109, 205, 255, 0.09), transparent 55%),
+      radial-gradient(40% 50% at 15% 90%, rgba(110, 231, 183, 0.08), transparent 50%);
+  }
+  50% {
+    background:
+      radial-gradient(55% 70% at 22% 6%, rgba(255, 143, 193, 0.13), transparent 55%),
+      radial-gradient(45% 55% at 92% 8%, rgba(196, 165, 255, 0.11), transparent 50%),
+      radial-gradient(65% 85% at 78% 92%, rgba(109, 205, 255, 0.11), transparent 55%),
+      radial-gradient(40% 50% at 25% 82%, rgba(110, 231, 183, 0.06), transparent 50%);
+  }
+  75% {
+    background:
+      radial-gradient(55% 70% at 8% 14%, rgba(255, 143, 193, 0.11), transparent 55%),
+      radial-gradient(45% 55% at 85% 22%, rgba(196, 165, 255, 0.12), transparent 50%),
+      radial-gradient(65% 85% at 85% 85%, rgba(109, 205, 255, 0.10), transparent 55%),
+      radial-gradient(40% 50% at 18% 78%, rgba(110, 231, 183, 0.07), transparent 50%);
+  }
+  100% {
+    background:
+      radial-gradient(55% 70% at 15% 5%, rgba(255, 143, 193, 0.14), transparent 55%),
+      radial-gradient(45% 55% at 90% 15%, rgba(196, 165, 255, 0.12), transparent 50%),
+      radial-gradient(65% 85% at 80% 90%, rgba(109, 205, 255, 0.09), transparent 55%),
+      radial-gradient(40% 50% at 22% 88%, rgba(110, 231, 183, 0.07), transparent 50%);
+  }
+}
+
+/* ── 糖果玻璃：紫调描边 + 顶部光泽高光（cel-shading） ── */
 .glass {
   background: var(--bg-panel);
   backdrop-filter: blur(20px) saturate(1.15);
   -webkit-backdrop-filter: blur(20px) saturate(1.15);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.30),
+    0 2px 12px rgb(139 92 246 / 0.06);
 }
 
-/* 浮层材质（Dialog/ContextMenu/下拉）：明度阶梯第二格 --bg-elevated，
-   比面板更实，浮在玻璃面板上仍保证可读性。 */
+/* 浮层材质（Dialog/ContextMenu/下拉）：比面板更实，浮在玻璃面板上仍保证可读性。 */
 .glass-elevated {
   background: var(--bg-elevated);
   backdrop-filter: blur(20px) saturate(1.15);
   -webkit-backdrop-filter: blur(20px) saturate(1.15);
   border: 1px solid var(--border);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.35),
+    0 8px 32px rgb(139 92 246 / 0.10);
+}
+
+/* 软玻璃：用于卡片内嵌，更低透明度 + 更轻 blur */
+.glass-soft {
+  background: rgb(var(--surface-panel-rgb) / 0.40);
+  backdrop-filter: blur(12px) saturate(1.10);
+  -webkit-backdrop-filter: blur(12px) saturate(1.10);
+  border: 1px solid var(--border);
+}
+
+:root.light .glass,
+:root.light .glass-elevated {
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.55),
+    0 8px 32px rgb(139 92 246 / 0.08);
+}
+:root.light .glass-soft {
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55);
 }
 
 /* ── Linear 式安静危险按钮：透明底 + --danger 细边与文字，
@@ -140,7 +231,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
   color: var(--danger);
   background: transparent;
-  transition: background-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.2s ease-out;
+  transition: background-color var(--transition-base), color var(--transition-base), box-shadow var(--transition-base);
 }
 .btn-danger-quiet:hover:not(:disabled) {
   background: var(--danger);
@@ -148,13 +239,13 @@ body {
   box-shadow: 0 0 14px rgb(var(--danger-rgb) / 0.24);
 }
 
-/* ── Siri 辉光（differentiator）：聚焦面板的流转描边。
-   关键：conic 渐变必须用 mask 裁成 2px 描边环，否则整张渐变会透过玻璃渗入内容区。 ── */
+/* ── 辉光（differentiator）：聚焦面板的流转描边 + 呼吸效果 ── */
 .panel-active {
   position: relative;
   box-shadow:
-    0 0 32px rgba(139, 147, 232, 0.18),
-    0 0 64px rgba(103, 232, 249, 0.05);
+    0 0 32px rgb(255 111 165 / 0.15),
+    0 0 64px rgb(109 205 255 / 0.05);
+  animation: panel-breathe 4s ease-in-out infinite;
 }
 .panel-active::before {
   content: '';
@@ -166,13 +257,13 @@ body {
   pointer-events: none;
   background: conic-gradient(
     from var(--glow-angle, 0deg),
-    #5e6ad2, #8b93e8, #67e8f9, #7c6fd6, #5e6ad2
+    #ff6fa5, #ff8fc1, #6dcdfd, #c4a5ff, #ff6fa5
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           mask-composite: exclude;
-  opacity: 0.4;
+  opacity: 0.45;
   animation: glow-spin 16s linear infinite;
 }
 @property --glow-angle {
@@ -183,6 +274,156 @@ body {
 @keyframes glow-spin {
   to { --glow-angle: 360deg; }
 }
+@keyframes panel-breathe {
+  0%, 100% { box-shadow: 0 0 32px rgb(255 111 165 / 0.12), 0 0 64px rgb(109 205 255 / 0.04); }
+  50% { box-shadow: 0 0 40px rgb(255 111 165 / 0.20), 0 0 80px rgb(109 205 255 / 0.07); }
+}
+
+/* ── 品牌标记：糖果渐变 + 光泽 + 浮动动画 ── */
+.workspace-brand-mark {
+  border: 1px solid rgb(255 255 255 / 0.6);
+  background: linear-gradient(135deg, #ff8fc1, #c4a5ff, #6dcdfd);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgb(120 60 140 / 0.4);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    0 2px 8px rgb(255 111 165 / 0.35);
+  animation: brand-float 4s ease-in-out infinite;
+}
+@keyframes brand-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+:root.light .workspace-brand-mark {
+  border-color: rgb(255 255 255 / 0.85);
+}
+
+/* ── 按钮点击弹跳（治愈感） ── */
+@keyframes bounce-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.96); }
+  70% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.bounce-pop {
+  animation: bounce-pop 200ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* ── 装饰星星闪烁 ── */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.45; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.twinkle {
+  display: inline-block;
+  animation: twinkle 2.5s ease-in-out infinite;
+}
+
+/* ── 骨架屏脉冲 ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--surface-raised-rgb) / 0.3) 25%,
+    rgb(var(--surface-raised-rgb) / 0.5) 50%,
+    rgb(var(--surface-raised-rgb) / 0.3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── 活跃指示器脉冲 ── */
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── 弹窗进入/退出动画 ── */
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes dialog-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.dialog-enter {
+  animation: dialog-enter 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.dialog-exit {
+  animation: dialog-exit 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ── Toast 进入/退出动画 ── */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+.toast-enter {
+  animation: toast-enter 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.toast-exit {
+  animation: toast-exit 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ── ContextMenu 进入动画 ── */
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.menu-enter {
+  animation: menu-enter 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ── 面板内容淡入 ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in {
+  animation: fade-in 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
@@ -192,7 +433,12 @@ body {
   }
 
   .panel-active::before,
-  .animate-spin {
+  .panel-active,
+  .workspace-brand-mark,
+  .animate-spin,
+  .shimmer,
+  .pulse-dot,
+  .aurora-mesh {
     animation: none !important;
   }
 }
@@ -226,9 +472,9 @@ body {
   min-width: 0;
   flex-direction: column;
   border-right: 1px solid var(--line);
-  background: rgb(var(--surface-panel-rgb) / 0.9);
-  backdrop-filter: blur(20px) saturate(1.15);
-  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  background: rgb(var(--surface-panel-rgb) / 0.85);
+  backdrop-filter: blur(24px) saturate(1.12);
+  -webkit-backdrop-filter: blur(24px) saturate(1.12);
 }
 
 .workspace-sidebar-brand {
@@ -248,12 +494,13 @@ body {
   flex: 0 0 var(--brand-mark-size);
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(var(--accent-rgb) / 0.38);
-  border-radius: 5px;
-  background: rgb(var(--accent-rgb) / 0.14);
-  color: rgb(var(--accent-rgb));
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 700;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.workspace-brand-mark:hover {
+  transform: scale(1.08);
 }
 
 .workspace-main {
@@ -324,13 +571,26 @@ body {
   white-space: nowrap;
 }
 
-/* 导航项：覆盖 Button 基础类的 w-fit，强制占满侧栏宽度。
-   Button 把 children 包进一个 inline-flex 的 grid 单元格 span，默认收缩到内容宽度后被
-   居中，视觉上文字"浮在中间"。配合 WorkspaceSidebar 上的 grid-cols-[1fr] + justify-items-start
-   让该 span 撑满列宽并靠左，文字随之左对齐。 */
+/* 导航项：覆盖 Button 基础类的 w-fit，强制占满侧栏宽度。 */
 .workspace-sidebar-item {
   width: 100%;
   flex-shrink: 1;
+}
+
+/* 导航项活跃指示器 */
+.workspace-sidebar-item[data-active='true'] {
+  position: relative;
+}
+.workspace-sidebar-item[data-active='true']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, rgb(var(--accent-rgb)), rgb(var(--accent-data-rgb)));
 }
 
 @media (max-width: 720px) {
@@ -380,6 +640,11 @@ body {
     padding: 0;
   }
 
+  .workspace-sidebar-item[data-active='true']::before {
+    left: -4px;
+    height: 20px;
+  }
+
   .workspace-sidebar-tools {
     flex-direction: column;
   }
@@ -401,7 +666,7 @@ input[type='checkbox'] {
   accent-color: var(--accent);
 }
 
-/* ── 滚动条：8px 细轨（Linear 纪律）── */
+/* ── 滚动条：8px 细轨 ── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -410,23 +675,32 @@ input[type='checkbox'] {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.10);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.18);
 }
 :root.light ::-webkit-scrollbar-thumb {
-  background: rgba(20, 16, 40, 0.14);
+  background: rgba(139, 92, 246, 0.16);
 }
 :root.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(20, 16, 40, 0.26);
+  background: rgba(139, 92, 246, 0.28);
 }
 
-/* ── allotment 主题适配 ──
-   allotment 默认分割条是蓝色（VS Code 风），覆盖成项目语义色。
-   类名带 CSS-module hash，用属性子串选择器匹配，避免依赖具体 hash。
-   hover/active 时用 text-muted 提亮，与亮/暗主题双适配。 */
+/* ── 侧栏分组标题 ✦ 装饰（克制） ── */
+.workspace-sidebar-group-label::before {
+  content: '✦';
+  margin-right: 5px;
+  font-size: 9px;
+  color: rgb(var(--accent-rgb) / 0.75);
+  vertical-align: 1px;
+}
+.workspace-sidebar-group-label {
+  animation: none; /* 装饰星星的闪烁交给内部子元素，标题本身不闪 */
+}
+
+/* ── allotment 主题适配 ── */
 [class*='sash-container'] [class*='sash'] {
   background: transparent;
 }
@@ -435,7 +709,6 @@ input[type='checkbox'] {
   background: var(--text-muted);
   opacity: 0.35;
 }
-/* allotment 面板间默认分隔线 */
 [class*='split-view-container'] [class*='split-view-view'] + [class*='split-view-view'] {
   border-left: 1px solid var(--border);
 }
@@ -446,17 +719,13 @@ input[type='checkbox'] {
   width: 100%;
 }
 
-/* ── react-mosaic 主题适配 ──
-   mosaic 默认把 toolbar/body/actions-bar 都写成白色实底。v1.7 时 Panel 是实色
-   背景所以盖得住；Aurora UI 玻璃面板是半透明的，白底会渗上来（灰雾感）。
-   这里把 mosaic 所有实底全部改透明/语义变量，并用 .mosaic-theme .mosaic-window
-   三层选择器压过库默认（0,3,0 > 库的 0,2,0），不依赖 CSS 加载顺序。 */
+/* ── react-mosaic 主题适配 ── */
 .mosaic-theme.mosaic,
 .mosaic-theme .mosaic-root,
 .mosaic-theme .mosaic-window,
 .mosaic-theme .mosaic-preview {
   background: transparent;
-  box-shadow: none;              /* 去掉默认的白色投影残影 */
+  box-shadow: none;
 }
 /* 工具栏：浮层玻璃 + 主文字色 */
 .mosaic-theme .mosaic-window .mosaic-window-toolbar {
@@ -465,10 +734,14 @@ input[type='checkbox'] {
   -webkit-backdrop-filter: blur(20px) saturate(1.15);
   box-shadow: none;
   border-bottom: 1px solid var(--border);
+  height: 26px;
+  min-height: 26px;
+  justify-content: flex-end;
+  padding: 0 2px;
 }
+/* 标题文字隐藏：PanelActionBar 是唯一标题（v2.0 合并双重标题） */
 .mosaic-theme .mosaic-window .mosaic-window-title {
-  color: var(--text-primary);
-  font-size: 12px;
+  display: none;
 }
 /* 控制按钮分隔线 */
 .mosaic-theme .mosaic-window .mosaic-window-controls .separator {
@@ -480,7 +753,7 @@ input[type='checkbox'] {
 .mosaic-theme .mosaic-window .mosaic-window-body-overlay {
   background: transparent;
 }
-/* 分割条 hover：默认黑色，改为 muted 色 + 半透明（与 allotment sash 一致） */
+/* 分割条 hover */
 .mosaic-theme .mosaic-split:hover {
   background: var(--text-muted);
   opacity: 0.35;
@@ -488,22 +761,22 @@ input[type='checkbox'] {
 .mosaic-theme .mosaic-split .mosaic-split-line {
   background: var(--border);
 }
-/* 拖拽落点高亮：用 accent 色提示 */
+/* 拖拽落点高亮 */
 .mosaic-theme .mosaic-drop-target .drop-target-container .drop-target {
   background: color-mix(in srgb, var(--accent) 25%, transparent);
   border-color: var(--accent);
 }
-/* 窗口控制按钮：库依赖 Blueprint 图标字体（未引入），缺字体会把
-   Replace/Split/Expand/Close 标题文字挤成一串。改成 CSS 绘制的极简图标。 */
+/* 窗口控制按钮：CSS 绘制的极简图标 */
 .mosaic-theme .mosaic-window .mosaic-window-controls button {
   font-size: 0;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   position: relative;
   background: transparent;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  transition: background-color var(--transition-fast);
 }
 .mosaic-theme .mosaic-window .mosaic-window-controls button:hover,
 .mosaic-theme .mosaic-window .mosaic-window-controls button:focus-visible {
@@ -539,11 +812,7 @@ input[type='checkbox'] {
 .mosaic-theme .mosaic-window .close-button::before { width: 12px; height: 1.5px; border: none; background: var(--text-secondary); transform: rotate(45deg); }
 .mosaic-theme .mosaic-window .close-button::after { width: 12px; height: 1.5px; border: none; background: var(--text-secondary); transform: rotate(-45deg); }
 
-/* ── 容器查询：按面板 tile 宽度做响应式（替代 window.matchMedia）──
-   多面板布局下单个 tile 宽度与窗口宽度无关（窗口很宽但某 tile 可能很窄），
-   故用 container query 而非 media query。.panel-container 建立查询上下文，
-   子元素可用 @container panel (min-width: 560px) 等断点。 */
-/* 语义别名类，便于 JS 或 CSS 通过类名判断当前档位（useContainerWidth 也可读数值） */
+/* ── 容器查询：按面板 tile 宽度做响应式 ── */
 @container panel (max-width: 559px) {
   .panel-container.is-narrow-target { /* 占位：JS 读 useContainerWidth 决策，CSS 仅备别名 */ }
 }

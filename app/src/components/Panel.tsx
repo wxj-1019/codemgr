@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import type { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
 import { useVisibilityTracking } from '../hooks/useVisibilityTracking';
 import { useActivePanelStore } from '../store/activePanelStore';
 import type { PanelId } from '../store/layoutStore';
@@ -20,7 +19,7 @@ export function Panel({ id, children }: { id: PanelId; children: ReactNode }) {
   return (
     <div
       ref={ref}
-      className={`panel-container glass flex h-full w-full flex-col overflow-hidden rounded-[14px]${isActive ? ' panel-active' : ''}`}
+      className={`panel-container glass flex h-full w-full flex-col overflow-hidden rounded-[18px]${isActive ? ' panel-active' : ''}`}
     >
       {children}
     </div>

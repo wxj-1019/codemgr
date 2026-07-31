@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
+import { type ReactNode, type RefObject, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '../icons';
 import { IconButton } from './IconButton';
@@ -83,7 +83,7 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       role="presentation"
       onClick={() => { if (!busy) onOpenChange(false); }}
     >
@@ -94,7 +94,7 @@ export function Dialog({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`glass-elevated ${widthClass} max-h-[85vh] overflow-auto rounded-[14px] p-5 shadow-2xl outline-none`}
+        className={`glass-elevated ${widthClass} dialog-enter max-h-[85vh] overflow-auto rounded-[20px] p-5 shadow-2xl outline-none`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

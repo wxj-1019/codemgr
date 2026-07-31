@@ -1,11 +1,17 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog, utilityProcess, MessageChannelMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, nativeImage, dialog, utilityProcess, MessageChannelMain, shell } from 'electron';
 import path from 'node:path';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState } from './ipc-types';
+import { spawn, execFile as cpExecFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { rename as fsRename } from 'node:fs/promises';
+import { IPC, type LabelRulesPayload, type LabelRule, type PluginManifestEntry, ALLOWED_CAPABILITIES, type SnapshotEntry, type SnapshotMeta, type ProcessSnapshot, type RunProfile, type RunState, type OpenTargetKind, type ExportDataResult } from './ipc-types';
 import { loadWindowState, trackWindowState } from './window-state';
 import { RunManager, readProfiles, writeProfiles, validateProfile } from './runProfiles';
 import { resolveGitIdentity } from './gitWorkspace';
+import { openTarget, openExternalUrl, type ShellDeps, type SpawnLike } from './shellActions';
+import { sanitizeExportName, EXPORT_MAX_CONTENT_BYTES } from './exportFile';
+import { listStartupItems, setStartupItemEnabled, type StartupDeps } from './startupItems';
 
 // 开发时加载 vite dev server，生产时加载打包产物
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -244,6 +250,26 @@ ipcMain.handle(IPC.IMPORT_LABEL_RULES, async () => {
   }
 });
 
+// 数据导出（子项目 E）：文件名白名单校验 + 10MB 上限，保存对话框持路径
+ipcMain.handle(IPC.EXPORT_DATA_FILE, async (_evt, defaultName: string, content: string): Promise<ExportDataResult> => {
+  try {
+    const safe = sanitizeExportName(String(defaultName));
+    if (!safe || typeof content !== 'string' || content.length > EXPORT_MAX_CONTENT_BYTES) return 'error';
+    const ext = safe.slice(safe.lastIndexOf('.') + 1);
+    const res = await dialog.showSaveDialog({
+      title: '导出数据',
+      defaultPath: safe,
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+    });
+    if (res.canceled || !res.filePath) return 'cancelled';
+    writeFileSync(res.filePath, content, 'utf8');
+    return 'ok';
+  } catch (e) {
+    console.error('exportDataFile failed:', e);
+    return 'error';
+  }
+});
+
 // ── 插件 manifest（文件 IO 封在 main，渲染层只拿校验过的条目，守红线） ──
 // 读 userData/plugins.json（不存在 → 空数组）。逐条校验 schema，坏条目跳过、整体不崩。
 // capabilities 经白名单过滤：未识别项剥离（不整个丢弃插件，只剥离非法能力）。
@@ -440,6 +466,50 @@ ipcMain.handle(IPC.FETCH_GIT_IDENTITY, async (_evt, cwd: string) => {
   }
 });
 
+// ── shell 跳转动作（子项目 A）──
+// 校验/编排全在 shellActions（纯逻辑），这里只做 electron/child_process 真实依赖装配。
+const shellDeps: ShellDeps = {
+  openPath: (p) => shell.openPath(p),
+  openExternal: (url) => shell.openExternal(url).then(() => undefined),
+  spawn: (file, args, options): SpawnLike => spawn(file, args, options),
+  commandExists: (file) =>
+    new Promise((resolve) => {
+      const p = spawn('cmd.exe', ['/c', 'where', file], { stdio: 'ignore' });
+      p.on('error', () => resolve(false));
+      p.on('exit', (code) => resolve(code === 0));
+    }),
+  exists: (p) => existsSync(p),
+};
+
+ipcMain.handle(IPC.OPEN_TARGET, async (_evt, kind: OpenTargetKind, targetPath: string) => {
+  try { return await openTarget(kind, targetPath, shellDeps); }
+  catch (e) { console.error('shell:openTarget failed:', e); return String(e); }
+});
+
+ipcMain.handle(IPC.OPEN_EXTERNAL_URL, async (_evt, url: string) => {
+  try { return await openExternalUrl(url, shellDeps); }
+  catch (e) { console.error('shell:openExternalUrl failed:', e); return String(e); }
+});
+
+// ── 启动项（子项目 G）──
+// 采集/启停逻辑在 startupItems（deps 注入可测），这里只装配真实 reg.exe/fs 依赖。
+const execFileAsync = promisify(cpExecFile);
+const startupDeps: StartupDeps = {
+  execFile: async (file, args) => (await execFileAsync(file, args)).stdout,
+  rename: (from, to) => fsRename(from, to),
+  readdir: async (dir) => readdirSync(dir),
+};
+
+ipcMain.handle(IPC.STARTUP_LIST, async () => {
+  try { return await listStartupItems(startupDeps); }
+  catch (e) { console.error('startup:list failed:', e); return []; }
+});
+
+ipcMain.handle(IPC.STARTUP_SET_ENABLED, async (_evt, id: string, enabled: boolean) => {
+  try { return await setStartupItemEnabled(startupDeps, String(id), !!enabled); }
+  catch (e) { console.error('startup:setEnabled failed:', e); return String(e); }
+});
+
 // ── Run Profiles（F1）──
 // 受控启动/停止开发服务。spawn 在 main（白名单 command + execFile 无 shell），渲染层只传 profileId/runId。
 const RUN_PROFILES_FILE = () => path.join(app.getPath('userData'), 'run-profiles.json');
@@ -501,6 +571,11 @@ ipcMain.handle(IPC.RUN_RESTART, (_evt, runId: string): { runId: string; pid: num
 ipcMain.handle(IPC.RUN_STATES, (): RunState[] => {
   try { return runManager.allStates(); }
   catch (e) { console.error('run:getStates failed:', e); return []; }
+});
+// run 日志（子项目 C）：增量读 main 侧 ring buffer，未知 runId → null
+ipcMain.handle(IPC.RUN_GET_LOGS, (_evt, runId: string, sinceSeq?: number) => {
+  try { return runManager.getLogs(runId, sinceSeq ?? 0); }
+  catch (e) { console.error('run:getLogs failed:', e); return null; }
 });
 
 // ── 插件数据源 UtilityProcess（6c）──
