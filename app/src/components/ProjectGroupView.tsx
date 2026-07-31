@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
 import { groupByProject, type ProjectGroup } from '../lib/projectGroup';
 import { sortGroups, sortGroupProcs, type GroupSortKey, type SortDir } from '../lib/groupSort';
@@ -21,6 +22,8 @@ const BATCH_SIZE = 5;
 const BATCH_DELAY_MS = 50;
 
 interface ProjectGroupViewProps {
+  /** 多选模式（main 合入）：true 时行首渲染 checkbox，点击行=切换选择；false 时点击行=聚焦。 */
+  multiSelectEnabled?: boolean;
   onKillSingle: (pid: number, name: string) => void;
   onKillGroup: (name: string, pids: number[]) => void;
   onKillTree: (pid: number, name: string) => void;
@@ -31,13 +34,14 @@ function formatMem(bytes: number): string {
   return mb >= 1000 ? mb.toFixed(0) : mb.toFixed(1);
 }
 
-/** 组头行（子项目 H3 从 GroupRow 拆出，支撑虚拟化逐行渲染）。 */
+/** 组头行（H3 从 GroupRow 拆出，支撑虚拟化逐行渲染）。 */
 const GroupHeaderRow = memo(function GroupHeaderRow({
   name,
   dir,
   procCount,
   totalMemory,
   isExpanded,
+  multiSelectEnabled,
   onToggle,
   onKillGroup,
 }: {
@@ -46,11 +50,13 @@ const GroupHeaderRow = memo(function GroupHeaderRow({
   procCount: number;
   totalMemory: number;
   isExpanded: boolean;
+  multiSelectEnabled: boolean;
   onToggle: () => void;
   onKillGroup: () => void;
 }) {
   return (
     <tr className="border-b border-base-700 bg-base-800/60 hover:bg-base-700">
+      {multiSelectEnabled && <td className="px-1 py-2" />}
       <td className="px-2 py-2">
         <button
           onClick={onToggle}
@@ -93,36 +99,75 @@ const GroupHeaderRow = memo(function GroupHeaderRow({
   );
 });
 
-/** 组内进程行（子项目 H3 从 GroupRow 拆出）。 */
+/** 组内进程行（H3 拆出 + main 多选/键盘导航融合）。 */
 const GroupProcRow = memo(function GroupProcRow({
   proc,
   cpu,
+  multiSelectEnabled,
+  isSelected,
+  isNavFocused,
+  isKeyboardEntry,
+  isFocusedGlobal,
+  onActivate,
+  onToggleSelect,
+  onRowKeyDown,
   onKillSingle,
   onContextMenuRow,
 }: {
   proc: ProcessInfo;
   cpu: number;
+  multiSelectEnabled: boolean;
+  isSelected: boolean;
+  isNavFocused: boolean;
+  isKeyboardEntry: boolean;
+  isFocusedGlobal: boolean;
+  onActivate: (pid: number) => void;
+  onToggleSelect: (pid: number) => void;
+  onRowKeyDown: (e: React.KeyboardEvent, proc: ProcessInfo) => void;
   onKillSingle: (pid: number, name: string) => void;
   onContextMenuRow: (e: React.MouseEvent, proc: ProcessInfo) => void;
 }) {
   const label = labelForProcess(proc.name, proc.cmdline);
   return (
     <tr
-      className="border-b border-base-700/30 hover:bg-base-700"
+      role="row"
+      aria-selected={multiSelectEnabled ? isSelected : undefined}
+      tabIndex={isNavFocused || isKeyboardEntry ? 0 : -1}
+      data-pid={proc.pid}
+      data-row-focused={isNavFocused ? 'true' : undefined}
+      className={`border-b border-base-700/30 hover:bg-base-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+        multiSelectEnabled && isSelected ? 'bg-base-700/50' : ''
+      } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
+      onClick={() => onActivate(proc.pid)}
+      onKeyDown={(e) => onRowKeyDown(e, proc)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
     >
-      <td className="px-2 py-1" />
+      {multiSelectEnabled && (
+        <td role="gridcell" className="px-1 py-1">
+          <input
+            type="checkbox"
+            aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
+            checked={isSelected}
+            onChange={() => onToggleSelect(proc.pid)}
+            className="accent-accent"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </td>
+      )}
       <td className="px-2 py-1">
         <div className="flex items-center gap-1" style={{ paddingLeft: 24 }}>
           <span className="text-fg-primary truncate max-w-[200px]">
             {proc.name}
           </span>
-          {label && (
-            <span className={`ml-1 rounded px-1 text-[10px] ${kindColorOf(label.kind)}`}>
-              {label.label}
-            </span>
-          )}
         </div>
+      </td>
+      <td className="px-2 py-1">
+        {label && (
+          <span className={`rounded px-1 text-[10px] ${kindColorOf(label.kind)}`}>
+            {label.label}
+          </span>
+        )}
       </td>
       <td className="px-2 py-1 text-right font-mono text-fg-primary">
         {cpu.toFixed(1)}
@@ -144,7 +189,10 @@ const GroupProcRow = memo(function GroupProcRow({
       </td>
       <td className="px-2 py-1 text-right">
         <button
-          onClick={() => onKillSingle(proc.pid, proc.name)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onKillSingle(proc.pid, proc.name);
+          }}
           className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
         >
           结束
@@ -154,7 +202,7 @@ const GroupProcRow = memo(function GroupProcRow({
   );
 });
 
-// 可排序表头列（子项目 H3）：name/cpu/memory/pid，点击切换升降序
+// 可排序表头列（H3）：name/cpu/memory/pid，点击切换升降序
 const SORTABLE_HEADERS: { key: GroupSortKey; label: string; cls: string }[] = [
   { key: 'name', label: '项目 / 名称', cls: 'px-2 py-2 font-medium' },
   { key: 'cpu', label: 'CPU%', cls: 'w-16 px-2 py-2 font-medium text-right' },
@@ -166,7 +214,7 @@ type FlatRow =
   | { type: 'group'; key: string; group: ProjectGroup; procs: ProcessInfo[] }
   | { type: 'proc'; key: string; proc: ProcessInfo };
 
-export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: ProjectGroupViewProps) {
+export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onKillGroup, onKillTree }: ProjectGroupViewProps) {
   const {
     processes,
     cpuMap,
@@ -175,6 +223,9 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     toggleGroup,
     preciseCwdByPid,
     setPreciseCwd,
+    selectedPids,
+    toggleSelect,
+    selectAll,
   } = useProcessPanelStore();
 
   // Apply the same filter as the tree view (name/cmdline/pid，额外含 cwd)。
@@ -193,12 +244,19 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
   // 分组键优先用精确 cwd（旁路缓存），缺失回退启发式
   const groups = useMemo(() => groupByProject(filtered, preciseCwdByPid), [filtered, preciseCwdByPid]);
 
-  // ── 排序（子项目 H3）：组级 name/memory；组内 name/cpu/memory/pid ──
-  const [sort, setSort] = useState<{ key: GroupSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
+  // ── 排序（H3）：默认 null 保持原序（组按大小降序、组内采集序），点表头进入排序 ──
+  const [sort, setSort] = useState<{ key: GroupSortKey; dir: SortDir } | null>(null);
   const toggleSort = useCallback((key: GroupSortKey) => {
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+    setSort((s) => {
+      if (s?.key !== key) return { key, dir: 'asc' };
+      if (s.dir === 'asc') return { key, dir: 'desc' };
+      return null; // 第三次点击回到默认原序
+    });
   }, []);
-  const sortedGroups = useMemo(() => sortGroups(groups, sort.key, sort.dir), [groups, sort]);
+  const sortedGroups = useMemo(
+    () => (sort ? sortGroups(groups, sort.key, sort.dir) : groups),
+    [groups, sort],
+  );
 
   // 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd。
   // 精确值到达后写入 store 缓存，分组重算时这些进程会从「未分组」迁到真实组。
@@ -249,7 +307,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
 
   const onToggle = useCallback((name: string) => toggleGroup(name), [toggleGroup]);
 
-  // ── 扁平化行（子项目 H3）：组头 + 已展开组的排序后进程行，供虚拟化/直接渲染共用 ──
+  // ── 扁平化行（H3）：组头 + 已展开组的排序后进程行，供虚拟化/直接渲染共用 ──
   const flatRows = useMemo<FlatRow[]>(() => {
     const out: FlatRow[] = [];
     for (const g of sortedGroups) {
@@ -257,7 +315,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
       const procs = g.pids
         .map((pid) => procByPid.get(pid))
         .filter((x): x is ProcessInfo => !!x);
-      const sortedProcs = sortGroupProcs(procs, sort.key, sort.dir, cpuMap);
+      const sortedProcs = sort ? sortGroupProcs(procs, sort.key, sort.dir, cpuMap) : procs;
       out.push({ type: 'group', key: `g:${groupKey}`, group: g, procs: sortedProcs });
       if (expandedGroups.has(groupKey)) {
         for (const p of sortedProcs) {
@@ -268,7 +326,13 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     return out;
   }, [sortedGroups, procByPid, expandedGroups, sort, cpuMap]);
 
-  // ── 虚拟滚动（子项目 H3，>100 行启用；spacer 方案与 ProcessTable 同构）──
+  // 可见进程列表（键盘导航/全选的行域，main 多选融合；顺序跟随排序后的 flatRows）
+  const visibleProcs = useMemo(
+    () => flatRows.filter((r): r is Extract<FlatRow, { type: 'proc' }> => r.type === 'proc').map((r) => r.proc),
+    [flatRows],
+  );
+
+  // ── 虚拟滚动（H3，>100 行启用；spacer 方案与 ProcessTable 同构）──
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldVirtualize = flatRows.length > 100;
   const virtualizer = useVirtualizer({
@@ -285,6 +349,98 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
   const visibleRows: FlatRow[] = shouldVirtualize
     ? virtualItems.map((vi) => flatRows[vi.index]!)
     : flatRows;
+
+  // ── 多选/键盘导航/全局聚焦（main 多选融合 + ProcessTable 虚拟化焦点滚动范式）──
+  const focusedPid = useFocusStore((s) => s.focusedPid);
+  const focus = useFocusStore((s) => s.focus);
+
+  const onActivate = useCallback((pid: number) => {
+    if (multiSelectEnabled) toggleSelect(pid);
+    focus(pid, 'process');
+  }, [multiSelectEnabled, toggleSelect, focus]);
+  const onToggleSelect = useCallback((pid: number) => toggleSelect(pid), [toggleSelect]);
+
+  const [navFocusPid, setNavFocusPid] = useState<number | null>(null);
+  const navFocusVisible = navFocusPid !== null && visibleProcs.some((proc) => proc.pid === navFocusPid);
+  const effectiveNavFocusPid = navFocusVisible ? navFocusPid : (visibleProcs[0]?.pid ?? null);
+  const visibleProcsRef = useRef(visibleProcs);
+  visibleProcsRef.current = visibleProcs;
+  const flatRowsRef = useRef(flatRows);
+  flatRowsRef.current = flatRows;
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const lastDomFocusPidRef = useRef<number | null>(null);
+
+  // 行集变化后恢复 DOM 焦点（原焦点行消失时落到 effectiveNavFocusPid）
+  useEffect(() => {
+    const previousPid = lastDomFocusPidRef.current;
+    if (previousPid == null || navFocusVisible || effectiveNavFocusPid == null) return;
+    const active = document.activeElement;
+    if (active !== document.body && !tableRef.current?.contains(active)) return;
+    tableRef.current
+      ?.querySelector<HTMLTableRowElement>(`[data-pid="${effectiveNavFocusPid}"]`)
+      ?.focus({ preventScroll: true });
+    lastDomFocusPidRef.current = effectiveNavFocusPid;
+  }, [effectiveNavFocusPid, navFocusVisible]);
+
+  // 键盘焦点变化时滚动：虚拟化用 scrollToIndex（焦点行可能未渲染），非虚拟化 scrollIntoView。
+  // 只挂在 navFocusPid 上——挂在 virtualItems 上会把用户滚动"拉回"焦点行。
+  useEffect(() => {
+    if (navFocusPid == null) return;
+    if (shouldVirtualize) {
+      const idx = flatRowsRef.current.findIndex((r) => r.type === 'proc' && r.proc.pid === navFocusPid);
+      if (idx !== -1) virtualizer.scrollToIndex(idx, { align: 'auto' });
+    } else {
+      const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [navFocusPid, shouldVirtualize, virtualizer]);
+
+  // 焦点行 DOM 挂载后 focus（roving tabindex 配套）。依赖 virtualItems：
+  // 虚拟化下 scrollToIndex 后焦点行才渲染，渲染后本 effect 重跑补上 focus。
+  useEffect(() => {
+    if (navFocusPid == null) return;
+    const el = tableRef.current?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]');
+    el?.focus({ preventScroll: true });
+  }, [navFocusPid, virtualItems]);
+
+  // 全局聚焦（C）：focusedPid 变化时滚动到该行（外部面板点击触发），与键盘焦点滚动分开
+  useEffect(() => {
+    if (focusedPid == null) return;
+    const idx = flatRowsRef.current.findIndex((r) => r.type === 'proc' && r.proc.pid === focusedPid);
+    if (idx === -1) return;
+    if (shouldVirtualize) {
+      virtualizer.scrollToIndex(idx, { align: 'auto' });
+    } else {
+      const el = tableRef.current?.querySelector<HTMLTableRowElement>(`[data-pid="${focusedPid}"]`);
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focusedPid, shouldVirtualize, virtualizer]);
+
+  const onRowKeyDown = useCallback((e: React.KeyboardEvent, proc: ProcessInfo) => {
+    const rows = visibleProcsRef.current;
+    const index = rows.findIndex((row) => row.pid === proc.pid);
+    if (index === -1) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (index < rows.length - 1) setNavFocusPid(rows[index + 1]!.pid);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (index > 0) setNavFocusPid(rows[index - 1]!.pid);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      if (rows.length > 0) setNavFocusPid(rows[0]!.pid);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      if (rows.length > 0) setNavFocusPid(rows[rows.length - 1]!.pid);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onActivate(proc.pid);
+    }
+  }, [onActivate]);
+
+  // 全选可见行（多选模式表头 checkbox）
+  const visiblePids = useMemo(() => visibleProcs.map((p) => p.pid), [visibleProcs]);
+  const allVisibleSelected = visiblePids.length > 0 && visiblePids.every((pid) => selectedPids.has(pid));
 
   // ── 右键上下文菜单（与 ProcessTable 同构，但项目视图无树信息，结束进程树按 pid>4 放行） ──
   const [menu, setMenu] = useState<{ x: number; y: number; proc: ProcessInfo } | null>(null);
@@ -304,11 +460,39 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     },
   ) : [];
 
+  const colSpan = multiSelectEnabled ? 9 : 8;
+
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-      <table className="w-full text-sm">
+      <table
+        ref={tableRef}
+        className="w-full text-sm"
+        onFocusCapture={(e) => {
+          const row = (e.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-pid]');
+          if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
+        }}
+      >
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
+            {multiSelectEnabled && (
+              <th className="w-8 px-1 py-2">
+                <input
+                  type="checkbox"
+                  aria-label="全选可见行"
+                  checked={allVisibleSelected}
+                  onChange={() => {
+                    if (allVisibleSelected) {
+                      visiblePids.forEach((pid) => {
+                        if (selectedPids.has(pid)) toggleSelect(pid);
+                      });
+                    } else {
+                      selectAll([...new Set([...selectedPids, ...visiblePids])]);
+                    }
+                  }}
+                  className="accent-accent"
+                />
+              </th>
+            )}
             {SORTABLE_HEADERS.slice(0, 1).map((h) => (
               <th key={h.key} className={h.cls}>
                 <button
@@ -317,7 +501,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
                   title={`按${h.label}排序`}
                 >
                   {h.label}
-                  {sort.key === h.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                  {sort?.key === h.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
                 </button>
               </th>
             ))}
@@ -330,7 +514,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
                   title={`按${h.label}排序`}
                 >
                   {h.label}
-                  {sort.key === h.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                  {sort?.key === h.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
                 </button>
               </th>
             ))}
@@ -342,7 +526,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
         <tbody>
           {padTop > 0 && (
             <tr data-virtual-spacer="top" aria-hidden="true">
-              <td colSpan={8} style={{ height: padTop, padding: 0, border: 'none' }} />
+              <td colSpan={colSpan} style={{ height: padTop, padding: 0, border: 'none' }} />
             </tr>
           )}
           {visibleRows.map((row) =>
@@ -354,6 +538,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
                 procCount={row.group.pids.length}
                 totalMemory={row.group.totalMemory}
                 isExpanded={expandedGroups.has(row.group.dir ?? row.group.name)}
+                multiSelectEnabled={multiSelectEnabled}
                 onToggle={() => onToggle(row.group.dir ?? row.group.name)}
                 onKillGroup={() => onKillGroup(row.group.name, row.group.pids)}
               />
@@ -362,6 +547,14 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
                 key={row.key}
                 proc={row.proc}
                 cpu={cpuMap[row.proc.pid] || 0}
+                multiSelectEnabled={multiSelectEnabled}
+                isSelected={selectedPids.has(row.proc.pid)}
+                isNavFocused={navFocusVisible && row.proc.pid === navFocusPid}
+                isKeyboardEntry={!navFocusVisible && row.proc.pid === effectiveNavFocusPid}
+                isFocusedGlobal={row.proc.pid === focusedPid}
+                onActivate={onActivate}
+                onToggleSelect={onToggleSelect}
+                onRowKeyDown={onRowKeyDown}
                 onKillSingle={onKillSingle}
                 onContextMenuRow={onContextMenuRow}
               />
@@ -369,12 +562,12 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
           )}
           {padBottom > 0 && (
             <tr data-virtual-spacer="bottom" aria-hidden="true">
-              <td colSpan={8} style={{ height: padBottom, padding: 0, border: 'none' }} />
+              <td colSpan={colSpan} style={{ height: padBottom, padding: 0, border: 'none' }} />
             </tr>
           )}
           {flatRows.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={colSpan} className="px-3 py-8 text-center text-fg-muted">
                 无进程
               </td>
             </tr>

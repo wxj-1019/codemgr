@@ -20,6 +20,7 @@ export {
   Globe,
   Inbox,
   Info,
+  ListChecks,
   LoaderCircle,
   Maximize2,
   Moon,

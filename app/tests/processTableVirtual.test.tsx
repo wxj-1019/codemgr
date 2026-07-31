@@ -1,5 +1,30 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, fireEvent, waitFor } from '@testing-library/react';
+
+const { scrollToIndexSpy, wrappedVirtualizers } = vi.hoisted(() => ({
+  scrollToIndexSpy: vi.fn(),
+  wrappedVirtualizers: new WeakSet<object>(),
+}));
+
+vi.mock('@tanstack/react-virtual', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-virtual')>();
+  return {
+    ...actual,
+    useVirtualizer: (options: Parameters<typeof actual.useVirtualizer>[0]) => {
+      const virtualizer = actual.useVirtualizer(options);
+      if (!wrappedVirtualizers.has(virtualizer)) {
+        const scrollToIndex = virtualizer.scrollToIndex.bind(virtualizer);
+        virtualizer.scrollToIndex = (index, alignOptions) => {
+          scrollToIndexSpy(index, alignOptions);
+          scrollToIndex(index, alignOptions);
+        };
+        wrappedVirtualizers.add(virtualizer);
+      }
+      return virtualizer;
+    },
+  };
+});
+
 import { ProcessTable } from '../src/components/ProcessTable';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import type { ProcessInfo } from '../electron/ipc-types';
@@ -26,6 +51,7 @@ const getRenderedRows = (container: HTMLElement) =>
 describe('ProcessTable virtualization', () => {
   beforeEach(() => {
     localStorage.clear();
+    scrollToIndexSpy.mockClear();
     useProcessPanelStore.getState().reset();
 
     // jsdom 中 offsetWidth/offsetHeight 恒为 0，virtualizer 测不到视口高度就不产出
@@ -84,7 +110,7 @@ describe('ProcessTable virtualization', () => {
   it('keyboard navigation still works in virtualized mode (roving tabindex + Enter select)', () => {
     seedProcesses(300);
     const { container } = render(
-      <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,
+      <ProcessTable multiSelectEnabled onKillSingle={() => {}} onKillTree={() => {}} />,
     );
     fireEvent.keyDown(getRenderedRows(container)[0], { key: 'ArrowDown' });
     expect(getRenderedRows(container)[1]).toHaveAttribute('data-row-focused', 'true');
@@ -116,6 +142,31 @@ describe('ProcessTable virtualization', () => {
     await waitFor(() => {
       const focused = container.querySelector('[data-row-focused="true"]');
       expect(focused!.textContent).toContain('proc1.exe');
+    });
+  });
+
+  it('scrolls to and focuses the logical fallback row when the focused row is removed off-window', async () => {
+    seedProcesses(300);
+    const { container } = render(
+      <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,
+    );
+
+    fireEvent.keyDown(getRenderedRows(container)[0], { key: 'End' });
+    await waitFor(() => {
+      expect(document.activeElement).toHaveAttribute('data-pid', '300');
+    });
+    expect(container.querySelector('[data-pid="1"]')).toBeNull();
+
+    scrollToIndexSpy.mockClear();
+    act(() => {
+      useProcessPanelStore.getState().setProcesses(flatProcs(299));
+    });
+
+    await waitFor(() => {
+      expect(scrollToIndexSpy).toHaveBeenCalledWith(0, { align: 'auto' });
+      const fallback = container.querySelector<HTMLTableRowElement>('[data-pid="1"]');
+      expect(fallback).toHaveAttribute('tabindex', '0');
+      expect(document.activeElement).toBe(fallback);
     });
   });
 });

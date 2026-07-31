@@ -13,6 +13,7 @@ import { kindColorOf } from '../lib/kindColors';
 import { copyText, openTargetOrNotify } from '../lib/shellClient';
 
 interface ProcessTableProps {
+  multiSelectEnabled?: boolean;
   onKillSingle: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
 }
@@ -87,10 +88,12 @@ interface ProcessRowProps {
   hasChildren: boolean;
   isExpanded: boolean;
   isSelected: boolean;
+  multiSelectEnabled: boolean;
   isFocused: boolean;
   isKeyboardEntry: boolean;
   isFocusedGlobal?: boolean;  // 全局聚焦高亮（C），与多选选中态视觉区分
   onToggleExpand: (pid: number) => void;
+  onActivate: (pid: number) => void;
   onToggleSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
@@ -101,8 +104,8 @@ interface ProcessRowProps {
 }
 
 const ProcessRow = memo(function ProcessRow({
-  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, isFocused, isKeyboardEntry, isFocusedGlobal,
-  onToggleExpand, onToggleSelect, onKill, onKillTree, onContextMenuRow, onRowKeyDown,
+  proc, depth, cpu, gpu, hasChildren, isExpanded, isSelected, multiSelectEnabled, isFocused, isKeyboardEntry, isFocusedGlobal,
+  onToggleExpand, onActivate, onToggleSelect, onKill, onKillTree, onContextMenuRow, onRowKeyDown,
 }: ProcessRowProps) {
   const label = labelForProcess(proc.name, proc.cmdline);
   const memMB = proc.workingSetBytes / 1048576;
@@ -114,27 +117,32 @@ const ProcessRow = memo(function ProcessRow({
     <tr
       key={proc.pid}
       role="row"
+      aria-selected={multiSelectEnabled ? isSelected : undefined}
       tabIndex={isFocused || isKeyboardEntry ? 0 : -1}
       data-row-focused={isFocused ? 'true' : undefined}
       data-pid={proc.pid}
       className={`border-b border-base-700/30 hover:bg-base-700 cursor-pointer ${
-        isSelected ? 'bg-base-700/50' : ''
+        multiSelectEnabled && isSelected ? 'bg-base-700/50' : ''
       } ${memHighlight ? 'bg-warn/10' : ''} ${
         isFocused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''
       } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
-      onClick={() => onToggleSelect(proc.pid)}
+      onClick={() => onActivate(proc.pid)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
       onKeyDown={(e) => onRowKeyDown(e, proc)}
     >
-      <td className="px-1 py-1">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => onToggleSelect(proc.pid)}
-          className="accent-accent"
-          onClick={(e) => e.stopPropagation()}
-        />
-      </td>
+      {multiSelectEnabled && (
+        <td className="px-1 py-1">
+          <input
+            type="checkbox"
+            aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
+            checked={isSelected}
+            onChange={() => onToggleSelect(proc.pid)}
+            className="accent-accent"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </td>
+      )}
       <td className="px-2 py-1">
         <div
           className="flex items-center gap-1"
@@ -225,7 +233,7 @@ const ProcessRow = memo(function ProcessRow({
   );
 });
 
-export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
+export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillTree }: ProcessTableProps) {
   const {
     processes,
     cpuMap,
@@ -237,7 +245,6 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     toggleExpand,
     toggleSelect,
     selectAll,
-    clearSelection,
   } = useProcessPanelStore();
   // v2.1 GPU 数据来自 perfStore（独立于 processPanelStore；perf 面板不可见时不更新）
   const gpuPerProcess = usePerfStore((s) => s.current?.gpu.perProcess);
@@ -255,11 +262,11 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   // 全局聚焦（C）：focusedPid 来自任意面板点击，驱动行高亮 + 滚动定位。
   const focusedPid = useFocusStore((s) => s.focusedPid);
   const focus = useFocusStore((s) => s.focus);
-  // 点击进程行：多选 + 设全局聚焦（侧栏跟随）
-  const onRowClick = useCallback((pid: number) => {
-    toggleSelect(pid);
+  // 行激活始终设全局聚焦；仅多选模式同时切换选择。
+  const onRowActivate = useCallback((pid: number) => {
+    if (multiSelectEnabled) toggleSelect(pid);
     focus(pid, 'process');
-  }, [toggleSelect, focus]);
+  }, [multiSelectEnabled, toggleSelect, focus]);
 
   // ---- Filter（谓词抽 lib/processFilter，与 ProcessPanel 导出入口共用）----
   const filtered = useMemo(() => filterProcesses(processes, filter), [processes, filter]);
@@ -347,9 +354,12 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
   // 焦点用 pid 锚定（非 index）：排序/折叠/过滤后行序会变，按 pid 定位才稳定。
   // 用 ref 持有最新 rows，让 onRowKeyDown 引用稳定（不击穿 memo）。
   const [navFocusPid, setNavFocusPid] = useState<number | null>(null);
+  const navFocusVisible = navFocusPid !== null && rows.some((row) => row.proc.pid === navFocusPid);
+  const effectiveNavFocusPid = navFocusVisible ? navFocusPid : (rows[0]?.proc.pid ?? null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const tableRef = useRef<HTMLTableElement | null>(null);
+  const lastDomFocusPidRef = useRef<number | null>(null);
 
   // ── 虚拟列表（>VIRTUALIZE_THRESHOLD 行时启用；≤阈值保持全量渲染，避免回归）──
   // hook 无条件调用（React 规则），仅渲染分支按 shouldVirtualize 切换。
@@ -362,6 +372,39 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
     overscan: 10,
   });
   const virtualItems = virtualizer.getVirtualItems();
+  const pendingFallbackFocusPidRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previousPid = lastDomFocusPidRef.current;
+    if (previousPid == null || navFocusVisible || effectiveNavFocusPid == null) return;
+    const active = document.activeElement;
+    if (active !== document.body && !tableRef.current?.contains(active)) return;
+    const fallbackRow = tableRef.current
+      ?.querySelector<HTMLTableRowElement>(`[data-pid="${effectiveNavFocusPid}"]`);
+    if (fallbackRow) {
+      fallbackRow.focus({ preventScroll: true });
+    } else if (shouldVirtualize) {
+      pendingFallbackFocusPidRef.current = effectiveNavFocusPid;
+      const idx = rowsRef.current.findIndex((row) => row.proc.pid === effectiveNavFocusPid);
+      if (idx !== -1) virtualizer.scrollToIndex(idx, { align: 'auto' });
+    }
+    lastDomFocusPidRef.current = effectiveNavFocusPid;
+  }, [effectiveNavFocusPid, navFocusVisible, shouldVirtualize, virtualizer]);
+
+  useEffect(() => {
+    const pendingPid = pendingFallbackFocusPidRef.current;
+    if (pendingPid == null) return;
+    const active = document.activeElement;
+    if (active !== document.body && !tableRef.current?.contains(active)) {
+      pendingFallbackFocusPidRef.current = null;
+      return;
+    }
+    const fallbackRow = tableRef.current
+      ?.querySelector<HTMLTableRowElement>(`[data-pid="${pendingPid}"]`);
+    if (!fallbackRow) return;
+    fallbackRow.focus({ preventScroll: true });
+    pendingFallbackFocusPidRef.current = null;
+  }, [virtualItems]);
 
   // 焦点变化时滚动：虚拟化用 virtualizer.scrollToIndex（焦点行可能未渲染，
   // scrollIntoView 找不到 DOM）；非虚拟化维持原 scrollIntoView。
@@ -415,7 +458,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       if (idx > 0) setNavFocusPid(cur[idx - 1].proc.pid);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      toggleSelect(proc.pid);
+      onRowActivate(proc.pid);
     } else if (e.key === 'Home') {
       e.preventDefault();
       setNavFocusPid(cur[0].proc.pid);
@@ -423,7 +466,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       e.preventDefault();
       setNavFocusPid(cur[cur.length - 1].proc.pid);
     }
-  }, [toggleSelect]);
+  }, [onRowActivate]);
 
   // 菜单项由共享构建器生成（与 ProjectGroupView 一致）：打开三项 → 复制三项 → kill 沉底。
   // kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）。
@@ -454,11 +497,13 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
       hasChildren={childrenParentSet.has(proc.pid)}
       isExpanded={expandedPids.has(proc.pid)}
       isSelected={selectedPids.has(proc.pid)}
-      isFocused={proc.pid === navFocusPid}
-      isKeyboardEntry={navFocusPid === null && proc.pid === rows[0]?.proc.pid}
+      multiSelectEnabled={multiSelectEnabled}
+      isFocused={navFocusVisible && proc.pid === navFocusPid}
+      isKeyboardEntry={proc.pid === effectiveNavFocusPid}
       isFocusedGlobal={proc.pid === focusedPid}
       onToggleExpand={onToggleExpand}
-      onToggleSelect={onRowClick}
+      onActivate={onRowActivate}
+      onToggleSelect={onToggleSelect}
       onKill={onKillSingle}
       onKillTree={onKillTree}
       onContextMenuRow={onContextMenuRow}
@@ -468,22 +513,37 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
 
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-      <table ref={tableRef} role="grid" className="w-full text-sm">
+      <table
+        ref={tableRef}
+        role="grid"
+        className="w-full text-sm"
+        onFocusCapture={(e) => {
+          const row = (e.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-pid]');
+          if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
+        }}
+      >
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs text-fg-muted">
           <tr>
-            <th className="w-8 px-1 py-2">
-              <input
-                type="checkbox"
-                aria-label="全选可见行"
-                checked={allSelected}
-                onChange={() =>
-                  allSelected
-                    ? clearSelection()
-                    : selectAll(rows.map((r) => r.proc.pid))
-                }
-                className="accent-accent"
-              />
-            </th>
+            {multiSelectEnabled && (
+              <th className="w-8 px-1 py-2">
+                <input
+                  type="checkbox"
+                  aria-label="全选可见行"
+                  checked={allSelected}
+                  onChange={() => {
+                    const visiblePids = rows.map((r) => r.proc.pid);
+                    if (allSelected) {
+                      visiblePids.forEach((pid) => {
+                        if (selectedPids.has(pid)) toggleSelect(pid);
+                      });
+                    } else {
+                      selectAll([...new Set([...selectedPids, ...visiblePids])]);
+                    }
+                  }}
+                  className="accent-accent"
+                />
+              </th>
+            )}
             <th
               tabIndex={0}
               role="button"
@@ -546,13 +606,13 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
             <>
               {padTop > 0 && (
                 <tr aria-hidden="true" data-virtual-spacer="top">
-                  <td colSpan={9} style={{ height: padTop, padding: 0, border: 0 }} />
+                  <td colSpan={multiSelectEnabled ? 9 : 8} style={{ height: padTop, padding: 0, border: 0 }} />
                 </tr>
               )}
               {virtualItems.map((vi) => renderRow(rows[vi.index]))}
               {padBottom > 0 && (
                 <tr aria-hidden="true" data-virtual-spacer="bottom">
-                  <td colSpan={9} style={{ height: padBottom, padding: 0, border: 0 }} />
+                  <td colSpan={multiSelectEnabled ? 9 : 8} style={{ height: padBottom, padding: 0, border: 0 }} />
                 </tr>
               )}
             </>
@@ -561,7 +621,7 @@ export function ProcessTable({ onKillSingle, onKillTree }: ProcessTableProps) {
           )}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-fg-muted">
                 无进程
               </td>
             </tr>
