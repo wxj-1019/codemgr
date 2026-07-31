@@ -8,11 +8,18 @@ import { ipc } from '../src/lib/ipc';
 vi.mock('../src/hooks/useProcessPanel', () => ({ useProcessPanel: vi.fn() }));
 vi.mock('../src/hooks/useContainerWidth', () => ({ useContainerWidth: () => 800 }));
 vi.mock('../src/lib/ipc', () => ({
-  ipc: { killByPids: vi.fn(() => Promise.resolve(1)) },
+  ipc: {
+    killByPids: vi.fn(() => Promise.resolve(1)),
+    killProcess: vi.fn(() => Promise.resolve(true)),
+    killByName: vi.fn(() => Promise.resolve(1)),
+    killTree: vi.fn(() => Promise.resolve(1)),
+  },
 }));
 vi.mock('../src/components/ProcessTable', () => ({
-  ProcessTable: ({ multiSelectEnabled }: { multiSelectEnabled?: boolean }) => (
-    <div data-testid="process-table" data-multi-select={String(!!multiSelectEnabled)} />
+  ProcessTable: ({ multiSelectEnabled, onKillSingle }: { multiSelectEnabled?: boolean; onKillSingle?: (pid: number, name: string) => void }) => (
+    <div data-testid="process-table" data-multi-select={String(!!multiSelectEnabled)}>
+      <button onClick={() => onKillSingle?.(10, 'vite.exe')}>kill-single</button>
+    </div>
   ),
 }));
 vi.mock('../src/components/ProjectGroupView', () => ({
@@ -169,5 +176,27 @@ describe('ProcessPanel multi-select mode', () => {
 
     expect(useProcessPanelStore.getState().selectedPids).toEqual(new Set([10]));
     expect(screen.getByRole('button', { name: '完成' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('批量结束确认框列出目标进程清单（UX-01）', () => {
+    render(<ProcessPanel />);
+    fireEvent.click(screen.getByRole('button', { name: '多选' }));
+    act(() => {
+      useProcessPanelStore.setState({ selectedPids: new Set([10, 20]) });
+    });
+    fireEvent.click(screen.getByRole('button', { name: '批量结束 (2)' }));
+
+    const dialog = screen.getByRole('dialog', { name: '批量结束进程' });
+    expect(dialog).toHaveTextContent('vite.exe (PID 10)');
+    expect(dialog).toHaveTextContent('python.exe (PID 20)');
+  });
+
+  it('单杀成功显示成功反馈横幅（UX-03）', async () => {
+    render(<ProcessPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'kill-single' }));
+    fireEvent.click(screen.getByRole('button', { name: '结束进程' }));
+
+    expect(await screen.findByText(/已结束 vite\.exe（PID 10）/)).toBeInTheDocument();
+    expect(vi.mocked(ipc.killProcess)).toHaveBeenCalledWith(10);
   });
 });

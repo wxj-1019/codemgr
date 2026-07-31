@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Dialog } from './ui/Dialog';
 
 interface ConfirmDialogProps {
@@ -9,6 +9,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   /** 进行中时禁用按钮，防止连点重复发起 kill。 */
   busy?: boolean;
+  /** 可选：message 下方的目标明细（如进程清单），限高滚动（UX-01）。 */
+  details?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -21,6 +23,7 @@ export function ConfirmDialog({
   open, title, message,
   confirmLabel = '确认', cancelLabel = '取消',
   busy = false,
+  details,
   onConfirm, onCancel,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -36,6 +39,11 @@ export function ConfirmDialog({
       widthClass="w-96"
       showCloseButton={false}
     >
+      {details && (
+        <div className="mb-3 max-h-36 overflow-auto whitespace-pre-line rounded-md border border-line bg-surface-overlay/60 p-2 font-mono text-[11px] leading-4 text-content-secondary">
+          {details}
+        </div>
+      )}
       <div className="flex justify-end gap-2">
         <button
           ref={cancelRef}

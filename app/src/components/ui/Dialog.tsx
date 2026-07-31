@@ -99,9 +99,9 @@ export function Dialog({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 id={titleId} className="text-base font-semibold text-fg-primary">{title}</h3>
+            <h3 id={titleId} className="text-base font-semibold text-content-primary">{title}</h3>
             {description && (
-              <p id={descId} className="mt-1 text-sm text-fg-secondary">{description}</p>
+              <p id={descId} className="mt-1 text-sm text-content-secondary">{description}</p>
             )}
           </div>
           {showCloseButton && (

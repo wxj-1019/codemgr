@@ -3,8 +3,10 @@ import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { mostCommonName } from '../lib/batchKill';
+import { formatKillTargets } from '../lib/killConfirm';
 import { formatRelativeTime } from '../lib/format';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
@@ -13,6 +15,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { PanelAlert } from './ui/PanelAlert';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Check, ListChecks, Search, Trash2, X } from './icons';
@@ -64,18 +67,26 @@ export function ProcessPanel() {
   // 任一 kill 路径进行中时禁用确认按钮，防止连点重复 TerminateProcess。
   const [killBusy, setKillBusy] = useState(false);
 
+  // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
+  const { notice, show: showNotice } = useNotice();
+
+  // 确认框目标清单：批量杀/组杀列出「到底杀谁」（UX-01）
+  const nameOf = (pid: number) => processes.find((p) => p.pid === pid)?.name ?? '';
+
   async function doKillSingle() {
     if (!pendingKill || killBusy) return;
     setKillBusy(true);
     try {
       const ok = await ipc.killProcess(pendingKill.pid);
-      setPendingKill(null);
-      if (!ok) {
-        alert('结束失败：受保护进程、权限不足或进程已退出');
+      if (ok) {
+        showNotice('success', `已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
+      } else {
+        showNotice('danger', '结束失败：受保护进程、权限不足或进程已退出');
       }
+      setPendingKill(null);
     } catch (e) {
       setPendingKill(null);
-      alert(`结束失败：${String(e)}`);
+      showNotice('danger', `结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -89,17 +100,17 @@ export function ProcessPanel() {
       const killed = await ipc.killByPids(targets);
       setBatchKillName(null);
       if (killed === 0) {
-        alert('未结束任何进程：可能均为受保护进程、权限不足或已退出');
+        showNotice('danger', '未结束任何进程：可能均为受保护进程、权限不足或已退出');
       } else if (killed < targets.length) {
         clearSelection();
-        alert(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        showNotice('warning', `已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
         clearSelection();
-        alert(`已结束 ${killed} 个进程`);
+        showNotice('success', `已结束 ${killed} 个进程`);
       }
     } catch (e) {
       setBatchKillName(null);
-      alert(`批量结束失败：${String(e)}`);
+      showNotice('danger', `批量结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -112,12 +123,15 @@ export function ProcessPanel() {
       const killed = await ipc.killByName('node.exe');
       setConfirmKillAllNode(false);
       clearSelection();
-      alert(killed === 0
-        ? '未结束任何 node.exe：可能权限不足或进程已退出'
-        : `已结束 ${killed} 个 node.exe 进程`);
+      showNotice(
+        killed === 0 ? 'danger' : 'success',
+        killed === 0
+          ? '未结束任何 node.exe：可能权限不足或进程已退出'
+          : `已结束 ${killed} 个 node.exe 进程`,
+      );
     } catch (e) {
       setConfirmKillAllNode(false);
-      alert(`结束 node.exe 失败：${String(e)}`);
+      showNotice('danger', `结束 node.exe 失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -132,15 +146,15 @@ export function ProcessPanel() {
       const killed = await ipc.killByPids(targets);
       setGroupKill(null);
       if (killed === 0) {
-        alert(`「${name}」组内未结束任何进程：可能受保护/无权限/已退出`);
+        showNotice('danger', `「${name}」组内未结束任何进程：可能受保护/无权限/已退出`);
       } else if (killed < targets.length) {
-        alert(`已结束「${name}」组内 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        showNotice('warning', `已结束「${name}」组内 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
-        alert(`已结束「${name}」组内 ${killed} 个进程`);
+        showNotice('success', `已结束「${name}」组内 ${killed} 个进程`);
       }
     } catch (e) {
       setGroupKill(null);
-      alert(`结束本组失败：${String(e)}`);
+      showNotice('danger', `结束本组失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -153,12 +167,15 @@ export function ProcessPanel() {
       const killed = await ipc.killTree(pendingKillTree.pid);
       setPendingKillTree(null);
       clearSelection();
-      alert(killed === 0
-        ? '未结束任何进程：根进程可能受保护、权限不足或已退出'
-        : `已结束进程树，共 ${killed} 个进程`);
+      showNotice(
+        killed === 0 ? 'danger' : 'success',
+        killed === 0
+          ? '未结束任何进程：根进程可能受保护、权限不足或已退出'
+          : `已结束进程树，共 ${killed} 个进程`,
+      );
     } catch (e) {
       setPendingKillTree(null);
-      alert(`结束进程树失败：${String(e)}`);
+      showNotice('danger', `结束进程树失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -271,6 +288,8 @@ export function ProcessPanel() {
         </div>
       )}
 
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
+
       {/* 加载/错误/空状态，或进程表 + 可拖宽侧栏 */}
       {showLoadState ? (
         <div className="flex flex-1 overflow-hidden">
@@ -305,13 +324,14 @@ export function ProcessPanel() {
         onCancel={() => { if (!killBusy) setPendingKill(null); }}
       />
 
-      {/* Batch-kill confirmation — targets explicit selected PIDs */}
+      {/* Batch-kill confirmation — targets explicit selected PIDs；details 列出目标清单（UX-01） */}
       <ConfirmDialog
         open={batchKillName !== null}
         title="批量结束进程"
         message={`确定结束选中的 ${selectedPids.size} 个进程吗？${
           batchKillName ? `（主要进程名：${batchKillName}）` : ''
         }`}
+        details={formatKillTargets([...selectedPids], nameOf).join('\n')}
         confirmLabel="批量结束"
         busy={killBusy}
         onConfirm={doBatchKill}
@@ -338,6 +358,7 @@ export function ProcessPanel() {
             ? `确定结束「${groupKill.name}」组内的 ${groupKill.pids.length} 个进程吗？`
             : ''
         }
+        details={groupKill ? formatKillTargets(groupKill.pids, nameOf).join('\n') : ''}
         confirmLabel="结束本组"
         busy={killBusy}
         onConfirm={doKillGroup}

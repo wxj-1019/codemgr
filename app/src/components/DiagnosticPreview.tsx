@@ -29,7 +29,7 @@ export function DiagnosticPreview({
       initialFocusRef={copyBtnRef}
       widthClass="w-full max-w-2xl"
     >
-      <pre className="max-h-[60vh] overflow-auto text-xs text-fg-secondary break-all font-mono whitespace-pre-wrap">
+      <pre className="max-h-[60vh] overflow-auto text-xs text-content-secondary break-all font-mono whitespace-pre-wrap">
         {text}
       </pre>
       <div className="mt-4 flex justify-end gap-2">
@@ -42,7 +42,7 @@ export function DiagnosticPreview({
         </button>
         <button
           onClick={onClose}
-          className="rounded border border-base-600 px-4 py-1.5 text-sm text-fg-secondary hover:bg-base-700"
+          className="rounded border border-line px-4 py-1.5 text-sm text-content-secondary hover:bg-surface-raised"
         >
           关闭
         </button>

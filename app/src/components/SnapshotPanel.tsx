@@ -2,12 +2,15 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { SnapshotEntry, SnapshotMeta, ProcessSnapshot } from '../../electron/ipc-types';
 import { useSnapshotStore } from '../store/snapshotStore';
 import { useFocusStore } from '../store/focusStore';
+import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
+import { formatKillTargets } from '../lib/killConfirm';
 import { FolderIcon, PackageIcon, Camera, RefreshCw, Trash2 } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { PanelAlert } from './ui/PanelAlert';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { StateView } from './ui/StateView';
@@ -93,6 +96,8 @@ export function SnapshotPanel() {
   const panelRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(panelRef);
   const compact = containerWidth !== null && containerWidth < 480;
+  // 操作结果反馈横幅（UX-17）：取代原生 alert，自动消失
+  const { notice, show: showNotice } = useNotice();
 
   // 挂载时拉一次列表
   useEffect(() => {
@@ -152,7 +157,7 @@ export function SnapshotPanel() {
     if (capturing) return;
     const name = nameInput.trim();
     if (!name) {
-      alert('请先输入快照名称（如「agent 开工前」）');
+      showNotice('danger', '请先输入快照名称（如「agent 开工前」）');
       return;
     }
     setCapturing(true);
@@ -160,7 +165,7 @@ export function SnapshotPanel() {
       // 拍快照时刻取当前进程（独立于面板已缓存的 currentEntries，确保是「按下按钮这一刻」的快照）
       const result = await ipc.fetchProcesses();
       if (!result.ok) {
-        alert(`取当前进程失败：${result.error.message}`);
+        showNotice('danger', `取当前进程失败：${result.error.message}`);
         return;
       }
       const entries = result.data.map(toSnapshotEntry);
@@ -170,10 +175,10 @@ export function SnapshotPanel() {
         // 拍快照后顺手刷新当前进程缓存，让 diff 立即基于最新态
         setCurrentEntries(entries);
       } else {
-        // save 内部已 setError，这里不再重复 alert
+        // save 内部已 setError，这里不再重复提示
       }
     } catch (e) {
-      alert(`拍快照失败：${String(e)}`);
+      showNotice('danger', `拍快照失败：${String(e)}`);
     } finally {
       setCapturing(false);
     }
@@ -212,17 +217,17 @@ export function SnapshotPanel() {
       setBatchKillName(null);
       clearSelection();
       if (killed === 0) {
-        alert('未结束任何进程：可能均为受保护进程、权限不足或已退出');
+        showNotice('danger', '未结束任何进程：可能均为受保护进程、权限不足或已退出');
       } else if (killed < targets.length) {
-        alert(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        showNotice('warning', `已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
-        alert(`已结束 ${killed} 个进程`);
+        showNotice('success', `已结束 ${killed} 个进程`);
       }
       // kill 后立即刷新当前进程，让 diff 反映最新态
       await refreshCurrent();
     } catch (e) {
       setBatchKillName(null);
-      alert(`批量结束失败：${String(e)}`);
+      showNotice('danger', `批量结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -252,6 +257,8 @@ export function SnapshotPanel() {
           {error || currentFetchError}
         </div>
       )}
+
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
 
       <div className={`flex min-h-0 flex-1 overflow-hidden ${compact ? 'flex-col' : ''}`}>
         {compact ? (
@@ -316,11 +323,19 @@ export function SnapshotPanel() {
         onCancel={() => { if (!loading) setPendingDeleteId(null); }}
       />
 
-      {/* 批量结束确认（照 ProcessPanel 模式：targets explicit pids） */}
+      {/* 批量结束确认（照 ProcessPanel 模式：targets explicit pids；details 列出目标，UX-01） */}
       <ConfirmDialog
         open={batchKillName !== null}
         title="批量结束进程"
         message={`确定结束新增组中选中的 ${selectedPids.size} 个进程吗？（受保护进程会被自动排除）`}
+        details={
+          diff
+            ? formatKillTargets(
+                [...selectedPids],
+                (pid) => diff.added.find((e) => e.pid === pid)?.name ?? '',
+              ).join('\n')
+            : ''
+        }
         confirmLabel="批量结束"
         busy={killBusy}
         onConfirm={doBatchKill}

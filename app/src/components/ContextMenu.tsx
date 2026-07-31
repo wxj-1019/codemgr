@@ -139,14 +139,14 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
     >
       {items.map((it, i) => (
         <div key={i}>
-          {it.dividerBefore && <hr className="my-1 border-base-700" />}
+          {it.dividerBefore && <hr className="my-1 border-line" />}
           <button
             role="menuitem"
             disabled={it.disabled}
             tabIndex={i === focusIdx ? 0 : -1}
             onClick={() => { it.onSelect(); onClose(); }}
-            className={`block w-full px-3 py-1.5 text-left disabled:cursor-not-allowed disabled:opacity-40 hover:bg-base-700 ${
-              it.danger ? 'text-danger hover:bg-danger/10' : 'text-fg-primary'
+            className={`block w-full px-3 py-1.5 text-left disabled:cursor-not-allowed disabled:opacity-40 hover:bg-surface-raised ${
+              it.danger ? 'text-danger hover:bg-danger/10' : 'text-content-primary'
             }`}
           >
             {it.label}

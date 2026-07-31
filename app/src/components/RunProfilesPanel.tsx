@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useRunProfiles, refreshProfiles } from '../hooks/useRunProfiles';
 import { useRunProfileStore } from '../store/runProfileStore';
 import { usePortRadarStore } from '../store/portRadarStore';
+import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { resolveServiceStatus, type ServiceStatus } from '../lib/devService';
 import { RunProfileEditor } from './RunProfileEditor';
+import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { PanelAlert } from './ui/PanelAlert';
 import type { RunProfile, RunState } from '../../electron/ipc-types';
 
 const STATUS_BADGE: Record<ServiceStatus['kind'], { text: string; cls: string }> = {
@@ -23,6 +26,9 @@ export function RunProfilesPanel() {
   const connections = usePortRadarStore((s) => s.connections);
   const [editing, setEditing] = useState<RunProfile | null | undefined>(undefined); // undefined=关闭, null=新建, profile=编辑
   const [busy, setBusy] = useState<string | null>(null);  // 正在操作的 profileId
+  const [pendingDelete, setPendingDelete] = useState<RunProfile | null>(null);
+  // 操作结果反馈横幅（UX-07/UX-17）：取代原生 alert，自动消失
+  const { notice, show: showNotice } = useNotice();
 
   function runOf(profileId: string) {
     return runs.find((r) => r.profileId === profileId && r.status === 'running');
@@ -39,29 +45,42 @@ export function RunProfilesPanel() {
     setBusy(profileId);
     try {
       const r = await ipc.startProfile(profileId);
-      if (!r) alert('启动失败：command 不在白名单或 cwd 无效');
-    } catch (e) { alert(`启动失败：${String(e)}`); }
+      if (!r) showNotice('danger', '启动失败：command 不在白名单或 cwd 无效');
+    } catch (e) { showNotice('danger', `启动失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
   async function stop(runId: string, profileId: string) {
     setBusy(profileId);
-    try { await ipc.stopProfile(runId); }
-    catch (e) { alert(`停止失败：${String(e)}`); }
+    try {
+      // 返回值 = killTree 实际结束的进程数；0 说明根进程受保护/已退出（UX-07）
+      const killed = await ipc.stopProfile(runId);
+      showNotice(
+        killed > 0 ? 'success' : 'danger',
+        killed > 0 ? `已停止（结束 ${killed} 个进程）` : '停止失败：未结束任何进程（可能受保护或已退出）',
+      );
+    } catch (e) { showNotice('danger', `停止失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
   async function restart(runId: string, profileId: string) {
     setBusy(profileId);
-    try { await ipc.restartProfile(runId); }
-    catch (e) { alert(`重启失败：${String(e)}`); }
+    try {
+      const r = await ipc.restartProfile(runId);
+      if (!r) showNotice('danger', '重启失败：run 不存在或配置无效');
+    } catch (e) { showNotice('danger', `重启失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
-  async function del(profileId: string) {
-    if (!confirm('确定删除此 profile？')) return;
-    await ipc.deleteRunProfile(profileId);
-    await refreshProfiles();
+  async function doDelete() {
+    if (!pendingDelete) return;
+    const profile = pendingDelete;
+    setPendingDelete(null);
+    try {
+      const ok = await ipc.deleteRunProfile(profile.id);
+      if (!ok) showNotice('danger', '删除失败：文件写入出错');
+      await refreshProfiles();
+    } catch (e) { showNotice('danger', `删除失败：${String(e)}`); }
   }
 
   return (
@@ -73,6 +92,7 @@ export function RunProfilesPanel() {
           <button onClick={() => setEditing(null)} className="rounded-md bg-accent px-2 py-1 text-xs text-on-accent hover:bg-accent-hover">新建</button>
         }
       />
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
@@ -122,7 +142,7 @@ export function RunProfilesPanel() {
                         </>
                       )}
                       <button onClick={() => setEditing(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600">编辑</button>
-                      <button onClick={() => del(p.id)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-muted hover:bg-base-600">删</button>
+                      <button onClick={() => setPendingDelete(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-muted hover:bg-base-600">删</button>
                     </div>
                   </div>
                   <div className="mt-1 font-mono text-xs text-fg-muted">{p.command} {p.args.join(' ')}</div>
@@ -134,6 +154,16 @@ export function RunProfilesPanel() {
         )}
       </div>
       {editing !== undefined && <RunProfileEditor editing={editing} onClose={() => setEditing(undefined)} />}
+
+      {/* 删除确认（UX-07/UX-17：原生 confirm → ConfirmDialog，失败有反馈） */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="删除 Run Profile"
+        message={pendingDelete ? `确定删除「${pendingDelete.name}」吗？此操作无法撤销。` : ''}
+        confirmLabel="删除配置"
+        onConfirm={doDelete}
+        onCancel={() => { if (!busy) setPendingDelete(null); }}
+      />
     </div>
   );
 }

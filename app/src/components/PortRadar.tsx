@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePortRadar } from '../hooks/usePortRadar';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
+import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { filterConnections, isListenLike } from '../lib/portFilter';
 import { PortTable } from './PortTable';
@@ -10,6 +11,7 @@ import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { PanelAlert } from './ui/PanelAlert';
 import { IconButton } from './ui/IconButton';
 import { Search, X } from './icons';
 
@@ -22,19 +24,23 @@ export function PortRadar() {
   const focus = useFocusStore((s) => s.focus);
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
+  // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
+  const { notice, show: showNotice } = useNotice();
 
   async function doKill() {
     if (!pendingKill || killBusy) return;
     setKillBusy(true);
     try {
       const ok = await ipc.killProcess(pendingKill.pid);
-      if (!ok) {
-        alert(`结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：受保护进程、权限不足或进程已退出。`);
+      if (ok) {
+        showNotice('success', `已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
+      } else {
+        showNotice('danger', `结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：受保护进程、权限不足或进程已退出。`);
       }
       setPendingKill(null);
     } catch (e) {
       setPendingKill(null);
-      alert(`结束失败：${String(e)}`);
+      showNotice('danger', `结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -92,6 +98,8 @@ export function PortRadar() {
           </IconButton>
         </div>
       )}
+
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
 
       <main className="flex min-h-0 flex-1 overflow-hidden p-2">
         {showLoadState ? (

@@ -46,7 +46,7 @@ export function SessionPanel() {
     return (
       <div className="flex h-full flex-col">
         <PanelActionBar label="AI 会话" />
-        <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-fg-muted">
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-content-muted">
           未检测到 AI 开发会话。<br />Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。
         </div>
       </div>
@@ -71,7 +71,7 @@ export function SessionPanel() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-fg-primary">{s.rootLabel}</span>
+                    <span className="text-sm font-medium text-content-primary">{s.rootLabel}</span>
                     <Badge tone="accent">{s.kind}</Badge>
                   </div>
                   <button
@@ -81,10 +81,10 @@ export function SessionPanel() {
                     停止
                   </button>
                 </div>
-                <div className="mt-1.5 flex gap-4 text-xs text-fg-muted">
+                <div className="mt-1.5 flex gap-4 text-xs text-content-muted">
                   <span>{agg.processCount} 进程</span>
-                  <span className="font-mono text-fg-secondary">CPU {agg.totalCpu.toFixed(1)}%</span>
-                  <span className="font-mono text-fg-secondary">{formatBytes(agg.totalMemory)}</span>
+                  <span className="font-mono text-content-secondary">CPU {agg.totalCpu.toFixed(1)}%</span>
+                  <span className="font-mono text-content-secondary">{formatBytes(agg.totalMemory)}</span>
                   {agg.listenPortCount > 0 && <span className="text-accent">{agg.listenPortCount} 端口</span>}
                 </div>
               </div>

@@ -20,8 +20,8 @@ export function LoadState({
         <div className="text-center">
           <div className="mb-2 text-2xl">⚠️</div>
           <p className="text-sm text-danger">加载失败</p>
-          <p className="mt-1 max-w-md text-xs text-fg-muted">{error}</p>
-          <p className="mt-2 text-xs text-fg-muted">将在下次轮询时自动重试</p>
+          <p className="mt-1 max-w-md text-xs text-content-muted">{error}</p>
+          <p className="mt-2 text-xs text-content-muted">将在下次轮询时自动重试</p>
         </div>
       </div>
     );
@@ -31,8 +31,8 @@ export function LoadState({
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
-          <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-base-600 border-t-accent" />
-          <p className="text-sm text-fg-muted">加载中…</p>
+          <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent" />
+          <p className="text-sm text-content-muted">加载中…</p>
         </div>
       </div>
     );
@@ -43,7 +43,7 @@ export function LoadState({
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
           <div className="mb-2 text-2xl opacity-40">📭</div>
-          <p className="text-sm text-fg-muted">{emptyText}</p>
+          <p className="text-sm text-content-muted">{emptyText}</p>
         </div>
       </div>
     );
