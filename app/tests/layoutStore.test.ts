@@ -6,6 +6,7 @@ import {
   limitVisiblePanels,
   openFocusedPanelRoot,
   validatePersistedRoot,
+  replacedPanelOf,
   useLayoutStore,
   type PanelId,
 } from '../src/store/layoutStore';
@@ -412,5 +413,33 @@ describe('validatePersistedRoot（UX-12 同版本损坏校验）', () => {
 
   it('null 保持 null（用户主动关掉所有面板是合法状态）', () => {
     expect(validatePersistedRoot(null)).toBeNull();
+  });
+});
+
+describe('replacedPanelOf（UX-09 满员替换检测）', () => {
+  const threeLeafRoot = {
+    direction: 'row', first: 'process', splitPercentage: 70,
+    second: { direction: 'column', first: 'port', second: 'perf', splitPercentage: 50 },
+  };
+
+  it('面板已存在 → null（幂等）', () => {
+    expect(replacedPanelOf('process', 'process', null)).toBeNull();
+  });
+
+  it('叶子未达上限 → null（插入路径不替换）', () => {
+    expect(replacedPanelOf('process', 'port', null)).toBeNull();
+    expect(replacedPanelOf(
+      { direction: 'row', first: 'process', second: 'port', splitPercentage: 70 },
+      'perf', 'port',
+    )).toBeNull();
+  });
+
+  it('达到上限时替换活跃叶', () => {
+    expect(replacedPanelOf(threeLeafRoot, 'snapshot', 'port')).toBe('port');
+  });
+
+  it('活跃叶失效（不在树中）时回退最后一个叶子', () => {
+    expect(replacedPanelOf(threeLeafRoot, 'snapshot', null)).toBe('perf');
+    expect(replacedPanelOf(threeLeafRoot, 'snapshot', 'nope' as never)).toBe('perf');
   });
 });

@@ -27,29 +27,72 @@ bool IsProtected(const std::string& name) {
   return false;
 }
 
-// Kill by explicit PID list. Skips protected names + own process. Returns actual killed count.
-size_t KillByPids(const std::vector<DWORD>& pids) {
-  size_t killed = 0;
+// KillStatus → JS 状态字符串（UX-02/04，UI 的 KillStatus 类型对齐）。
+static const char* KillStatusStr(KillStatus s) {
+  switch (s) {
+    case KillStatus::Killed: return "killed";
+    case KillStatus::Protected: return "protected";
+    case KillStatus::Denied: return "denied";
+    case KillStatus::NotFound: return "not-found";
+  }
+  return "denied";
+}
+
+// Kill by explicit PID list with per-pid outcomes (UX-02/04).
+// Skips protected names + own process; each pid reported as
+// killed / protected / denied / not-found so the UI can explain failures.
+std::vector<KillOutcome> KillByPidsDetailed(const std::vector<DWORD>& pids) {
+  std::vector<KillOutcome> outcomes;
+  outcomes.reserve(pids.size());
   DWORD selfPid = GetCurrentProcessId();
 
   // Build pid->name map once via process enumeration (reuse process_collector's CollectAllProcesses)
   std::vector<ProcessInfoRaw> procs;
   std::string err;
-  if (!CollectAllProcesses(procs, err)) return 0;
+  if (!CollectAllProcesses(procs, err)) {
+    // 采集失败（罕见）：无法判断保护/存在性，全部按 denied 报，避免误杀
+    for (DWORD pid : pids) outcomes.push_back({ pid, KillStatus::Denied });
+    return outcomes;
+  }
 
   std::unordered_map<DWORD, std::string> nameMap;
   nameMap.reserve(procs.size());
   for (const auto& p : procs) nameMap[p.pid] = p.name;
 
   for (DWORD pid : pids) {
-    if (pid == selfPid) continue;
+    if (pid == selfPid) {
+      outcomes.push_back({ pid, KillStatus::Protected });
+      continue;
+    }
     auto it = nameMap.find(pid);
-    if (it != nameMap.end() && IsProtected(it->second)) continue;
+    if (it == nameMap.end()) {
+      outcomes.push_back({ pid, KillStatus::NotFound });  // 进程已退出（或 PID 复用前的残留）
+      continue;
+    }
+    if (IsProtected(it->second)) {
+      outcomes.push_back({ pid, KillStatus::Protected });
+      continue;
+    }
     HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
     if (h) {
-      if (TerminateProcess(h, 1)) killed++;
+      if (TerminateProcess(h, 1)) {
+        outcomes.push_back({ pid, KillStatus::Killed });
+      } else {
+        outcomes.push_back({ pid, KillStatus::Denied });  // 句柄拿到但终止失败（权限边界）
+      }
       CloseHandle(h);
+    } else {
+      outcomes.push_back({ pid, KillStatus::Denied });  // 权限不足（或竞态退出）
     }
+  }
+  return outcomes;
+}
+
+// Kill by explicit PID list. Skips protected names + own process. Returns actual killed count.
+size_t KillByPids(const std::vector<DWORD>& pids) {
+  size_t killed = 0;
+  for (const auto& o : KillByPidsDetailed(pids)) {
+    if (o.status == KillStatus::Killed) killed++;
   }
   return killed;
 }
@@ -62,31 +105,12 @@ Napi::Value KillProcess(const Napi::CallbackInfo& info) {
   }
   DWORD pid = (DWORD)info[0].As<Napi::Number>().Int32Value();
 
-  // 与 killByPids / killByName / killTree 对齐：永不杀自身 + 保护名单。
-  // 单进程 kill 是端口雷达/进程表的高频入口，原先绕过了守卫。
-  if (pid == 0 || pid == GetCurrentProcessId()) {
-    return Napi::Boolean::New(env, false);
-  }
-  {
-    std::vector<ProcessInfoRaw> procs;
-    std::string err;
-    if (CollectAllProcesses(procs, err)) {
-      for (const auto& p : procs) {
-        if (p.pid == pid) {
-          if (IsProtected(p.name)) return Napi::Boolean::New(env, false);
-          break;
-        }
-      }
-    }
-  }
-
-  HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
-  if (!h) {
-    return Napi::Boolean::New(env, false);  // 失败：权限不足或进程已退出
-  }
-  BOOL ok = TerminateProcess(h, 1);
-  CloseHandle(h);
-  return Napi::Boolean::New(env, ok != 0);
+  // 与 killByPids 对齐（UX-02/04）：返回状态字符串，UI 据此区分
+  // 受保护 / 权限不足 / 已退出，不再把三种失败揉成一个 false。
+  std::vector<DWORD> pids = { pid };
+  auto outcomes = KillByPidsDetailed(pids);
+  KillStatus st = outcomes.empty() ? KillStatus::Denied : outcomes[0].status;
+  return Napi::String::New(env, KillStatusStr(st));
 }
 
 Napi::Value KillByName(const Napi::CallbackInfo& info) {
@@ -124,7 +148,7 @@ Napi::Value KillByName(const Napi::CallbackInfo& info) {
   return Napi::Number::New(env, killed);
 }
 
-// killByPids(pids: number[]) -> number : actual killed count
+// killByPids(pids: number[]) -> Array<{pid, status}> (UX-02/04: per-pid outcomes)
 Napi::Value KillByPidsJS(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if (info.Length() < 1 || !info[0].IsArray()) {
@@ -137,7 +161,15 @@ Napi::Value KillByPidsJS(const Napi::CallbackInfo& info) {
   for (uint32_t i = 0; i < arr.Length(); i++) {
     pids.push_back((DWORD)arr.Get(i).As<Napi::Number>().Int32Value());
   }
-  return Napi::Number::New(env, (double)KillByPids(pids));
+  auto outcomes = KillByPidsDetailed(pids);
+  Napi::Array result = Napi::Array::New(env, outcomes.size());
+  for (size_t i = 0; i < outcomes.size(); i++) {
+    Napi::Object o = Napi::Object::New(env);
+    o.Set("pid", Napi::Number::New(env, (double)outcomes[i].pid));
+    o.Set("status", Napi::String::New(env, KillStatusStr(outcomes[i].status)));
+    result.Set((uint32_t)i, o);
+  }
+  return result;
 }
 
 size_t KillTree(DWORD rootPid) {

@@ -23,6 +23,7 @@ export function RunProfilesPanel() {
   useRunProfiles();
   const profiles = useRunProfileStore((s) => s.profiles);
   const runs = useRunProfileStore((s) => s.runs);
+  const loadError = useRunProfileStore((s) => s.loadError);
   const connections = usePortRadarStore((s) => s.connections);
   const [editing, setEditing] = useState<RunProfile | null | undefined>(undefined); // undefined=关闭, null=新建, profile=编辑
   const [busy, setBusy] = useState<string | null>(null);  // 正在操作的 profileId
@@ -95,6 +96,7 @@ export function RunProfilesPanel() {
         }
       />
       {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
+      {loadError && <PanelAlert tone="danger">加载 Run Profiles 失败：{loadError}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">

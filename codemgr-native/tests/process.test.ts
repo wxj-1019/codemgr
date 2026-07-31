@@ -42,10 +42,9 @@ describe('killByPids guard list', () => {
     'services.exe', 'lsass.exe', 'svchost.exe', 'electron.exe', 'Idle',
   ];
 
-  it('returns a number for an empty pid list', () => {
-    const killed = native.killByPids([]);
-    expect(typeof killed).toBe('number');
-    expect(killed).toBe(0);
+  it('returns an empty outcome array for an empty pid list', () => {
+    const outcomes = native.killByPids([]);
+    expect(outcomes).toEqual([]);
   });
 
   it('never kills a protected name (svchost/system) — returns 0', () => {
@@ -56,8 +55,9 @@ describe('killByPids guard list', () => {
       .map((p) => p.pid);
     // 任何 Windows 都至少有一个 svchost.exe / services.exe
     expect(protectedPids.length).toBeGreaterThan(0);
-    const killed = native.killByPids(protectedPids);
-    expect(killed).toBe(0);
+    const outcomes = native.killByPids(protectedPids) as Array<{ status: string }>;
+    expect(outcomes.length).toBe(protectedPids.length);
+    expect(outcomes.every((o) => o.status === 'protected')).toBe(true);
   });
 });
 
@@ -83,12 +83,12 @@ describe('killProcess guard list', () => {
     // 任何 Windows 都至少有一个 svchost.exe / services.exe
     expect(protectedPid).toBeDefined();
     // 单进程 kill 必须复用保护名单（原先绕过了守卫）
-    const ok = native.killProcess(protectedPid!);
-    expect(ok).toBe(false);
+    const status = native.killProcess(protectedPid!);
+    expect(status).toBe('protected');
   });
 
   it('refuses to kill pid 0 (Idle)', () => {
-    expect(native.killProcess(0)).toBe(false);
+    expect(native.killProcess(0)).toBe('protected');
   });
 });
 

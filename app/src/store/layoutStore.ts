@@ -128,6 +128,24 @@ export function openFocusedPanelRoot(
   return replacePanelLeaf(root, targetId, panelId);
 }
 
+/**
+ * 打开面板会替换哪个叶子（UX-09：满员替换不是静默的，UI 要给提示）。
+ * 返回 null 表示幂等（面板已存在）或插入路径（未达上限，不替换）。
+ * 与 openFocusedPanelRoot 的替换分支共享同一目标选择逻辑。
+ */
+export function replacedPanelOf(
+  root: MosaicNode<PanelId> | null,
+  panelId: PanelId,
+  activeId: PanelId | null,
+): PanelId | null {
+  if (containsPanel(root, panelId)) return null;
+  const leaves = getPanelLeaves(root);
+  if (root === null || leaves.length < MAX_VISIBLE_PANELS) return null;
+  return activeId !== null && leaves.includes(activeId)
+    ? activeId
+    : leaves[leaves.length - 1];
+}
+
 /** 预设：固定树结构，由 applyPreset 写入。 */
 export const LAYOUT_PRESETS: Record<PresetId, MosaicNode<PanelId>> = {
   // classic：单面板进程占满 —— 等同旧 Tab 默认体验，渐进式过渡。

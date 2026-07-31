@@ -31,11 +31,17 @@ export function PortRadar() {
     if (!pendingKill || killBusy) return;
     setKillBusy(true);
     try {
-      const ok = await ipc.killProcess(pendingKill.pid);
-      if (ok) {
+      const status = await ipc.killProcess(pendingKill.pid);
+      if (status === 'killed') {
         showNotice('success', `已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
       } else {
-        showNotice('danger', `结束 ${pendingKill.name} (PID ${pendingKill.pid}) 失败：受保护进程、权限不足或进程已退出。`);
+        // UX-02/04：native 返回枚举，失败原因不再三合一
+        const reason = status === 'protected'
+          ? '受保护进程，无法结束'
+          : status === 'denied'
+            ? '权限不足（可能需要以管理员身份运行）'
+            : '进程已退出';
+        showNotice('danger', `结束 ${pendingKill.name}（PID ${pendingKill.pid}）失败：${reason}`);
       }
       setPendingKill(null);
     } catch (e) {
@@ -124,7 +130,7 @@ export function PortRadar() {
       <ConfirmDialog
         open={pendingKill !== null}
         title="结束进程"
-        message={`确定结束 ${pendingKill?.name}（PID ${pendingKill?.pid}）吗？该进程的所有子操作将被中断。`}
+        message={`确定结束 ${pendingKill?.name}（PID ${pendingKill?.pid}）吗？`}
         confirmLabel="结束进程"
         busy={killBusy}
         onConfirm={doKill}

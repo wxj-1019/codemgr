@@ -105,7 +105,7 @@ ipcMain.handle(IPC.KILL_PROCESS, async (_evt, pid: number) => {
     return native.killProcess(pid);
   } catch (e) {
     console.error('killProcess failed:', e);
-    return false;
+    return 'denied';
   }
 });
 
@@ -123,7 +123,8 @@ ipcMain.handle(IPC.KILL_BY_PIDS, async (_evt, pids: number[]) => {
     return native.killByPids(pids);
   } catch (e) {
     console.error('killByPids failed:', e);
-    return 0;
+    // native 异常：逐 pid 按 denied 报，不让 UI 拿不到结果
+    return pids.map((pid) => ({ pid, status: 'denied' }));
   }
 });
 

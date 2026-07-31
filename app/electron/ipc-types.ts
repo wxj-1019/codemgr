@@ -125,6 +125,15 @@ export interface RunProfile {
   expectedPorts?: number[]; // 预留 F2（端口意图），F1 不消费
 }
 
+/** kill 失败原因（UX-02/04）：UI 据此给准确反馈，不再三合一。 */
+export type KillStatus = 'killed' | 'protected' | 'denied' | 'not-found';
+
+/** kill 逐 pid 结果（UX-02/04）：批量结束可逐项说明谁失败了、为什么。 */
+export interface KillOutcome {
+  pid: number;
+  status: KillStatus;
+}
+
 /** 一个运行中的 profile 实例（main spawn 后产生）。 */
 export interface RunState {
   runId: string;
@@ -249,9 +258,11 @@ export interface PerfData {
 // preload 暴露给 window 的 API 形状
 export interface ExposedApi {
   fetchConnections(): Promise<CollectResult<NetConnection[]>>;
-  killProcess(pid: number): Promise<boolean>;
+  // kill 逐 pid 结果（UX-02/04）：killed / protected / denied / not-found，
+  // UI 据此区分失败原因（不再三合一），并可在确认框/反馈里给准确文案。
+  killProcess(pid: number): Promise<KillStatus>;
   killByName(name: string): Promise<number>;
-  killByPids(pids: number[]): Promise<number>;
+  killByPids(pids: number[]): Promise<KillOutcome[]>;
   killTree(pid: number): Promise<number>;
   // null = 读取失败：权限不足或进程已退出，UI 据此降级提示
   fetchProcessEnv(pid: number): Promise<Record<string, string> | null>;

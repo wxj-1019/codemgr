@@ -16,3 +16,31 @@ export function formatKillTargets(
   }
   return lines;
 }
+
+/** 逐 pid kill 结果计数（UX-02/04）。 */
+export interface KillSummary {
+  killed: number;
+  protected: number;
+  denied: number;
+  notFound: number;
+}
+
+export function summarizeKillOutcomes(outcomes: Array<{ status: string }>): KillSummary {
+  const s: KillSummary = { killed: 0, protected: 0, denied: 0, notFound: 0 };
+  for (const o of outcomes) {
+    if (o.status === 'killed') s.killed++;
+    else if (o.status === 'protected') s.protected++;
+    else if (o.status === 'denied') s.denied++;
+    else s.notFound++;
+  }
+  return s;
+}
+
+/** 失败原因摘要文案（UX-02/04）：只列非零失败项，如「受保护 2 · 权限不足 1」；全成功返回空串。 */
+export function formatKillFailureSummary(s: KillSummary): string {
+  const parts: string[] = [];
+  if (s.protected > 0) parts.push(`受保护 ${s.protected}`);
+  if (s.denied > 0) parts.push(`权限不足 ${s.denied}`);
+  if (s.notFound > 0) parts.push(`已退出 ${s.notFound}`);
+  return parts.join(' · ');
+}

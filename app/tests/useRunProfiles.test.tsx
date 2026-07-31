@@ -82,3 +82,30 @@ describe('runProfileStore.setRuns', () => {
     expect(useRunProfileStore.getState().runs).toEqual([RUN_B_EXITED]);
   });
 });
+
+describe('useRunProfiles 列表加载失败（UX-16b）', () => {
+  beforeEach(() => {
+    useRunProfileStore.getState().reset();
+  });
+
+  it('listRunProfiles 失败记录 loadError（不再静默吞掉）', async () => {
+    mockIpc({
+      listRunProfiles: vi.fn(() => Promise.reject(new Error('read failed'))),
+      getRunStates: vi.fn(() => Promise.resolve([])),
+    });
+    renderHook(() => useRunProfiles());
+    await act(async () => { await Promise.resolve(); });
+    expect(useRunProfileStore.getState().loadError).toContain('read failed');
+  });
+
+  it('listRunProfiles 成功清除 loadError', async () => {
+    mockIpc({
+      listRunProfiles: vi.fn(() => Promise.resolve([])),
+      getRunStates: vi.fn(() => Promise.resolve([])),
+    });
+    useRunProfileStore.setState({ loadError: 'old error' });
+    renderHook(() => useRunProfiles());
+    await act(async () => { await Promise.resolve(); });
+    expect(useRunProfileStore.getState().loadError).toBeNull();
+  });
+});

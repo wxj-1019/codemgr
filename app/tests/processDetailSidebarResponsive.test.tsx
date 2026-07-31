@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProcessInfo } from '../electron/ipc-types';
 import { ProcessDetailSidebar } from '../src/components/ProcessDetailSidebar';
 import { useFocusStore } from '../src/store/focusStore';
@@ -86,5 +86,17 @@ describe('ProcessDetailSidebar tile responsiveness', () => {
     expect(screen.getByText(/5173/)).toBeInTheDocument();
     // 非本进程的端口不出现
     expect(screen.queryByText(/8080/)).not.toBeInTheDocument();
+  });
+
+  it('复制命令行成功后按钮显示「已复制」反馈（UX-22）', async () => {
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn(() => Promise.resolve()) },
+    });
+    useFocusStore.getState().focus(processInfo.pid, 'port');
+    render(<ProcessDetailSidebar onKill={() => {}} onKillTree={() => {}} />);
+
+    fireEvent.click(screen.getByText('复制命令行'));
+    expect(await screen.findByText('已复制')).toBeInTheDocument();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('node server.js');
   });
 });

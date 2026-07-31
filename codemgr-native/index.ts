@@ -76,13 +76,22 @@ export interface NativeBindings {
   netScan(): NetConnection[];
   cpuDelta(): CpuUsage[];
   perfCounters(): PerfData;
-  killProcess(pid: number): boolean;
+  // kill 逐 pid 结果（UX-02/04）：killed / protected / denied / not-found
+  killProcess(pid: number): KillStatus;
   killByName(name: string): number;
-  killByPids(pids: number[]): number;
+  killByPids(pids: number[]): KillOutcome[];
   killTree(pid: number): number;
   readProcessEnv(pid: number): Record<string, string>;
   readProcessCwd(pid: number): string;
   diskVolumes(): DiskVolume[];
+}
+
+/** kill 失败原因（UX-02/04）：UI 据此给准确反馈，不再三合一。 */
+export type KillStatus = 'killed' | 'protected' | 'denied' | 'not-found';
+
+export interface KillOutcome {
+  pid: number;
+  status: KillStatus;
 }
 
 // 加载编译产物（index.ts 位于包根，build/ 在同级）

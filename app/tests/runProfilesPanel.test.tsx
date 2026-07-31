@@ -114,4 +114,13 @@ describe('RunProfilesPanel 操作反馈（UX-07/UX-17）', () => {
     await screen.findByText('PID 1234');
     expect(screen.queryByText('启动失败')).not.toBeInTheDocument();
   });
+
+  it('列表加载失败显示错误横幅（不再误报「尚无配置」）', async () => {
+    mockIpc({
+      listRunProfiles: vi.fn(() => Promise.reject(new Error('read failed'))),
+      getRunStates: vi.fn(() => Promise.resolve([])),
+    });
+    render(<RunProfilesPanel />);
+    expect(await screen.findByText(/加载 Run Profiles 失败/)).toBeInTheDocument();
+  });
 });

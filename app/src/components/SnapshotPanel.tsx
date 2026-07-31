@@ -5,7 +5,7 @@ import { useFocusStore } from '../store/focusStore';
 import { useLayoutStore, containsPanel } from '../store/layoutStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
-import { formatKillTargets } from '../lib/killConfirm';
+import { formatKillTargets, summarizeKillOutcomes, formatKillFailureSummary } from '../lib/killConfirm';
 import { FolderIcon, PackageIcon, Camera, RefreshCw, Trash2 } from './icons';
 import { diffSnapshots, type SnapshotDiff } from '../lib/snapshotDiff';
 import { groupByProject } from '../lib/projectGroup';
@@ -223,15 +223,16 @@ export function SnapshotPanel() {
     setKillBusy(true);
     try {
       const targets = [...selectedPids];
-      const killed = await ipc.killByPids(targets);
+      const outcomes = await ipc.killByPids(targets);
+      const s = summarizeKillOutcomes(outcomes);
       setBatchKillName(null);
       clearSelection();
-      if (killed === 0) {
-        showNotice('danger', '未结束任何进程：可能均为受保护进程、权限不足或已退出');
-      } else if (killed < targets.length) {
-        showNotice('warning', `已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+      if (s.killed === 0) {
+        showNotice('danger', `未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
+      } else if (s.killed < targets.length) {
+        showNotice('warning', `已结束 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
       } else {
-        showNotice('success', `已结束 ${killed} 个进程`);
+        showNotice('success', `已结束 ${s.killed} 个进程`);
       }
       // kill 后立即刷新当前进程，让 diff 反映最新态
       await refreshCurrent();

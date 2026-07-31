@@ -6,8 +6,9 @@ import { useProcessPanelStore } from '../store/processPanelStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { mostCommonName } from '../lib/batchKill';
-import { formatKillTargets } from '../lib/killConfirm';
+import { formatKillTargets, summarizeKillOutcomes, formatKillFailureSummary } from '../lib/killConfirm';
 import { formatRelativeTime } from '../lib/format';
+import type { KillStatus } from '../../electron/ipc-types';
 import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
 import { ProcessDetailSidebar } from './ProcessDetailSidebar';
@@ -70,6 +71,13 @@ export function ProcessPanel() {
   // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
   const { notice, show: showNotice } = useNotice();
 
+  // 单杀失败原因（UX-02/04）：native 返回枚举，UI 给准确文案，不再三合一
+  const KILL_FAILURE_TEXT: Record<Exclude<KillStatus, 'killed'>, string> = {
+    protected: '受保护进程，无法结束',
+    denied: '权限不足（可能需要以管理员身份运行）',
+    'not-found': '进程已退出',
+  };
+
   // 确认框目标清单：批量杀/组杀列出「到底杀谁」（UX-01）
   const nameOf = (pid: number) => processes.find((p) => p.pid === pid)?.name ?? '';
 
@@ -77,11 +85,11 @@ export function ProcessPanel() {
     if (!pendingKill || killBusy) return;
     setKillBusy(true);
     try {
-      const ok = await ipc.killProcess(pendingKill.pid);
-      if (ok) {
+      const status = await ipc.killProcess(pendingKill.pid);
+      if (status === 'killed') {
         showNotice('success', `已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
       } else {
-        showNotice('danger', '结束失败：受保护进程、权限不足或进程已退出');
+        showNotice('danger', `结束失败：${KILL_FAILURE_TEXT[status]}`);
       }
       setPendingKill(null);
     } catch (e) {
@@ -97,16 +105,17 @@ export function ProcessPanel() {
     setKillBusy(true);
     try {
       const targets = [...selectedPids];
-      const killed = await ipc.killByPids(targets);
+      const outcomes = await ipc.killByPids(targets);
+      const s = summarizeKillOutcomes(outcomes);
       setBatchKillName(null);
-      if (killed === 0) {
-        showNotice('danger', '未结束任何进程：可能均为受保护进程、权限不足或已退出');
-      } else if (killed < targets.length) {
+      if (s.killed === 0) {
+        showNotice('danger', `未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
+      } else if (s.killed < targets.length) {
         clearSelection();
-        showNotice('warning', `已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+        showNotice('warning', `已结束 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
       } else {
         clearSelection();
-        showNotice('success', `已结束 ${killed} 个进程`);
+        showNotice('success', `已结束 ${s.killed} 个进程`);
       }
     } catch (e) {
       setBatchKillName(null);
@@ -143,14 +152,15 @@ export function ProcessPanel() {
     try {
       const targets = groupKill.pids;
       const name = groupKill.name;
-      const killed = await ipc.killByPids(targets);
+      const outcomes = await ipc.killByPids(targets);
+      const s = summarizeKillOutcomes(outcomes);
       setGroupKill(null);
-      if (killed === 0) {
-        showNotice('danger', `「${name}」组内未结束任何进程：可能受保护/无权限/已退出`);
-      } else if (killed < targets.length) {
-        showNotice('warning', `已结束「${name}」组内 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
+      if (s.killed === 0) {
+        showNotice('danger', `「${name}」组内未结束任何进程：${formatKillFailureSummary(s) || '全部失败'}`);
+      } else if (s.killed < targets.length) {
+        showNotice('warning', `已结束「${name}」组内 ${s.killed}/${targets.length} 个进程（${formatKillFailureSummary(s)}）`);
       } else {
-        showNotice('success', `已结束「${name}」组内 ${killed} 个进程`);
+        showNotice('success', `已结束「${name}」组内 ${s.killed} 个进程`);
       }
     } catch (e) {
       setGroupKill(null);

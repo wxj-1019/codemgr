@@ -9,8 +9,8 @@ vi.mock('../src/hooks/useProcessPanel', () => ({ useProcessPanel: vi.fn() }));
 vi.mock('../src/hooks/useContainerWidth', () => ({ useContainerWidth: () => 800 }));
 vi.mock('../src/lib/ipc', () => ({
   ipc: {
-    killByPids: vi.fn(() => Promise.resolve(1)),
-    killProcess: vi.fn(() => Promise.resolve(true)),
+    killByPids: vi.fn(() => Promise.resolve([{ pid: 10, status: 'killed' }])),
+    killProcess: vi.fn(() => Promise.resolve('killed')),
     killByName: vi.fn(() => Promise.resolve(1)),
     killTree: vi.fn(() => Promise.resolve(1)),
   },
@@ -71,7 +71,7 @@ describe('ProcessPanel multi-select mode', () => {
       unobserve: vi.fn(),
     })));
     vi.spyOn(window, 'alert').mockImplementation(() => {});
-    vi.mocked(ipc.killByPids).mockResolvedValue(1);
+    vi.mocked(ipc.killByPids).mockResolvedValue([{ pid: 10, status: 'killed' }]);
     localStorage.clear();
     useProcessPanelStore.getState().reset();
     seed();
@@ -148,7 +148,7 @@ describe('ProcessPanel multi-select mode', () => {
   });
 
   it('preserves selection when batch kill ends zero processes', async () => {
-    vi.mocked(ipc.killByPids).mockResolvedValueOnce(0);
+    vi.mocked(ipc.killByPids).mockResolvedValueOnce([{ pid: 10, status: 'protected' }]);
     render(<ProcessPanel />);
     fireEvent.click(screen.getByRole('button', { name: '多选' }));
     act(() => {
@@ -163,6 +163,41 @@ describe('ProcessPanel multi-select mode', () => {
       expect(useProcessPanelStore.getState().selectedPids).toEqual(new Set([10]));
     });
     expect(screen.getByRole('button', { name: '完成' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('批量结束失败原因逐项展示（UX-04：受保护/权限不足/已退出分开说）', async () => {
+    vi.mocked(ipc.killByPids).mockResolvedValueOnce([
+      { pid: 10, status: 'killed' },
+      { pid: 20, status: 'protected' },
+      { pid: 30, status: 'denied' },
+      { pid: 40, status: 'not-found' },
+    ]);
+    render(<ProcessPanel />);
+    fireEvent.click(screen.getByRole('button', { name: '多选' }));
+    act(() => {
+      useProcessPanelStore.setState({ selectedPids: new Set([10, 20, 30, 40]) });
+    });
+    fireEvent.click(screen.getByRole('button', { name: '批量结束 (4)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '批量结束' }));
+    });
+
+    expect(await screen.findByText(/已结束 1\/4 个进程（受保护 1 · 权限不足 1 · 已退出 1）/)).toBeInTheDocument();
+  });
+
+  it('全部受保护时提示原因（UX-02 不再三合一）', async () => {
+    vi.mocked(ipc.killByPids).mockResolvedValueOnce([{ pid: 10, status: 'protected' }]);
+    render(<ProcessPanel />);
+    fireEvent.click(screen.getByRole('button', { name: '多选' }));
+    act(() => {
+      useProcessPanelStore.setState({ selectedPids: new Set([10]) });
+    });
+    fireEvent.click(screen.getByRole('button', { name: '批量结束 (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '批量结束' }));
+    });
+
+    expect(await screen.findByText(/未结束任何进程：受保护 1/)).toBeInTheDocument();
   });
 
   it('keeps selection when batch confirmation is cancelled', () => {

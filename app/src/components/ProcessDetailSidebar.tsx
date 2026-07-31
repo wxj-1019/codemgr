@@ -226,10 +226,21 @@ export function ProcessDetailSidebar({
   // UX-18：进程→端口联动——该进程监听中的端口（数据已在 portRadarStore，纯渲染）
   const listenPorts = connections.filter((c) => c.pid === proc.pid && isListenLike(c));
 
+  // UX-22：复制命令行反馈（成功/失败可见，不再静默吞掉）
+  const [copyState, setCopyState] = useState<'idle' | 'done' | 'error'>('idle');
+  const copyTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
+  }, []);
   async function copyCmd() {
     try {
       await navigator.clipboard.writeText(proc!.cmdline);
-    } catch { /* clipboard may be blocked */ }
+      setCopyState('done');
+    } catch {
+      setCopyState('error');
+    }
+    if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => setCopyState('idle'), 1500);
   }
 
   return (
@@ -244,7 +255,9 @@ export function ProcessDetailSidebar({
             <dt className="text-fg-muted">命令行</dt>
             <dd className="mt-0.5 max-h-32 overflow-auto break-all font-mono text-fg-secondary">{proc.cmdline || '—'}</dd>
             {proc.cmdline && (
-              <button onClick={copyCmd} className="mt-1 text-accent hover:underline">复制命令行</button>
+              <button onClick={copyCmd} className="mt-1 text-accent hover:underline">
+                {copyState === 'done' ? '已复制' : copyState === 'error' ? '复制失败' : '复制命令行'}
+              </button>
             )}
           </div>
           <div>

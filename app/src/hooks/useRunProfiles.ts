@@ -16,6 +16,7 @@ export function useRunProfiles() {
   const setProfiles = useRunProfileStore((s) => s.setProfiles);
   const setRuns = useRunProfileStore((s) => s.setRuns);
   const upsertRun = useRunProfileStore((s) => s.upsertRun);
+  const setLoadError = useRunProfileStore((s) => s.setLoadError);
 
   useEffect(() => {
     let disposed = false;
@@ -30,7 +31,10 @@ export function useRunProfiles() {
       for (const u of buffered) upsertRun(u);
       buffered.length = 0;
     };
-    ipc.listRunProfiles().then(setProfiles).catch(() => { /* ignore */ });
+    // UX-16b：列表加载失败不再静默吞掉（面板显示错误横幅，不误报「尚无配置」）
+    ipc.listRunProfiles()
+      .then((p) => { setProfiles(p); setLoadError(null); })
+      .catch((e) => { setLoadError(String(e)); });
     ipc.getRunStates()
       .then((states) => {
         if (disposed) return;
@@ -40,7 +44,7 @@ export function useRunProfiles() {
       // 快照拉取失败也不能丢事件：重放 buffer 后切直连（后续事件不丢）
       .catch(() => { if (!disposed) finishSync(); });
     return () => { disposed = true; unsub(); };
-  }, [setProfiles, setRuns, upsertRun]);
+  }, [setProfiles, setRuns, upsertRun, setLoadError]);
 }
 
 /** 操作后刷新 profiles（save/delete 后调）。 */

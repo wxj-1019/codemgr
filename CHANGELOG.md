@@ -54,6 +54,14 @@
 - **布局持久化同版本损坏兜底（UX-12）**：rehydrate 时校验布局树结构（未知面板 id/坏分支回退默认并留控制台线索），不再静默产出空白 tile。
 - **小修**：ContextMenu 菜单项 hover 高亮同色不可见（raised→overlay）；三处 accent 按钮白字对比度不足（text-white→text-on-accent）；`resolveServiceStatus` 对 failed 状态不再误入端口判定；测试 mockIpc 补齐全部通道防漂移。
 
+#### kill 失败原因枚举（UX-02/UX-04，2026-07-31）
+- **native 逐 pid 结果**：`killByPids` 从"结束数量"升级为 `{pid, status}` 数组，`killProcess` 从布尔升级为状态字符串——四种结果：`killed / protected / denied / not-found`（受保护 / 权限不足 / 进程已退出逐一区分，不再三合一）。`killTree` 仍返回计数（内部复用详细实现求和）。
+- **反馈文案分原因**：单杀失败显示"受保护进程，无法结束 / 权限不足（可能需要以管理员身份运行）/ 进程已退出"；批量杀按原因计数展示（如「已结束 3/5 个进程（受保护 1 · 已退出 1）」）；全部失败时明确列出原因组合。`summarizeKillOutcomes` / `formatKillFailureSummary` 纯函数。
+- **3 面板满员替换不再静默（UX-09）**：打开第 4 个面板时顶栏下横幅提示「已用 X 替换 Y（最多 3 个面板）」，`replacedPanelOf` 纯函数与布局引擎共用同一替换目标选择逻辑。
+- **Run Profiles 列表加载失败不再误报「尚无配置」（UX-16 补）**：失败显示错误横幅并记录 loadError，成功自动清除。
+- **复制命令行有反馈（UX-22 补）**：详情侧栏复制成功显示「已复制」、失败显示「复制失败」（1.5s 恢复），不再静默吞掉。
+- **单杀确认文案统一（UX-23）**：端口雷达与进程面板同一话术。
+
 ### 测试
 - app 308→433（新增 layoutStore 聚焦上限/持久化迁移、WorkspaceTopbar 聚焦操作、Mosaic 放大高度链、进程多选模式，以及工作台 Phase 1-6 回归），全过。native 49/49 全过（含 disk/gpu）。共 482 PASS。
 - **修复**：`codemgr-native/scripts/build.mjs` 的 CMake 发现逻辑——`vswhere -latest` 只取最新 VS 实例，若其无 CMake 组件（如只装 BuildTools）会失败回退 PATH。改为：最新实例无 CMake 时遍历**所有** VS 实例找第一个带 CMake 的（如本机 VS2022 BuildTools 无 CMake → 回退到 VS2019 Community）。

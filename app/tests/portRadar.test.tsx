@@ -20,7 +20,7 @@ describe('PortRadar 单杀反馈（UX-03）', () => {
         data: [{ protocol: 'tcp', localAddr: '0.0.0.0', localPort: 3000, remoteAddr: '', remotePort: 0, state: 'LISTENING', pid: 42, processName: 'node.exe' }],
         sampledAt: Date.now(),
       } as never)),
-      killProcess: vi.fn(() => Promise.resolve(true)),
+      killProcess: vi.fn(() => Promise.resolve('killed')),
     });
     render(<PortRadar />);
     fireEvent.click(screen.getByRole('button', { name: 'kill-row' }));
@@ -28,18 +28,18 @@ describe('PortRadar 单杀反馈（UX-03）', () => {
     expect(await screen.findByText(/已结束 node\.exe（PID 3000）/)).toBeInTheDocument();
   });
 
-  it('kill 失败（返 false）显示失败反馈', async () => {
+  it('kill 失败（受保护）显示明确原因（UX-02 不再三合一）', async () => {
     mockIpc({
       fetchConnections: vi.fn(() => Promise.resolve({
         ok: true as const,
         data: [],
         sampledAt: Date.now(),
       } as never)),
-      killProcess: vi.fn(() => Promise.resolve(false)),
+      killProcess: vi.fn(() => Promise.resolve('protected')),
     });
     render(<PortRadar />);
     fireEvent.click(screen.getByRole('button', { name: 'kill-row' }));
     fireEvent.click(screen.getByRole('button', { name: '结束进程' }));
-    expect(await screen.findByText(/结束 node\.exe \(PID 3000\) 失败：受保护进程/)).toBeInTheDocument();
+    expect(await screen.findByText(/受保护进程，无法结束/)).toBeInTheDocument();
   });
 });
