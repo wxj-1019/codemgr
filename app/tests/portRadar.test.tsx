@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { mockIpc } from './setup';
 import { PortRadar } from '../src/components/PortRadar';
 import { ToastHost } from '../src/components/ToastHost';
+import { __resetToastStoreForTests } from '../src/store/toastStore';
 
 vi.mock('../src/hooks/usePortRadar', () => ({ usePortRadar: vi.fn() }));
 vi.mock('../src/components/PortTable', () => ({
@@ -13,6 +14,10 @@ vi.mock('../src/components/PortTable', () => ({
     </div>
   ),
 }));
+
+beforeEach(() => {
+  __resetToastStoreForTests();
+});
 
 describe('PortRadar 单杀反馈（UX-03）', () => {
   it('kill 成功后显示成功反馈横幅', async () => {

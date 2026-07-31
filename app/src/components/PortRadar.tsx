@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { usePortRadar } from '../hooks/usePortRadar';
 import { usePortRadarStore } from '../store/portRadarStore';
 import { useFocusStore } from '../store/focusStore';
-import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { filterConnections, isListenLike } from '../lib/portFilter';
@@ -14,7 +13,6 @@ import { ContextMenu } from './ContextMenu';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
 import { PanelActionBar } from './ui/PanelActionBar';
-import { PanelAlert } from './ui/PanelAlert';
 import { IconButton } from './ui/IconButton';
 import { Download, Search, X } from './icons';
 
@@ -29,8 +27,6 @@ export function PortRadar() {
   const [killBusy, setKillBusy] = useState(false);
   // UX-19：仅监听（默认）/ 全部连接（含 ESTABLISHED 等）切换——设计文档 §3.1 承诺
   const [showAll, setShowAll] = useState(false);
-  // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
-  const { notice, show: showNotice } = useNotice();
 
   // 数据导出（子项目 E）：当前过滤视图 → CSV/JSON，main 保存对话框持路径
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
@@ -48,7 +44,7 @@ export function PortRadar() {
     try {
       const status = await ipc.killProcess(pendingKill.pid);
       if (status === 'killed') {
-        showNotice('success', `已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
+        notify.success(`已结束 ${pendingKill.name}（PID ${pendingKill.pid}）`);
       } else {
         // UX-02/04：native 返回枚举，失败原因不再三合一
         const reason = status === 'protected'
@@ -56,12 +52,12 @@ export function PortRadar() {
           : status === 'denied'
             ? '权限不足（可能需要以管理员身份运行）'
             : '进程已退出';
-        showNotice('danger', `结束 ${pendingKill.name}（PID ${pendingKill.pid}）失败：${reason}`);
+        notify.error(`结束 ${pendingKill.name}（PID ${pendingKill.pid}）失败：${reason}`);
       }
       setPendingKill(null);
     } catch (e) {
       setPendingKill(null);
-      showNotice('danger', `结束失败：${String(e)}`);
+      notify.error(`结束失败：${String(e)}`);
     } finally {
       setKillBusy(false);
     }
@@ -149,8 +145,6 @@ export function PortRadar() {
           </IconButton>
         </div>
       )}
-
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
 
       <main className="flex min-h-0 flex-1 overflow-hidden p-2">
         {showLoadState ? (
