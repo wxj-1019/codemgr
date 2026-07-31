@@ -9,6 +9,7 @@ import { matchRules, type LabelRule, type MatchField } from '../lib/labelRules';
 import { labelForProcess } from '../lib/processLabels';
 import { ipc } from '../lib/ipc';
 import { useLabelRulesStore, newRuleId, type LabelRulesSnapshot } from '../store/labelRulesStore';
+import { useToastStore } from '../store/toastStore';
 
 // Aurora v1.2：底色降到 14% 透明度，字色不变
 const KIND_COLORS: Record<string, string> = {
@@ -33,6 +34,7 @@ function badge(kind: string, label: string) {
 export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
   const { userRules, disabledDefaultIds, overrides,
     addUserRule, removeUserRule, toggleDefault, setDefaultOverride, replaceAll } = useLabelRulesStore();
+  const addToast = useToastStore((s) => s.addToast);
 
   // 新增表单草稿
   const [dLabel, setDLabel] = useState('');
@@ -124,10 +126,10 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
       };
       const ok = await ipc.exportLabelRules(snapshot);
       if (!ok) {
-        alert('导出失败或已取消');
+        addToast({ type: 'error', message: '导出失败或已取消' });
       }
     } catch (e) {
-      alert(`导出失败：${String(e)}`);
+      addToast({ type: 'error', message: `导出失败：${String(e)}` });
     } finally {
       setIoBusy(false);
     }
@@ -143,13 +145,13 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
     try {
       const snapshot = await ipc.importLabelRules();
       if (snapshot === null) {
-        alert('导入失败：文件无效或已取消');
+        addToast({ type: 'error', message: '导入失败：文件无效或已取消' });
         return;
       }
       const n = replaceAll(snapshot);
-      alert(`已导入规则（${n} 条自定义 + ${snapshot.disabledDefaultIds.length} 个默认开关变更）`);
+      addToast({ type: 'success', message: `已导入规则（${n} 条自定义 + ${snapshot.disabledDefaultIds.length} 个默认开关变更）` });
     } catch (e) {
-      alert(`导入失败：${String(e)}`);
+      addToast({ type: 'error', message: `导入失败：${String(e)}` });
     } finally {
       setIoBusy(false);
     }

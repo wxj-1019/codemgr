@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastHost } from './components/ToastHost';
 import { initializeTheme } from './store/themeStore';
 
 initializeTheme();
@@ -13,6 +14,7 @@ createRoot(rootEl).render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />
+      <ToastHost />
     </ErrorBoundary>
   </React.StrictMode>
 );
