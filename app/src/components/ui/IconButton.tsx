@@ -39,7 +39,7 @@ export function IconButton({
       data-variant={variant}
       data-size={size}
       className={cx(
-        'inline-flex shrink-0 items-center justify-center rounded-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex shrink-0 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 disabled:pointer-events-none disabled:opacity-50',
         SIZE_CLASSES[size],
         VARIANT_CLASSES[variant],
         className,

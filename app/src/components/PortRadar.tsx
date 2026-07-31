@@ -82,7 +82,7 @@ export function PortRadar() {
             <button
               onClick={() => setShowAll((v) => !v)}
               aria-pressed={showAll}
-              className={`rounded-md border px-2 py-1 text-xs ${
+              className={`rounded-lg border px-2 py-1 text-xs ${
                 showAll
                   ? 'border-accent/50 bg-accent/10 text-accent'
                   : 'border-line bg-surface-raised text-content-secondary hover:bg-surface-overlay'
@@ -99,7 +99,7 @@ export function PortRadar() {
                 placeholder="搜索端口/进程/PID/地址…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+                className="w-full max-w-48 rounded-lg border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
             </div>
           </>

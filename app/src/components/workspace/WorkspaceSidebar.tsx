@@ -184,7 +184,7 @@ export function WorkspaceSidebar({
       <div className="workspace-sidebar-footer workspace-no-drag border-t border-line p-2">
         <label className="workspace-layout-select mb-1 block">
           <span className="workspace-sidebar-label mb-1 block px-1 text-[10px] text-content-muted">布局</span>
-          <span className="workspace-layout-select-control relative block rounded-md focus-within:ring-2 focus-within:ring-focus/70">
+          <span className="workspace-layout-select-control relative block rounded-lg focus-within:ring-2 focus-within:ring-focus/70">
             <PanelTopClose className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-content-muted" aria-hidden="true" />
             <select
               aria-label="布局预设"
@@ -195,7 +195,7 @@ export function WorkspaceSidebar({
                 if (preset === null) setPendingPreset(id);
                 else onApplyPreset(id);
               }}
-              className="h-7 w-full appearance-none rounded-md border border-line bg-surface-raised pl-7 pr-2 text-[11px] text-content-secondary outline-none focus:ring-2 focus:ring-focus/70"
+              className="h-7 w-full appearance-none rounded-lg border border-line bg-surface-raised pl-7 pr-2 text-[11px] text-content-secondary outline-none focus:ring-2 focus:ring-focus/70"
             >
               {preset === null && <option value="" disabled>自定义布局</option>}
               {PRESETS.map((option) => (

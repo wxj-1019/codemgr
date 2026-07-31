@@ -48,7 +48,7 @@ export function Button({
       data-variant={variant}
       data-size={size}
       className={cx(
-        'grid w-fit shrink-0 items-center justify-center rounded-md font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas disabled:pointer-events-none disabled:opacity-50',
+        'grid w-fit shrink-0 items-center justify-center rounded-lg font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas disabled:pointer-events-none disabled:opacity-50',
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className,

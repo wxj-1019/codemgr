@@ -384,7 +384,7 @@ function CompactSnapshotControls({
           aria-label="对比快照"
           value={selectedId ?? ''}
           onChange={(event) => onSelect(event.target.value || null)}
-          className="h-7 min-w-0 flex-1 rounded-md border border-line bg-surface-overlay px-2 text-xs text-content-primary outline-none focus:ring-2 focus:ring-focus/70"
+          className="h-7 min-w-0 flex-1 rounded-lg border border-line bg-surface-overlay px-2 text-xs text-content-primary outline-none focus:ring-2 focus:ring-focus/70"
         >
           <option value="">选择快照</option>
           {snapshots.map((snapshot) => (
@@ -403,7 +403,7 @@ function CompactSnapshotControls({
           value={nameInput}
           onChange={(event) => onNameChange(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter') onCapture(); }}
-          className="h-7 min-w-0 flex-1 rounded-md border border-line bg-surface-overlay px-2 text-xs text-content-primary placeholder-content-muted outline-none focus:ring-2 focus:ring-focus/70"
+          className="h-7 min-w-0 flex-1 rounded-lg border border-line bg-surface-overlay px-2 text-xs text-content-primary placeholder-content-muted outline-none focus:ring-2 focus:ring-focus/70"
         />
         <IconButton label={capturing ? '正在拍摄快照' : '拍快照'} size="sm" variant="primary" disabled={capturing} onClick={onCapture}>
           <Camera size={14} aria-hidden="true" />
@@ -433,7 +433,7 @@ function SnapshotSidebar({
           value={nameInput}
           onChange={(event) => onNameChange(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter') onCapture(); }}
-          className="mb-2 w-full rounded-md border border-line bg-surface-overlay px-2 py-1 text-sm text-content-primary placeholder-content-muted outline-none focus:ring-2 focus:ring-focus/70"
+          className="mb-2 w-full rounded-lg border border-line bg-surface-overlay px-2 py-1 text-sm text-content-primary placeholder-content-muted outline-none focus:ring-2 focus:ring-focus/70"
         />
         <Button className="w-full" variant="primary" size="sm" busy={capturing} busyLabel="拍摄中" onClick={onCapture}>
           <Camera size={14} aria-hidden="true" />
@@ -501,7 +501,7 @@ function DiffView({
               aria-selected={tab === t.id}
               tabIndex={tab === t.id ? 0 : -1}
               onClick={() => setTab(t.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 ${
                 tab === t.id
                   ? 'bg-surface-overlay text-content-primary'
                   : 'text-content-muted hover:bg-surface-raised hover:text-content-secondary'

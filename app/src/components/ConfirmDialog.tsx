@@ -38,7 +38,7 @@ export function ConfirmDialog({
       showCloseButton={false}
     >
       {details && (
-        <div className="mb-3 max-h-36 overflow-auto whitespace-pre-line rounded-md border border-line bg-surface-overlay/60 p-2 font-mono text-[11px] leading-4 text-content-secondary">
+        <div className="mb-3 max-h-36 overflow-auto whitespace-pre-line rounded-lg border border-line bg-surface-overlay/60 p-2 font-mono text-[11px] leading-4 text-content-secondary">
           {details}
         </div>
       )}
