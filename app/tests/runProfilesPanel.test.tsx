@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { mockIpc } from './setup';
 import { RunProfilesPanel } from '../src/components/RunProfilesPanel';
 import { ToastHost } from '../src/components/ToastHost';
+import { useRunProfileStore } from '../src/store/runProfileStore';
+import { __resetToastStoreForTests } from '../src/store/toastStore';
 import type { RunProfile, RunState } from '../electron/ipc-types';
 
 const PROFILE: RunProfile = {
@@ -17,6 +19,11 @@ const RUNNING: RunState = {
   runId: 'run-r', profileId: PROFILE.id, pid: 1234,
   status: 'running', exitCode: null, startedAt: 1,
 };
+
+beforeEach(() => {
+  useRunProfileStore.getState().reset();
+  __resetToastStoreForTests();
+});
 
 describe('RunProfilesPanel 失败态展示（UX-05）', () => {
   it('run 失败时显示「启动失败」徽章并带错误信息，仍可重新启动', async () => {

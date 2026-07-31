@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { refreshProfiles, useRunProfiles } from '../hooks/useRunProfiles';
 import { useRunProfileStore } from '../store/runProfileStore';
 import { usePortRadarStore } from '../store/portRadarStore';
-import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { resolveServiceStatus, type ServiceStatus, type ServiceStatusKind } from '../lib/devService';
@@ -36,8 +35,6 @@ export function RunProfilesPanel() {
   const [editing, setEditing] = useState<RunProfile | null | undefined>(undefined); // undefined=关闭, null=新建, profile=编辑
   const [busy, setBusy] = useState<string | null>(null);  // 正在操作的 profileId
   const [pendingDelete, setPendingDelete] = useState<RunProfile | null>(null);
-  // 操作结果反馈横幅（UX-07/UX-17）：取代原生 alert，自动消失
-  const { notice, show: showNotice } = useNotice();
 
   function runOf(profileId: string) {
     return runs.find((r) => r.profileId === profileId && r.status === 'running');
@@ -78,8 +75,8 @@ export function RunProfilesPanel() {
     setBusy(profileId);
     try {
       const r = await ipc.startProfile(profileId);
-      if (!r) showNotice('danger', '启动失败：command 不在白名单或 cwd 无效');
-    } catch (e) { showNotice('danger', `启动失败：${String(e)}`); }
+      if (!r) notify.error('启动失败：command 不在白名单或 cwd 无效');
+    } catch (e) { notify.error(`启动失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
@@ -88,11 +85,10 @@ export function RunProfilesPanel() {
     try {
       // 返回值 = killTree 实际结束的进程数；0 说明根进程受保护/已退出（UX-07）
       const killed = await ipc.stopProfile(runId);
-      showNotice(
-        killed > 0 ? 'success' : 'danger',
+      (killed > 0 ? notify.success : notify.error)(
         killed > 0 ? `已停止（结束 ${killed} 个进程）` : '停止失败：未结束任何进程（可能受保护或已退出）',
       );
-    } catch (e) { showNotice('danger', `停止失败：${String(e)}`); }
+    } catch (e) { notify.error(`停止失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
@@ -100,8 +96,8 @@ export function RunProfilesPanel() {
     setBusy(profileId);
     try {
       const r = await ipc.restartProfile(runId);
-      if (!r) showNotice('danger', '重启失败：run 不存在或配置无效');
-    } catch (e) { showNotice('danger', `重启失败：${String(e)}`); }
+      if (!r) notify.error('重启失败：run 不存在或配置无效');
+    } catch (e) { notify.error(`重启失败：${String(e)}`); }
     finally { setBusy(null); }
   }
 
@@ -111,9 +107,9 @@ export function RunProfilesPanel() {
     setPendingDelete(null);
     try {
       const ok = await ipc.deleteRunProfile(profile.id);
-      if (!ok) showNotice('danger', '删除失败：文件写入出错');
+      if (!ok) notify.error('删除失败：文件写入出错');
       await refreshProfiles();
-    } catch (e) { showNotice('danger', `删除失败：${String(e)}`); }
+    } catch (e) { notify.error(`删除失败：${String(e)}`); }
   }
 
   return (
@@ -125,7 +121,6 @@ export function RunProfilesPanel() {
           <Button variant="primary" size="sm" onClick={() => setEditing(null)}>新建</Button>
         }
       />
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       {loadError && <PanelAlert tone="danger">加载 Run Profiles 失败：{loadError}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
