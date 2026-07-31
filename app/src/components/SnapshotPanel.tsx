@@ -33,7 +33,7 @@ import { useContainerWidth } from '../hooks/useContainerWidth';
 
 const TABS = [
   { id: 'added', label: '新增', color: 'text-danger', dot: 'bg-danger' },
-  { id: 'removed', label: '已退出', color: 'text-fg-muted', dot: 'bg-fg-muted' },
+  { id: 'removed', label: '已退出', color: 'text-content-muted', dot: 'bg-content-muted' },
   { id: 'changed', label: '有变化', color: 'text-warn', dot: 'bg-warn' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
@@ -520,7 +520,7 @@ function DiffView({
 
       {/* added 组多选操作条 */}
       {tab === 'added' && counts.added > 0 && (
-        <div className="flex items-center gap-2 border-b border-base-700/50 bg-base-900/30 px-3 py-1.5">
+        <div className="flex items-center gap-2 border-b border-line/50 bg-surface-canvas/30 px-3 py-1.5">
           <button
             onClick={selectAllAdded}
             className="text-xs text-accent hover:underline"
@@ -529,7 +529,7 @@ function DiffView({
           </button>
           <button
             onClick={clearSelection}
-            className="text-xs text-fg-muted hover:underline"
+            className="text-xs text-content-muted hover:underline"
           >
             清空
           </button>
@@ -586,16 +586,16 @@ function EntryGroupList({
   onLocate?: (pid: number) => void;
 }) {
   const groups = useMemo(() => groupSnapshotEntries(entries), [entries]);
-  const rowColor = mode === 'added' ? 'text-danger' : 'text-fg-muted';
+  const rowColor = mode === 'added' ? 'text-danger' : 'text-content-muted';
 
   return (
     <div className="py-1">
       {groups.map((g) => (
-        <div key={g.name + (g.dir ?? '')} className="border-b border-base-700/40">
-          <div className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-fg-secondary">
-            <span className="text-fg-muted">{g.dir ? <FolderIcon /> : <PackageIcon />}</span>
+        <div key={g.name + (g.dir ?? '')} className="border-b border-line/40">
+          <div className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-content-secondary">
+            <span className="text-content-muted">{g.dir ? <FolderIcon /> : <PackageIcon />}</span>
             <span className="truncate">{g.name}</span>
-            <span className="text-fg-muted">({g.pids.length} · {formatMem(g.totalMemory)})</span>
+            <span className="text-content-muted">({g.pids.length} · {formatMem(g.totalMemory)})</span>
           </div>
           <table className="w-full text-sm">
             <tbody>
@@ -604,7 +604,7 @@ function EntryGroupList({
                 .map((e) => {
                   const sel = selectedPids?.has(e.pid) ?? false;
                   return (
-                    <tr key={`${e.pid}:${e.createTimeMs}`} className="border-t border-base-700/20 hover:bg-base-800/40">
+                    <tr key={`${e.pid}:${e.createTimeMs}`} className="border-t border-line/20 hover:bg-surface-raised/40">
                       {mode === 'added' && toggleSelect && (
                         <td className="w-8 px-2 py-1">
                           <input
@@ -618,13 +618,13 @@ function EntryGroupList({
                       <td className={`px-2 py-1 ${rowColor} truncate max-w-[200px]`} title={e.name}>
                         {e.name}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono text-xs text-fg-secondary">
+                      <td className="px-2 py-1 text-right font-mono text-xs text-content-secondary">
                         {formatMem(e.workingSetBytes)}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono text-xs text-fg-muted">
+                      <td className="px-2 py-1 text-right font-mono text-xs text-content-muted">
                         {e.pid}
                       </td>
-                      <td className="px-2 py-1 font-mono text-xs text-fg-muted truncate max-w-[300px]" title={e.cmdline}>
+                      <td className="px-2 py-1 font-mono text-xs text-content-muted truncate max-w-[300px]" title={e.cmdline}>
                         {e.cmdline || '—'}
                       </td>
                       {mode === 'added' && (
@@ -671,14 +671,14 @@ function ChangedList({ changed }: { changed: SnapshotDiff['changed'] }) {
             if (c.before.cwd !== c.after.cwd) diffs.push({ field: 'cwd', before: c.before.cwd || '—', after: c.after.cwd || '—' });
             if (c.before.workingSetBytes !== c.after.workingSetBytes) diffs.push({ field: '内存', before: formatMem(c.before.workingSetBytes), after: formatMem(c.after.workingSetBytes) });
             return diffs.map((d, i) => (
-              <tr key={`${c.after.pid}-${d.field}-${i}`} className="border-t border-base-700/20 hover:bg-base-800/40">
+              <tr key={`${c.after.pid}-${d.field}-${i}`} className="border-t border-line/20 hover:bg-surface-raised/40">
                 {i === 0 ? (
                   <td className="px-3 py-1 align-top font-mono text-xs text-warn" rowSpan={diffs.length}>
                     {c.after.pid}
                   </td>
                 ) : null}
                 <td className="px-3 py-1 text-xs text-warn">{d.field}</td>
-                <td className="px-3 py-1 font-mono text-xs text-fg-muted">{d.before}</td>
+                <td className="px-3 py-1 font-mono text-xs text-content-muted">{d.before}</td>
                 <td className="px-3 py-1 font-mono text-xs text-warn">{d.after}</td>
               </tr>
             ));

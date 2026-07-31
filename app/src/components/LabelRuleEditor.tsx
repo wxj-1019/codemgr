@@ -17,14 +17,14 @@ const KIND_COLORS: Record<string, string> = {
   build: 'bg-purple-500/[0.14] text-purple-400',
   container: 'bg-blue-500/[0.14] text-blue-400',
   db: 'bg-amber-500/[0.14] text-amber-400',
-  system: 'bg-slate-600/[0.14] text-fg-secondary',
+  system: 'bg-slate-600/[0.14] text-content-secondary',
   ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
   'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
 };
 
 function badge(kind: string, label: string) {
   return (
-    <span className={`rounded px-1 text-[10px] ${KIND_COLORS[kind] || 'bg-slate-600/[0.14] text-fg-secondary'}`}>
+    <span className={`rounded px-1 text-[10px] ${KIND_COLORS[kind] || 'bg-slate-600/[0.14] text-content-secondary'}`}>
       {label}
     </span>
   );
@@ -172,14 +172,14 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
         className="glass-elevated flex max-h-[85vh] w-[640px] flex-col rounded-[14px] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-base-700 px-5 py-3">
-          <h3 className="text-base font-semibold text-fg-primary">标签规则</h3>
+        <div className="flex items-center justify-between border-b border-line px-5 py-3">
+          <h3 className="text-base font-semibold text-content-primary">标签规则</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={handleExport}
               disabled={ioBusy}
               title="导出规则到 JSON 文件（含自定义规则 + 默认开关/覆盖）"
-              className="rounded-lg px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg px-2 py-1 text-xs text-content-secondary hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-40"
             >
               导出
             </button>
@@ -187,17 +187,17 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
               onClick={handleImport}
               disabled={ioBusy}
               title="从 JSON 文件导入规则（替换现有规则）"
-              className="rounded-lg px-2 py-1 text-xs text-fg-secondary hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg px-2 py-1 text-xs text-content-secondary hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-40"
             >
               导入
             </button>
-            <button onClick={onClose} className="text-fg-muted hover:text-fg-primary" aria-label="关闭">✕</button>
+            <button onClick={onClose} className="text-content-muted hover:text-content-primary" aria-label="关闭">✕</button>
           </div>
         </div>
 
         <div className="flex-1 overflow-auto px-5 py-4 text-sm">
           {/* 默认规则 */}
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-fg-muted">默认规则</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-content-muted">默认规则</p>
           <div className="space-y-1">
             {DEFAULT_RULES.map((d) => {
               const disabled = disabledDefaultIds.includes(d.id);
@@ -205,12 +205,12 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
               const ovEnabled = overrides[d.id]?.enabled;
               const enabled = ovEnabled !== undefined ? ovEnabled : !disabled;
               return (
-                <div key={d.id} className="flex items-center gap-2 rounded border border-base-700 bg-base-900 px-2 py-1.5">
+                <div key={d.id} className="flex items-center gap-2 rounded border border-line bg-surface-canvas px-2 py-1.5">
                   <input type="checkbox" checked={enabled}
                     onChange={(e) => toggleDefault(d.id, e.target.checked)}
                     className="accent-accent" />
                   <span className="w-28 shrink-0">{badge(d.kind, ovLabel ?? d.label)}</span>
-                  <span className="truncate font-mono text-[11px] text-fg-muted">
+                  <span className="truncate font-mono text-[11px] text-content-muted">
                     {d.field} · {d.groups.map((g) => g.include.join('+')).join(' | ')}
                   </span>
                 </div>
@@ -221,16 +221,16 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
           {/* 用户规则 */}
           {userRules.length > 0 && (
             <>
-              <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-fg-muted">自定义规则</p>
+              <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-content-muted">自定义规则</p>
               <div className="space-y-1">
                 {userRules.map((u) => (
-                  <div key={u.id} className="flex items-center gap-2 rounded border border-base-700 bg-base-900 px-2 py-1.5">
+                  <div key={u.id} className="flex items-center gap-2 rounded border border-line bg-surface-canvas px-2 py-1.5">
                     <span className="w-28 shrink-0">{badge(u.kind, u.label)}</span>
-                    <span className="truncate font-mono text-[11px] text-fg-muted">
+                    <span className="truncate font-mono text-[11px] text-content-muted">
                       {u.field} · {u.groups.map((g) => g.include.join('+')).join(' | ')}
                     </span>
                     <button onClick={() => removeUserRule(u.id)}
-                      className="ml-auto shrink-0 text-fg-muted hover:text-danger" aria-label="删除">✕</button>
+                      className="ml-auto shrink-0 text-content-muted hover:text-danger" aria-label="删除">✕</button>
                   </div>
                 ))}
               </div>
@@ -238,42 +238,42 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
           )}
 
           {/* 新增表单 */}
-          <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-fg-muted">新增规则</p>
-          <div className="space-y-2 rounded border border-base-700 bg-base-900 p-3">
+          <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-content-muted">新增规则</p>
+          <div className="space-y-2 rounded border border-line bg-surface-canvas p-3">
             <div className="flex gap-2">
               <input value={dLabel} onChange={(e) => setDLabel(e.target.value)} placeholder="标签文本 (如 my-tool)"
-                className="w-40 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="w-40 rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent" />
               <input value={dKind} onChange={(e) => setDKind(e.target.value)} placeholder="类别 (如 dev)"
-                className="w-24 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="w-24 rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent" />
               <select value={dField} onChange={(e) => setDField(e.target.value as MatchField)}
-                className="rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent">
+                className="rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent">
                 <option value="both">both</option>
                 <option value="name">name</option>
                 <option value="cmdline">cmdline</option>
               </select>
             </div>
             <input value={dInclude} onChange={(e) => setDInclude(e.target.value)} placeholder="匹配关键字 (逗号分隔, 全部命中=AND)"
-              className="w-full rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+              className="w-full rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent" />
             <input value={dExclude} onChange={(e) => setDExclude(e.target.value)} placeholder="排除关键字 (逗号分隔, 任一命中则不匹配)"
-              className="w-full rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+              className="w-full rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent" />
             <button onClick={handleAdd} disabled={!canAdd}
-              className="rounded-lg bg-accent px-3 py-1 text-sm font-medium text-base-900 disabled:opacity-40">
+              className="rounded-lg bg-accent px-3 py-1 text-sm font-medium text-surface-canvas disabled:opacity-40">
               添加
             </button>
           </div>
 
           {/* 预览 */}
-          <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-fg-muted">实时预览</p>
-          <div className="space-y-2 rounded border border-base-700 bg-base-900 p-3">
+          <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-content-muted">实时预览</p>
+          <div className="space-y-2 rounded border border-line bg-surface-canvas p-3">
             <div className="flex gap-2">
               <input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="进程名"
-                className="w-40 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="w-40 rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent" />
               <input value={pCmd} onChange={(e) => setPCmd(e.target.value)} placeholder="命令行"
-                className="flex-1 rounded-lg border border-base-600 bg-base-900 px-2 py-1 text-sm text-fg-primary outline-none focus:border-accent" />
+                className="flex-1 rounded-lg border border-line bg-surface-canvas px-2 py-1 text-sm text-content-primary outline-none focus:border-accent" />
             </div>
-            <div className="text-xs text-fg-secondary">
-              <span className="text-fg-muted">新规则命中：</span>{draftHit ? badge(draftHit.kind, draftHit.label) : <span className="text-fg-muted">无</span>}
-              <span className="ml-4 text-fg-muted">完整命中：</span>{fullHit ? badge(fullHit.kind, fullHit.label) : <span className="text-fg-muted">无</span>}
+            <div className="text-xs text-content-secondary">
+              <span className="text-content-muted">新规则命中：</span>{draftHit ? badge(draftHit.kind, draftHit.label) : <span className="text-content-muted">无</span>}
+              <span className="ml-4 text-content-muted">完整命中：</span>{fullHit ? badge(fullHit.kind, fullHit.label) : <span className="text-content-muted">无</span>}
             </div>
           </div>
         </div>

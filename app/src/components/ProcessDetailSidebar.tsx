@@ -245,15 +245,15 @@ export function ProcessDetailSidebar({
 
   return (
     <aside className="flex h-full min-w-0 flex-col border-l border-line bg-surface-raised">
-      <div className="border-b border-base-600 px-4 py-3">
-        <h3 className="truncate text-sm font-semibold text-fg-primary" title={proc.name}>{proc.name}</h3>
-        <p className="text-xs text-fg-muted">PID {proc.pid}</p>
+      <div className="border-b border-line px-4 py-3">
+        <h3 className="truncate text-sm font-semibold text-content-primary" title={proc.name}>{proc.name}</h3>
+        <p className="text-xs text-content-muted">PID {proc.pid}</p>
       </div>
       <div className="min-w-0 flex-1 overflow-auto p-4 text-xs">
         <dl className="space-y-2">
           <div>
-            <dt className="text-fg-muted">命令行</dt>
-            <dd className="mt-0.5 max-h-32 overflow-auto break-all font-mono text-fg-secondary">{proc.cmdline || '—'}</dd>
+            <dt className="text-content-muted">命令行</dt>
+            <dd className="mt-0.5 max-h-32 overflow-auto break-all font-mono text-content-secondary">{proc.cmdline || '—'}</dd>
             {proc.cmdline && (
               <button onClick={copyCmd} className="mt-1 text-accent hover:underline">
                 {copyState === 'done' ? '已复制' : copyState === 'error' ? '复制失败' : '复制命令行'}
@@ -261,62 +261,62 @@ export function ProcessDetailSidebar({
             )}
           </div>
           <div>
-            <dt className="text-fg-muted">
+            <dt className="text-content-muted">
               工作目录
-              <span className="ml-1 text-fg-muted/70">(启发式)</span>
+              <span className="ml-1 text-content-muted/70">(启发式)</span>
             </dt>
-            <dd className="mt-0.5 break-all font-mono text-fg-secondary">{proc.cwd || '—'}</dd>
+            <dd className="mt-0.5 break-all font-mono text-content-secondary">{proc.cwd || '—'}</dd>
             <div className="mt-1">
               {cwdState === 'idle' && (
                 <button onClick={loadCwd} className="text-accent hover:underline">
                   读取精确工作目录
                 </button>
               )}
-              {cwdState === 'loading' && <span className="text-fg-muted">读取中…</span>}
+              {cwdState === 'loading' && <span className="text-content-muted">读取中…</span>}
               {cwdState === 'error' && (
-                <span className="text-fg-muted">读取失败：权限不足或进程已退出</span>
+                <span className="text-content-muted">读取失败：权限不足或进程已退出</span>
               )}
               {cwdState === 'done' && preciseCwd !== null && (
-                <dd className="break-all font-mono text-fg-secondary">
+                <dd className="break-all font-mono text-content-secondary">
                   <span className="text-accent/80">(精确)</span> {preciseCwd || '—'}
                 </dd>
               )}
             </div>
           </div>
           <div>
-            <dt className="text-fg-muted">Git</dt>
+            <dt className="text-content-muted">Git</dt>
             <dd className="mt-0.5">
               {gitState === 'idle' && (
                 <button onClick={loadGitIdentity} className="text-accent hover:underline">
                   解析 Git 身份
                 </button>
               )}
-              {gitState === 'loading' && <span className="text-fg-muted">解析中…</span>}
+              {gitState === 'loading' && <span className="text-content-muted">解析中…</span>}
               {gitState === 'error' && (
-                <span className="text-fg-muted">解析失败</span>
+                <span className="text-content-muted">解析失败</span>
               )}
               {gitState === 'done' && gitIdentity === null && (
-                <span className="text-fg-muted">非 Git 仓库</span>
+                <span className="text-content-muted">非 Git 仓库</span>
               )}
               {gitState === 'done' && gitIdentity && (
-                <div className="space-y-0.5 font-mono text-fg-secondary">
+                <div className="space-y-0.5 font-mono text-content-secondary">
                   <div>
                     {gitIdentity.detached
                       ? `detached @ ${gitIdentity.head.slice(0, 8)}`
                       : gitIdentity.branch}
                     {gitIdentity.isWorktree && (
-                      <span className="ml-1 rounded bg-base-700 px-1 text-[10px] text-fg-muted">worktree</span>
+                      <span className="ml-1 rounded bg-surface-raised px-1 text-[10px] text-content-muted">worktree</span>
                     )}
                   </div>
-                  <div className="break-all text-fg-muted text-[11px]">{gitIdentity.gitRoot}</div>
+                  <div className="break-all text-content-muted text-[11px]">{gitIdentity.gitRoot}</div>
                 </div>
               )}
             </dd>
           </div>
           <Row label="父进程 PID" value={String(proc.ppid)} mono />
           <div>
-            <dt className="text-fg-muted">监听端口</dt>
-            <dd className="mt-0.5 font-mono text-fg-secondary">
+            <dt className="text-content-muted">监听端口</dt>
+            <dd className="mt-0.5 font-mono text-content-secondary">
               {listenPorts.length === 0
                 ? '—'
                 : listenPorts.map((c) => `${c.localAddr}:${c.localPort} (${c.protocol.toUpperCase()})`).join('、')}
@@ -326,8 +326,8 @@ export function ProcessDetailSidebar({
           <Row label="累计 CPU 时间" value={formatCpuTime(cpuTotalMs)} />
           <Row label="内存" value={formatBytes(proc.workingSetBytes)} mono />
           {(procHistory[proc.pid]?.length ?? 0) > 1 && (
-            <div className="space-y-1 rounded border border-base-700 bg-base-900 p-2">
-              <p className="text-fg-muted">CPU%（近 {procHistory[proc.pid]!.length * 2}s）</p>
+            <div className="space-y-1 rounded border border-line bg-surface-canvas p-2">
+              <p className="text-content-muted">CPU%（近 {procHistory[proc.pid]!.length * 2}s）</p>
               <MiniChart
                 data={procHistory[proc.pid]!}
                 dataKey="cpu"
@@ -336,7 +336,7 @@ export function ProcessDetailSidebar({
                 formatValue={(v) => v.toFixed(1) + '%'}
                 idSuffix={`cpu-${proc.pid}`}
               />
-              <p className="pt-1 text-fg-muted">内存（近 {procHistory[proc.pid]!.length * 2}s）</p>
+              <p className="pt-1 text-content-muted">内存（近 {procHistory[proc.pid]!.length * 2}s）</p>
               <MiniChart
                 data={procHistory[proc.pid]!}
                 dataKey="mem"
@@ -349,24 +349,24 @@ export function ProcessDetailSidebar({
           <Row label="线程数" value={String(proc.threadCount)} mono />
           <Row label="句柄数" value={String(proc.handleCount)} mono />
           <div>
-            <dt className="text-fg-muted">环境变量</dt>
+            <dt className="text-content-muted">环境变量</dt>
             <dd className="mt-0.5">
               {envState === 'idle' && (
                 <button onClick={loadEnv} className="text-accent hover:underline">
                   加载环境变量
                 </button>
               )}
-              {envState === 'loading' && <span className="text-fg-muted">读取中…</span>}
+              {envState === 'loading' && <span className="text-content-muted">读取中…</span>}
               {envState === 'error' && (
-                <span className="text-fg-muted">读取失败：权限不足或进程已退出</span>
+                <span className="text-content-muted">读取失败：权限不足或进程已退出</span>
               )}
               {envState === 'done' && envVars && (
-                <div className="max-h-48 overflow-auto rounded border border-base-700 bg-base-900 p-2 font-mono text-[11px]">
+                <div className="max-h-48 overflow-auto rounded border border-line bg-surface-canvas p-2 font-mono text-[11px]">
                   {Object.keys(envVars).sort().map((k) => (
                     <div key={k} className="break-all">
                       <span className="text-accent">{k}</span>
-                      <span className="text-fg-muted">=</span>
-                      <span className="text-fg-secondary">{envVars[k]}</span>
+                      <span className="text-content-muted">=</span>
+                      <span className="text-content-secondary">{envVars[k]}</span>
                     </div>
                   ))}
                 </div>
@@ -375,11 +375,11 @@ export function ProcessDetailSidebar({
           </div>
         </dl>
       </div>
-      <div className="border-t border-base-600 p-3">
+      <div className="border-t border-line p-3">
         <button
           onClick={copyDiagnostic}
           disabled={diagState === 'loading'}
-          className="mb-2 w-full rounded border border-base-600 px-3 py-1.5 text-sm text-fg-secondary hover:bg-base-700 disabled:opacity-50"
+          className="mb-2 w-full rounded border border-line px-3 py-1.5 text-sm text-content-secondary hover:bg-surface-raised disabled:opacity-50"
         >
           {diagState === 'loading' ? '生成中…' : '复制诊断上下文'}
         </button>
@@ -409,8 +409,8 @@ export function ProcessDetailSidebar({
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-fg-muted">{label}</dt>
-      <dd className={`mt-0.5 text-fg-secondary ${mono ? 'font-mono' : ''}`}>{value}</dd>
+      <dt className="text-content-muted">{label}</dt>
+      <dd className={`mt-0.5 text-content-secondary ${mono ? 'font-mono' : ''}`}>{value}</dd>
     </div>
   );
 }
