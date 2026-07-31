@@ -18,7 +18,7 @@ export function PollIntervalSelect({
     <select
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="rounded-lg border border-base-600 bg-base-800 px-2 py-1 text-xs text-fg-primary outline-none focus:border-accent/50"
+      className="rounded-lg border border-line bg-surface-panel px-2 py-1 text-xs text-content-primary outline-none focus:border-accent/50"
       title="刷新间隔"
       aria-label="刷新间隔"
     >

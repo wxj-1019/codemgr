@@ -99,7 +99,7 @@ export function RunProfilesPanel() {
       {loadError && <PanelAlert tone="danger">加载 Run Profiles 失败：{loadError}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
+          <div className="flex h-full items-center justify-center text-center text-sm text-content-muted">
             尚无 Run Profile。点「新建」配置一个开发服务（如 pnpm dev）。
           </div>
         ) : (
@@ -109,10 +109,10 @@ export function RunProfilesPanel() {
               const failedRun = failedRunOf(p.id);
               const isBusy = busy === p.id;
               return (
-                <div key={p.id} className="rounded-lg border border-base-700 bg-base-800/60 p-3">
+                <div key={p.id} className="rounded-lg border border-line bg-surface-panel/60 p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-fg-primary">{p.name}</span>
+                      <span className="text-sm font-medium text-content-primary">{p.name}</span>
                       {run && <span className="ml-2 rounded bg-success/20 px-1 text-[10px] text-success">PID {run.pid}</span>}
                       {failedRun && (
                         <span
@@ -141,16 +141,16 @@ export function RunProfilesPanel() {
                         <button onClick={() => start(p.id)} disabled={isBusy} className="rounded bg-accent/80 px-2 py-0.5 text-xs text-on-accent hover:bg-accent disabled:opacity-50">启动</button>
                       ) : (
                         <>
-                          <button onClick={() => restart(run.runId, p.id)} disabled={isBusy} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600 disabled:opacity-50">重启</button>
+                          <button onClick={() => restart(run.runId, p.id)} disabled={isBusy} className="rounded bg-surface-raised px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-raised disabled:opacity-50">重启</button>
                           <button onClick={() => stop(run.runId, p.id)} disabled={isBusy} className="rounded border border-danger/40 bg-transparent px-2 py-0.5 text-xs text-danger hover:bg-danger hover:text-on-accent disabled:opacity-50">停止</button>
                         </>
                       )}
-                      <button onClick={() => setEditing(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-secondary hover:bg-base-600">编辑</button>
-                      <button onClick={() => setPendingDelete(p)} className="rounded bg-base-700 px-2 py-0.5 text-xs text-fg-muted hover:bg-base-600">删</button>
+                      <button onClick={() => setEditing(p)} className="rounded bg-surface-raised px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-raised">编辑</button>
+                      <button onClick={() => setPendingDelete(p)} className="rounded bg-surface-raised px-2 py-0.5 text-xs text-content-muted hover:bg-surface-raised">删</button>
                     </div>
                   </div>
-                  <div className="mt-1 font-mono text-xs text-fg-muted">{p.command} {p.args.join(' ')}</div>
-                  <div className="font-mono text-xs text-fg-muted truncate">{p.cwd}</div>
+                  <div className="mt-1 font-mono text-xs text-content-muted">{p.command} {p.args.join(' ')}</div>
+                  <div className="font-mono text-xs text-content-muted truncate">{p.cwd}</div>
                 </div>
               );
             })}

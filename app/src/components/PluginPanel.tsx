@@ -16,7 +16,7 @@ export function PluginPanel({ id }: { id: string }) {
 
   if (!entry) {
     return (
-      <div className="flex h-full items-center justify-center text-fg-muted text-sm p-4 text-center">
+      <div className="flex h-full items-center justify-center text-content-muted text-sm p-4 text-center">
         插件「{pluginId}」未在 manifest 中登记（可能已被移除）。关闭此面板即可。
       </div>
     );
@@ -106,7 +106,7 @@ export function LoadedPluginPanel({ id, entry }: { id: string; entry: PluginMani
 
   if (status === 'errored') {
     return (
-      <div className="flex h-full items-center justify-center text-fg-muted text-sm p-4 text-center">
+      <div className="flex h-full items-center justify-center text-content-muted text-sm p-4 text-center">
         插件「{entry.name}」加载失败。
       </div>
     );

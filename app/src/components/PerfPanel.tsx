@@ -13,6 +13,7 @@ import type { PerfData } from '../../electron/ipc-types';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { PanelAlert } from './ui/PanelAlert';
 import { useFocusStore } from '../store/focusStore';
 import { formatBytesPerSec, formatRelativeTime } from '../lib/format';
 
@@ -37,7 +38,7 @@ function fmtBytes(b: number): string {
 
 export function PerfPanel() {
   usePerf();
-  const { current, history, error, pollMs, setPollMs, staleAt } = usePerfStore();
+  const { current, history, error, lastErrorAt, pollMs, setPollMs, staleAt } = usePerfStore();
   const [sub, setSub] = useState<SubTab>('cpu');
 
   if (!current) {
@@ -67,6 +68,12 @@ export function PerfPanel() {
         summary={staleAt !== null ? `数据陈旧（${formatRelativeTime(staleAt)}）` : undefined}
         actions={<PollIntervalSelect value={pollMs} onChange={setPollMs} />}
       />
+      {/* UX-28：有数据后错误细节不再被吞（此前只显示「数据陈旧」）；UX-27 恢复后保留 60s */}
+      {(error || (lastErrorAt !== null && Date.now() - lastErrorAt < 60000)) && (
+        <PanelAlert tone="danger">
+          {error ? `上次刷新失败：${error}` : '上次刷新出错（已恢复）'}
+        </PanelAlert>
+      )}
       {/* 子 tab 导航（独立于 action bar，避免挤压） */}
       <div className="flex gap-1 border-b border-line px-2 py-1">
         {subTabs.map((t) => (
@@ -106,7 +113,7 @@ function CpuView({
     <div className="space-y-4">
       <div className={sectionSurface}>
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-fg-secondary">CPU 使用率</span>
+          <span className="text-sm text-content-secondary">CPU 使用率</span>
           <span className="font-mono text-3xl font-bold text-accent">
             {current.cpu.totalPercent.toFixed(1)}%
           </span>
@@ -152,20 +159,20 @@ function CpuView({
         </div>
       </div>
       <div className={sectionSurface}>
-        <div className="mb-2 text-sm text-fg-secondary">
+        <div className="mb-2 text-sm text-content-secondary">
           各核心 ({current.cpu.perCore.length} 核)
         </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {current.cpu.perCore.map((c: number, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="w-12 text-xs text-fg-muted">Core {i}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded bg-base-700">
+              <span className="w-12 text-xs text-content-muted">Core {i}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded bg-surface-raised">
                 <div
                   className="h-full bg-accent"
                   style={{ width: `${Math.min(100, c)}%` }}
                 />
               </div>
-              <span className="w-10 text-right font-mono text-xs text-fg-secondary">
+              <span className="w-10 text-right font-mono text-xs text-content-secondary">
                 {c.toFixed(0)}%
               </span>
             </div>
@@ -189,12 +196,12 @@ function MemoryView({
     <div className="space-y-4">
       <div className={sectionSurface}>
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-fg-secondary">内存使用</span>
+          <span className="text-sm text-content-secondary">内存使用</span>
           <span className="font-mono text-3xl font-bold text-accent">
             {mem.usedPercent.toFixed(0)}%
           </span>
         </div>
-        <div className="mt-2 text-sm text-fg-muted">
+        <div className="mt-2 text-sm text-content-muted">
           {fmtBytes(usedBytes)} / {fmtBytes(mem.totalBytes)}
         </div>
         <div className="mt-3 h-40">
@@ -243,8 +250,8 @@ function MemoryView({
 
 function DiskView({ current }: { current: PerfData }) {
   return (
-    <div className="rounded-lg border border-base-700 bg-base-800 p-4">
-      <div className="mb-3 text-sm text-fg-secondary">磁盘空间</div>
+    <div className="rounded-lg border border-line bg-surface-panel p-4">
+      <div className="mb-3 text-sm text-content-secondary">磁盘空间</div>
       <div className="space-y-3">
         {current.disks.map((d, i) => {
           const usedPct =
@@ -260,19 +267,19 @@ function DiskView({ current }: { current: PerfData }) {
           return (
             <div key={i}>
               <div className="mb-1 flex justify-between text-sm">
-                <span className="font-mono text-fg-primary">{d.name}</span>
-                <span className="text-fg-muted">
+                <span className="font-mono text-content-primary">{d.name}</span>
+                <span className="text-content-muted">
                   {fmtBytes(d.totalBytes - d.freeBytes)} /{' '}
                   {fmtBytes(d.totalBytes)}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded bg-base-700">
+              <div className="h-2 overflow-hidden rounded bg-surface-raised">
                 <div
                   className={`h-full ${color}`}
                   style={{ width: `${usedPct}%` }}
                 />
               </div>
-              <div className="mt-0.5 text-xs text-fg-muted">
+              <div className="mt-0.5 text-xs text-content-muted">
                 读 {formatBytesPerSec(d.readBytesPerSec)} · 写 {formatBytesPerSec(d.writeBytesPerSec)} · 活跃 {d.activePercent.toFixed(0)}%
               </div>
             </div>
@@ -288,13 +295,13 @@ function NetworkView({ current }: { current: PerfData }) {
     (n) => n.recvBytesPerSec > 0 || n.sendBytesPerSec > 0,
   );
   return (
-    <div className="rounded-lg border border-base-700 bg-base-800 p-4">
-      <div className="mb-3 text-sm text-fg-secondary">网络适配器（活跃）</div>
+    <div className="rounded-lg border border-line bg-surface-panel p-4">
+      <div className="mb-3 text-sm text-content-secondary">网络适配器（活跃）</div>
       {active.length === 0 ? (
-        <div className="text-sm text-fg-muted">无活跃网络流量</div>
+        <div className="text-sm text-content-muted">无活跃网络流量</div>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-xs uppercase text-fg-muted">
+          <thead className="text-xs uppercase text-content-muted">
             <tr>
               <th className="py-1 text-left">适配器</th>
               <th className="py-1 text-right">↓ 接收</th>
@@ -303,8 +310,8 @@ function NetworkView({ current }: { current: PerfData }) {
           </thead>
           <tbody>
             {active.map((n, i) => (
-              <tr key={i} className="border-t border-base-700/30">
-                <td className="py-1.5 font-mono text-fg-primary">{n.name}</td>
+              <tr key={i} className="border-t border-line">
+                <td className="py-1.5 font-mono text-content-primary">{n.name}</td>
                 <td className="py-1.5 text-right font-mono text-accent">
                   {fmtBytes(n.recvBytesPerSec)}/s
                 </td>
@@ -332,8 +339,8 @@ function GpuView({
   // 降级：无 GPU 计数器（虚拟机/远程桌面）
   if (!gpu.available) {
     return (
-      <div className="rounded-lg border border-base-700 bg-base-800 p-8 text-center">
-        <div className="text-sm text-fg-muted">此环境不支持 GPU 计数器（虚拟机/远程桌面/无 GPU）</div>
+      <div className="rounded-lg border border-line bg-surface-panel p-8 text-center">
+        <div className="text-sm text-content-muted">此环境不支持 GPU 计数器（虚拟机/远程桌面/无 GPU）</div>
       </div>
     );
   }
@@ -347,7 +354,7 @@ function GpuView({
     <div className="space-y-4">
       <div className={sectionSurface}>
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-fg-secondary">GPU 使用率</span>
+          <span className="text-sm text-content-secondary">GPU 使用率</span>
           <span className="font-mono text-3xl font-bold text-accent">
             {gpu.totalPercent.toFixed(1)}%
           </span>
@@ -381,21 +388,21 @@ function GpuView({
       </div>
       <div className={sectionSurface}>
         <div className="mb-1 flex justify-between text-sm">
-          <span className="text-fg-secondary">显存</span>
-          <span className="text-fg-muted">
+          <span className="text-content-secondary">显存</span>
+          <span className="text-content-muted">
             {fmtBytes(gpu.vramUsedBytes)}
             {gpu.vramBudgetBytes > 0 ? ' / ' + fmtBytes(gpu.vramBudgetBytes) : '（总量未知）'}
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded bg-base-700">
+        <div className="h-2 overflow-hidden rounded bg-surface-raised">
           <div className={`h-full ${vramColor}`} style={{ width: `${Math.min(100, vramPct)}%` }} />
         </div>
       </div>
       {top5.length > 0 && (
         <div className={sectionSurface}>
-          <div className="mb-2 text-sm text-fg-secondary">GPU 占用 Top 5（数据来自性能面板轮询）</div>
+          <div className="mb-2 text-sm text-content-secondary">GPU 占用 Top 5（数据来自性能面板轮询）</div>
           <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-fg-muted">
+            <thead className="text-xs uppercase text-content-muted">
               <tr>
                 <th className="py-1 text-left">PID</th>
                 <th className="py-1 text-right">GPU%</th>
@@ -407,12 +414,12 @@ function GpuView({
                 <tr
                   key={p.pid}
                   onClick={() => focus(p.pid, 'perf')}
-                  className="cursor-pointer border-t border-base-700/30 hover:bg-base-700/30"
+                  className="cursor-pointer border-t border-line hover:bg-surface-raised/30"
                   title="点击在进程表定位此进程"
                 >
-                  <td className="py-1.5 font-mono text-fg-primary">{p.pid}</td>
+                  <td className="py-1.5 font-mono text-content-primary">{p.pid}</td>
                   <td className="py-1.5 text-right font-mono text-accent">{p.gpuPercent.toFixed(1)}%</td>
-                  <td className="py-1.5 text-right font-mono text-fg-secondary">{fmtBytes(p.vramBytes)}</td>
+                  <td className="py-1.5 text-right font-mono text-content-secondary">{fmtBytes(p.vramBytes)}</td>
                 </tr>
               ))}
             </tbody>
@@ -422,7 +429,7 @@ function GpuView({
       {/* v2.x 多适配器明细（核显+独显分卡；仅 >1 时显示，单卡时上层总览已够） */}
       {gpu.adapters.length > 1 && (
         <div className={sectionSurface}>
-          <div className="mb-3 text-sm text-fg-secondary">适配器明细</div>
+          <div className="mb-3 text-sm text-content-secondary">适配器明细</div>
           <div className="space-y-3">
             {gpu.adapters.map((a, i) => {
               const pct = a.vramBudgetBytes > 0 ? (a.vramUsedBytes / a.vramBudgetBytes) * 100 : 0;
@@ -430,13 +437,13 @@ function GpuView({
               return (
                 <div key={i}>
                   <div className="mb-1 flex justify-between text-sm">
-                    <span className="font-mono text-fg-primary">{a.name}</span>
-                    <span className="text-fg-muted">
+                    <span className="font-mono text-content-primary">{a.name}</span>
+                    <span className="text-content-muted">
                       {a.totalPercent.toFixed(0)}% · {fmtBytes(a.vramUsedBytes)}
                       {a.vramBudgetBytes > 0 ? ' / ' + fmtBytes(a.vramBudgetBytes) : ''}
                     </span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded bg-base-700">
+                  <div className="h-1.5 overflow-hidden rounded bg-surface-raised">
                     <div className={`h-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
                   </div>
                 </div>

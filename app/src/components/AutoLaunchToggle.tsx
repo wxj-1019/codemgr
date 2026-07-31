@@ -34,7 +34,7 @@ export function AutoLaunchToggle() {
       onClick={toggle}
       disabled={busy}
       className={`px-3 py-2 text-sm transition-colors ${
-        enabled ? 'text-accent' : 'text-fg-secondary hover:text-fg-primary'
+        enabled ? 'text-accent' : 'text-content-secondary hover:text-content-primary'
       }`}
       role="switch"
       aria-checked={enabled}

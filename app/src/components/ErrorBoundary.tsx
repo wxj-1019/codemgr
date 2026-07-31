@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="max-w-md text-center">
             <div className="mb-2 text-2xl">⚠️</div>
             <p className="text-sm text-danger">界面渲染出错</p>
-            <p className="mt-2 break-all font-mono text-xs text-fg-muted">
+            <p className="mt-2 break-all font-mono text-xs text-content-muted">
               {this.state.error.message}
             </p>
             <div className="mt-4 flex justify-center gap-2">
@@ -55,7 +55,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="rounded-lg border border-base-600 px-3 py-1.5 text-sm text-fg-primary hover:bg-base-700"
+                className="rounded-lg border border-line px-3 py-1.5 text-sm text-content-primary hover:bg-surface-raised"
               >
                 刷新页面
               </button>

@@ -3,6 +3,7 @@ import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { useProcessPanel } from '../hooks/useProcessPanel';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { useFocusStore } from '../store/focusStore';
 import { useNotice } from '../hooks/useNotice';
 import { ipc } from '../lib/ipc';
 import { mostCommonName } from '../lib/batchKill';
@@ -14,6 +15,7 @@ import { ProjectGroupView } from './ProjectGroupView';
 import { ProcessDetailSidebar } from './ProcessDetailSidebar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
+import { Dialog } from './ui/Dialog';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { PanelAlert } from './ui/PanelAlert';
@@ -32,12 +34,16 @@ export function ProcessPanel() {
   const showSidebar = containerWidth !== null && containerWidth >= 720;
 
   const {
-    processes, loading, error, selectedPids, filter, setFilter, clearSelection,
+    processes, loading, error, lastErrorAt, selectedPids, filter, setFilter, clearSelection,
     viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
     pollMs, setPollMs, staleAt,
   } = useProcessPanelStore();
 
   const [multiSelectEnabled, setMultiSelectEnabled] = useState(false);
+
+  // UX-10：窄 tile（<720px）侧栏整块消失——详情以对话框形式仍可达
+  const focusedPid = useFocusStore((s) => s.focusedPid);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const [pendingKill, setPendingKill] = useState<{
     pid: number;
@@ -207,7 +213,9 @@ export function ProcessPanel() {
   // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
   const hasData = processes.length > 0;
   const isFirstLoad = processes.length === 0 && !error;
-  const showErrorBanner = !!error && hasData;
+  // UX-27：错误恢复后横幅保留 60s（单次短暂失败不至于一闪而过）
+  const recentError = lastErrorAt !== null && Date.now() - lastErrorAt < 60000;
+  const showErrorBanner = (!!error || recentError) && hasData;
   const showLoadState = (isFirstLoad && loading) || (!!error && !hasData);
 
   // Show the one-click "kill all node.exe" preset only when at least one
@@ -241,6 +249,17 @@ export function ProcessPanel() {
         }
         secondaryActions={
           <>
+            {!showSidebar && (
+              <Button
+                size="xs"
+                variant="secondary"
+                disabled={focusedPid === null}
+                onClick={() => setDetailOpen(true)}
+                title={focusedPid === null ? '先选中一个进程' : '在弹窗中查看进程详情'}
+              >
+                详情
+              </Button>
+            )}
             <Button
               size="xs"
               variant={multiSelectEnabled ? 'primary' : 'secondary'}
@@ -290,7 +309,7 @@ export function ProcessPanel() {
       {showErrorBanner && (
         <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
           <p className="truncate text-xs text-danger">
-            上次刷新失败：{error}
+            {error ? `上次刷新失败：{error}` : '上次刷新出错（已恢复）'}
           </p>
           <IconButton
             label="关闭错误提示"
@@ -392,6 +411,19 @@ export function ProcessPanel() {
         onConfirm={doKillTree}
         onCancel={() => { if (!killBusy) setPendingKillTree(null); }}
       />
+
+      {/* UX-10：窄 tile 详情降级——侧栏内容以对话框呈现（复用同一组件） */}
+      <Dialog
+        open={detailOpen}
+        onOpenChange={(o) => { if (!o) setDetailOpen(false); }}
+        title="进程详情"
+        widthClass="w-[400px]"
+        showCloseButton
+      >
+        <div className="h-[70vh] overflow-hidden rounded-md border border-line">
+          <ProcessDetailSidebar onKill={onKillSingle} onKillTree={onKillTree} />
+        </div>
+      </Dialog>
     </div>
   );
 }

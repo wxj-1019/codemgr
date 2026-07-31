@@ -7,7 +7,9 @@ import { labelForProcess } from '../lib/processLabels';
 import { groupByProject } from '../lib/projectGroup';
 import { FolderIcon, PackageIcon } from './icons';
 import { ipc } from '../lib/ipc';
+import { useNotice } from '../hooks/useNotice';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { PanelAlert } from './ui/PanelAlert';
 
 const UNGROUPED = '未分组';
 // 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd（PEB 直读）。
@@ -42,7 +44,7 @@ const KIND_COLORS: Record<string, string> = {
   build: 'bg-purple-500/[0.14] text-purple-400',
   container: 'bg-blue-500/[0.14] text-blue-400',
   db: 'bg-amber-500/[0.14] text-amber-400',
-  system: 'bg-slate-600/[0.14] text-fg-secondary',
+  system: 'bg-slate-600/[0.14] text-content-secondary',
   ai: 'bg-fuchsia-500/[0.14] text-fuchsia-400',
   'ai-ide': 'bg-violet-500/[0.14] text-violet-400',
 };
@@ -72,30 +74,30 @@ const GroupHeaderRow = memo(function GroupHeaderRow({
   onKillGroupName: (key: string) => void;
 }) {
   return (
-    <tr className="h-9 border-b border-base-700 bg-base-800/60 hover:bg-base-700">
+    <tr className="h-9 border-b border-line bg-surface-panel/60 hover:bg-surface-raised">
       <td className="px-1 py-0" />
       <td className="px-2 py-0">
         <button
           onClick={() => onToggleGroup(groupKey)}
-          className="flex items-center gap-1 text-sm font-medium text-fg-primary"
+          className="flex items-center gap-1 text-sm font-medium text-content-primary"
           title={dir || '未分组进程'}
         >
-          <span className="w-4 text-xs text-fg-muted">
+          <span className="w-4 text-xs text-content-muted">
             {count > 0 ? (isExpanded ? '▾' : '▸') : ''}
           </span>
-          <span className="text-fg-muted">{dir ? <FolderIcon /> : <PackageIcon />}</span>
+          <span className="text-content-muted">{dir ? <FolderIcon /> : <PackageIcon />}</span>
           <span className="truncate max-w-[260px]">{name}</span>
-          <span className="ml-1 text-xs font-normal text-fg-muted">
+          <span className="ml-1 text-xs font-normal text-content-muted">
             ({count} 进程 · 合计 {formatMem(totalMemory)})
           </span>
         </button>
       </td>
       <td className="px-2 py-0" />
       <td className="px-2 py-0" />
-      <td className="px-2 py-0 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-0 text-right font-mono text-content-secondary">
         {formatMem(totalMemory)}
       </td>
-      <td className="px-2 py-0 text-right text-xs text-fg-muted" colSpan={3}>
+      <td className="px-2 py-0 text-right text-xs text-content-muted" colSpan={3}>
         {dir || '—'}
       </td>
       <td className="px-2 py-0 text-right">
@@ -144,8 +146,8 @@ const ProcRow = memo(function ProcRow({
       tabIndex={navFocused || (!navFocused && isKeyboardEntry) ? 0 : -1}
       data-pid={pid}
       data-row-focused={navFocused ? 'true' : undefined}
-      className={`h-[29px] border-b border-base-700/30 hover:bg-base-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
-        multiSelectEnabled && isSelected ? 'bg-base-700/50' : ''
+      className={`h-[29px] border-b border-line hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+        multiSelectEnabled && isSelected ? 'bg-surface-raised/50' : ''
       } ${isFocused ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
       onClick={() => onActivate(pid)}
       onKeyDown={(e) => onRowKeyDown(e, pid)}
@@ -166,7 +168,7 @@ const ProcRow = memo(function ProcRow({
       )}
       <td className="px-2 py-0">
         <div className="flex items-center gap-1" style={{ paddingLeft: 24 }}>
-          <span className="text-fg-primary truncate max-w-[200px]">
+          <span className="text-content-primary truncate max-w-[200px]">
             {name}
           </span>
         </div>
@@ -175,27 +177,27 @@ const ProcRow = memo(function ProcRow({
         {label && (
           <span
             className={`rounded px-1 text-[10px] ${
-              KIND_COLORS[label.kind] || 'bg-slate-600/[0.14] text-fg-secondary'
+              KIND_COLORS[label.kind] || 'bg-slate-600/[0.14] text-content-secondary'
             }`}
           >
             {label.label}
           </span>
         )}
       </td>
-      <td className="px-2 py-0 text-right font-mono text-fg-primary">
+      <td className="px-2 py-0 text-right font-mono text-content-primary">
         {cpu.toFixed(1)}
       </td>
-      <td className="px-2 py-0 text-right font-mono text-fg-primary">
+      <td className="px-2 py-0 text-right font-mono text-content-primary">
         {formatMem(mem)}
       </td>
-      <td className="px-2 py-0 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-0 text-right font-mono text-content-secondary">
         {pid}
       </td>
-      <td className="px-2 py-0 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-0 text-right font-mono text-content-secondary">
         {threadCount}
       </td>
       <td
-        className="px-2 py-0 font-mono text-fg-muted truncate max-w-[300px] text-xs"
+        className="px-2 py-0 font-mono text-content-muted truncate max-w-[300px] text-xs"
         title={cmdline}
       >
         {cmdline || '—'}
@@ -326,6 +328,18 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
     }),
     [groups, expandedGroups, procByPid],
   );
+
+  // UX-21：部分选中时表头全选框呈半选态
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const visiblePidsAll = useMemo(
+    () => groups.filter((g) => expandedGroups.has(g.dir ?? g.name)).flatMap((g) => g.pids),
+    [groups, expandedGroups],
+  );
+  const allVisibleSelected = visiblePidsAll.length > 0 && visiblePidsAll.every((pid) => selectedPids.has(pid));
+  const someVisibleSelected = !allVisibleSelected && visiblePidsAll.some((pid) => selectedPids.has(pid));
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someVisibleSelected;
+  }, [someVisibleSelected]);
 
   const focusedPid = useFocusStore((s) => s.focusedPid);
   const focus = useFocusStore((s) => s.focus);
@@ -469,9 +483,11 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
 
   // ── 右键上下文菜单（与 ProcessTable 同构，但项目视图无树信息，结束进程树按 pid>4 放行） ──
   const [menu, setMenu] = useState<{ x: number; y: number; proc: ProcessInfo } | null>(null);
+  // UX-22：复制失败不再静默（剪贴板被占用/权限被禁时用户需要知道）
+  const { notice, show: showNotice } = useNotice();
   const copyText = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
-  }, []);
+    navigator.clipboard?.writeText(text).catch(() => showNotice('danger', '复制失败：剪贴板不可用'));
+  }, [showNotice]);
   const menuItems: ContextMenuItem[] = menu ? [
     { label: '结束进程', danger: true, onSelect: () => onKillSingleCb(menu.proc.pid, menu.proc.name) },
     ...(menu.proc.pid > 4
@@ -490,7 +506,8 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
   const renderRows = shouldVirtualize ? virtualItems.map((vi) => flatRows[vi.index]) : flatRows;
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <table
         ref={tableRef}
         className="w-full text-sm"
@@ -499,19 +516,15 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 z-10 bg-surface-panel text-left text-xs uppercase text-content-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
                   aria-label="全选可见行"
-                  checked={(() => {
-                    const visiblePids = groups
-                      .filter((g) => expandedGroups.has(g.dir ?? g.name))
-                      .flatMap((g) => g.pids);
-                    return visiblePids.length > 0 && visiblePids.every((pid) => selectedPids.has(pid));
-                  })()}
+                  checked={allVisibleSelected}
                   onChange={() => {
                     const visiblePids = groups
                       .filter((g) => expandedGroups.has(g.dir ?? g.name))
@@ -577,7 +590,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
           {padBottom > 0 && <tr aria-hidden="true" style={{ height: padBottom }} />}
           {groups.length === 0 && (
             <tr>
-              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-content-muted">
                 无进程
               </td>
             </tr>
