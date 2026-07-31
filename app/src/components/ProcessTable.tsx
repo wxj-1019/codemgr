@@ -11,8 +11,7 @@ import { buildProcessMenuItems } from '../lib/processMenu';
 import { filterProcesses } from '../lib/processFilter';
 import { kindColorOf } from '../lib/kindColors';
 import { copyText, openTargetOrNotify } from '../lib/shellClient';
-import { useNotice } from '../hooks/useNotice';
-import { PanelAlert } from './ui/PanelAlert';
+import { notify } from '../lib/notify';
 
 interface ProcessTableProps {
   multiSelectEnabled?: boolean;
@@ -504,10 +503,9 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
   // 菜单项由共享构建器生成（与 ProjectGroupView 一致）：打开三项 → 复制三项 → kill 沉底。
   // kill 操作复用与内联按钮一致的回调（触发 ConfirmDialog）。
   // UX-22：复制失败不再静默（剪贴板被占用/权限被禁时用户需要知道）
-  const { notice, show: showNotice } = useNotice();
   const copyTextWithFeedback = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => showNotice('danger', '复制失败：剪贴板不可用'));
-  }, [showNotice]);
+    navigator.clipboard?.writeText(text).catch(() => notify.error('复制失败：剪贴板不可用'));
+  }, []);
 
   const menuItems: ContextMenuItem[] = menu ? buildProcessMenuItems(
     menu.proc,
@@ -553,7 +551,6 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
 
   return (
     <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <table
         ref={tableRef}
         role="grid"

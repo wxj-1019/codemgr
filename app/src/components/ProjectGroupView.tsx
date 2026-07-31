@@ -13,8 +13,7 @@ import { IconButton } from './ui/IconButton';
 import { buildProcessMenuItems } from '../lib/processMenu';
 import { kindColorOf } from '../lib/kindColors';
 import { copyText, openTargetOrNotify } from '../lib/shellClient';
-import { useNotice } from '../hooks/useNotice';
-import { PanelAlert } from './ui/PanelAlert';
+import { notify } from '../lib/notify';
 
 const UNGROUPED = '未分组';
 // 未分组组展开时，对组内启发式 cwd 为空的进程按需拉精确 cwd（PEB 直读）。
@@ -458,10 +457,9 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
   }, []);
   // 与 ProcessTable 共用构建器；项目视图无树信息，hasChildren 传 true（按 pid>4 放行）
   // UX-22：复制失败不再静默（剪贴板被占用/权限被禁时用户需要知道）
-  const { notice, show: showNotice } = useNotice();
   const copyTextWithFeedback = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => showNotice('danger', '复制失败：剪贴板不可用'));
-  }, [showNotice]);
+    navigator.clipboard?.writeText(text).catch(() => notify.error('复制失败：剪贴板不可用'));
+  }, []);
 
   const menuItems: ContextMenuItem[] = menu ? buildProcessMenuItems(
     menu.proc,
@@ -479,7 +477,6 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
 
   return (
     <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
-      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <table
         ref={tableRef}
         className="w-full text-sm"
