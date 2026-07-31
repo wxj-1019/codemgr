@@ -422,6 +422,12 @@ input[type='checkbox'] {
   border-left: 1px solid var(--border);
 }
 
+/* 激活边界插入在 Mosaic tile 与 window 之间，需显式续接库的满高契约。 */
+.workspace-panel-activation-boundary > .mosaic-window {
+  height: 100%;
+  width: 100%;
+}
+
 /* ── react-mosaic 主题适配 ──
    mosaic 默认把 toolbar/body/actions-bar 都写成白色实底。v1.7 时 Panel 是实色
    背景所以盖得住；Aurora UI 玻璃面板是半透明的，白底会渗上来（灰雾感）。

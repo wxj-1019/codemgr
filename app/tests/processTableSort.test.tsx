@@ -16,10 +16,10 @@ const p = (over: Partial<ProcessInfo> = {}): ProcessInfo => ({
 });
 
 function rowPids(): number[] {
-  // 取所有数据行（跳过表头）的 PID 单元格文本，按出现顺序
-  // 列序：checkbox(0) 名称(1) CPU(2) GPU(3) 内存(4) PID(5) …
+  // 取所有数据行（跳过表头）的 PID 单元格文本，按出现顺序。
+  // 默认模式不渲染选择列，因此 PID 是第 5 个单元格（索引 4）。
   return screen.getAllByRole('row').slice(1).map((r) =>
-    Number(r.querySelectorAll('td')[5]?.textContent?.trim() ?? '-1'),
+    Number(r.querySelectorAll('td')[4]?.textContent?.trim() ?? '-1'),
   );
 }
 

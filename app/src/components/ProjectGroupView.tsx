@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProcessInfo } from '../../electron/ipc-types';
 import { useProcessPanelStore } from '../store/processPanelStore';
+import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
 import { groupByProject } from '../lib/projectGroup';
 import { FolderIcon, PackageIcon } from './icons';
@@ -15,6 +16,7 @@ const BATCH_SIZE = 5;
 const BATCH_DELAY_MS = 50;
 
 interface ProjectGroupViewProps {
+  multiSelectEnabled?: boolean;
   onKillSingle: (pid: number, name: string) => void;
   onKillGroup: (name: string, pids: number[]) => void;
   onKillTree: (pid: number, name: string) => void;
@@ -46,7 +48,15 @@ const GroupRow = memo(function GroupRow({
   procs,
   isExpanded,
   cpuMap,
+  multiSelectEnabled,
+  selectedPids,
+  navFocusPid,
+  keyboardEntryPid,
+  focusedPid,
   onToggle,
+  onActivate,
+  onToggleSelect,
+  onRowKeyDown,
   onKillSingle,
   onKillGroup,
   onContextMenuRow,
@@ -58,7 +68,15 @@ const GroupRow = memo(function GroupRow({
   procs: ProcessInfo[];
   isExpanded: boolean;
   cpuMap: Record<number, number>;
+  multiSelectEnabled: boolean;
+  selectedPids: Set<number>;
+  navFocusPid: number | null;
+  keyboardEntryPid: number | null;
+  focusedPid: number | null;
   onToggle: () => void;
+  onActivate: (pid: number) => void;
+  onToggleSelect: (pid: number) => void;
+  onRowKeyDown: (e: React.KeyboardEvent, proc: ProcessInfo) => void;
   onKillSingle: (pid: number, name: string) => void;
   onKillGroup: () => void;
   onContextMenuRow: (e: React.MouseEvent, proc: ProcessInfo) => void;
@@ -66,6 +84,7 @@ const GroupRow = memo(function GroupRow({
   return (
     <>
       <tr className="border-b border-base-700 bg-base-800/60 hover:bg-base-700">
+        {multiSelectEnabled && <td className="px-1 py-2" />}
         <td className="px-2 py-2">
           <button
             onClick={onToggle}
@@ -107,25 +126,48 @@ const GroupRow = memo(function GroupRow({
           return (
             <tr
               key={proc.pid}
-              className="border-b border-base-700/30 hover:bg-base-700"
+              role="row"
+              aria-selected={multiSelectEnabled ? selectedPids.has(proc.pid) : undefined}
+              tabIndex={proc.pid === navFocusPid || (navFocusPid === null && proc.pid === keyboardEntryPid) ? 0 : -1}
+              data-pid={proc.pid}
+              data-row-focused={proc.pid === navFocusPid ? 'true' : undefined}
+              className={`border-b border-base-700/30 hover:bg-base-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                multiSelectEnabled && selectedPids.has(proc.pid) ? 'bg-base-700/50' : ''
+              } ${proc.pid === focusedPid ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
+              onClick={() => onActivate(proc.pid)}
+              onKeyDown={(e) => onRowKeyDown(e, proc)}
               onContextMenu={(e) => onContextMenuRow(e, proc)}
             >
-              <td className="px-2 py-1" />
+              {multiSelectEnabled && (
+                <td role="gridcell" className="px-1 py-1">
+                  <input
+                    type="checkbox"
+                    aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
+                    checked={selectedPids.has(proc.pid)}
+                    onChange={() => onToggleSelect(proc.pid)}
+                    className="accent-accent"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </td>
+              )}
               <td className="px-2 py-1">
                 <div className="flex items-center gap-1" style={{ paddingLeft: 24 }}>
                   <span className="text-fg-primary truncate max-w-[200px]">
                     {proc.name}
                   </span>
-                  {label && (
-                    <span
-                      className={`ml-1 rounded px-1 text-[10px] ${
-                        KIND_COLORS[label.kind] || 'bg-slate-600/[0.14] text-fg-secondary'
-                      }`}
-                    >
-                      {label.label}
-                    </span>
-                  )}
                 </div>
+              </td>
+              <td className="px-2 py-1">
+                {label && (
+                  <span
+                    className={`rounded px-1 text-[10px] ${
+                      KIND_COLORS[label.kind] || 'bg-slate-600/[0.14] text-fg-secondary'
+                    }`}
+                  >
+                    {label.label}
+                  </span>
+                )}
               </td>
               <td className="px-2 py-1 text-right font-mono text-fg-primary">
                 {cpu.toFixed(1)}
@@ -147,7 +189,10 @@ const GroupRow = memo(function GroupRow({
               </td>
               <td className="px-2 py-1 text-right">
                 <button
-                  onClick={() => onKillSingle(proc.pid, proc.name)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onKillSingle(proc.pid, proc.name);
+                  }}
                   className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
                 >
                   结束
@@ -160,10 +205,13 @@ const GroupRow = memo(function GroupRow({
   );
 });
 
-export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: ProjectGroupViewProps) {
+export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onKillGroup, onKillTree }: ProjectGroupViewProps) {
   const {
     processes,
     cpuMap,
+    selectedPids,
+    toggleSelect,
+    selectAll,
     filter,
     expandedGroups,
     toggleGroup,
@@ -234,7 +282,73 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
     return m;
   }, [filtered]);
 
+  const visibleProcs = useMemo(
+    () => groups.flatMap((g) => {
+      const groupKey = g.dir ?? g.name;
+      if (!expandedGroups.has(groupKey)) return [];
+      return g.pids
+        .map((pid) => procByPid.get(pid))
+        .filter((proc): proc is ProcessInfo => !!proc);
+    }),
+    [groups, expandedGroups, procByPid],
+  );
+
+  const focusedPid = useFocusStore((s) => s.focusedPid);
+  const focus = useFocusStore((s) => s.focus);
   const onToggle = useCallback((name: string) => toggleGroup(name), [toggleGroup]);
+  const onActivate = useCallback((pid: number) => {
+    if (multiSelectEnabled) toggleSelect(pid);
+    focus(pid, 'process');
+  }, [multiSelectEnabled, toggleSelect, focus]);
+  const onToggleSelect = useCallback((pid: number) => toggleSelect(pid), [toggleSelect]);
+
+  const [navFocusPid, setNavFocusPid] = useState<number | null>(null);
+  const navFocusVisible = navFocusPid !== null && visibleProcs.some((proc) => proc.pid === navFocusPid);
+  const effectiveNavFocusPid = navFocusVisible ? navFocusPid : (visibleProcs[0]?.pid ?? null);
+  const visibleProcsRef = useRef(visibleProcs);
+  visibleProcsRef.current = visibleProcs;
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const lastDomFocusPidRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previousPid = lastDomFocusPidRef.current;
+    if (previousPid == null || navFocusVisible || effectiveNavFocusPid == null) return;
+    const active = document.activeElement;
+    if (active !== document.body && !tableRef.current?.contains(active)) return;
+    tableRef.current
+      ?.querySelector<HTMLTableRowElement>(`[data-pid="${effectiveNavFocusPid}"]`)
+      ?.focus({ preventScroll: true });
+    lastDomFocusPidRef.current = effectiveNavFocusPid;
+  }, [effectiveNavFocusPid, navFocusVisible]);
+
+  useEffect(() => {
+    if (navFocusPid == null) return;
+    tableRef.current
+      ?.querySelector<HTMLTableRowElement>('[data-row-focused="true"]')
+      ?.focus({ preventScroll: true });
+  }, [navFocusPid]);
+
+  const onRowKeyDown = useCallback((e: React.KeyboardEvent, proc: ProcessInfo) => {
+    const rows = visibleProcsRef.current;
+    const index = rows.findIndex((row) => row.pid === proc.pid);
+    if (index === -1) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (index < rows.length - 1) setNavFocusPid(rows[index + 1].pid);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (index > 0) setNavFocusPid(rows[index - 1].pid);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      if (rows.length > 0) setNavFocusPid(rows[0].pid);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      if (rows.length > 0) setNavFocusPid(rows[rows.length - 1].pid);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onActivate(proc.pid);
+    }
+  }, [onActivate]);
 
   // ── 右键上下文菜单（与 ProcessTable 同构，但项目视图无树信息，结束进程树按 pid>4 放行） ──
   const [menu, setMenu] = useState<{ x: number; y: number; proc: ProcessInfo } | null>(null);
@@ -256,9 +370,44 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <table className="w-full text-sm">
+      <table
+        ref={tableRef}
+        className="w-full text-sm"
+        onFocusCapture={(e) => {
+          const row = (e.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-pid]');
+          if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
+        }}
+      >
         <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
           <tr>
+            {multiSelectEnabled && (
+              <th className="w-8 px-1 py-2">
+                <input
+                  type="checkbox"
+                  aria-label="全选可见行"
+                  checked={(() => {
+                    const visiblePids = groups
+                      .filter((g) => expandedGroups.has(g.dir ?? g.name))
+                      .flatMap((g) => g.pids);
+                    return visiblePids.length > 0 && visiblePids.every((pid) => selectedPids.has(pid));
+                  })()}
+                  onChange={() => {
+                    const visiblePids = groups
+                      .filter((g) => expandedGroups.has(g.dir ?? g.name))
+                      .flatMap((g) => g.pids);
+                    const allSelected = visiblePids.length > 0 && visiblePids.every((pid) => selectedPids.has(pid));
+                    if (allSelected) {
+                      visiblePids.forEach((pid) => {
+                        if (selectedPids.has(pid)) toggleSelect(pid);
+                      });
+                    } else {
+                      selectAll([...new Set([...selectedPids, ...visiblePids])]);
+                    }
+                  }}
+                  className="accent-accent"
+                />
+              </th>
+            )}
             <th className="px-2 py-2 font-medium">项目 / 名称</th>
             <th className="w-32 px-2 py-2 font-medium">标签</th>
             <th className="w-16 px-2 py-2 font-medium text-right">CPU%</th>
@@ -285,7 +434,15 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
                 procs={procs}
                 isExpanded={expandedGroups.has(groupKey)}
                 cpuMap={cpuMap}
+                multiSelectEnabled={multiSelectEnabled}
+                selectedPids={selectedPids}
+                navFocusPid={navFocusVisible ? navFocusPid : null}
+                keyboardEntryPid={effectiveNavFocusPid}
+                focusedPid={focusedPid}
                 onToggle={() => onToggle(groupKey)}
+                onActivate={onActivate}
+                onToggleSelect={onToggleSelect}
+                onRowKeyDown={onRowKeyDown}
                 onKillSingle={onKillSingle}
                 onKillGroup={() => onKillGroup(g.name, g.pids)}
                 onContextMenuRow={onContextMenuRow}
@@ -294,7 +451,7 @@ export function ProjectGroupView({ onKillSingle, onKillGroup, onKillTree }: Proj
           })}
           {groups.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-fg-muted">
                 无进程
               </td>
             </tr>

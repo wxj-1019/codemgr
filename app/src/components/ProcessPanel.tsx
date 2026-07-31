@@ -13,8 +13,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { LoadState } from './LoadState';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
+import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Search, X } from './icons';
+import { Check, ListChecks, Search, Trash2, X } from './icons';
 import { useContainerWidth } from '../hooks/useContainerWidth';
 
 export function ProcessPanel() {
@@ -31,6 +32,8 @@ export function ProcessPanel() {
     viewMode, toggleViewMode, sidebarProportion, setSidebarProportion,
     pollMs, setPollMs, staleAt,
   } = useProcessPanelStore();
+
+  const [multiSelectEnabled, setMultiSelectEnabled] = useState(false);
 
   const [pendingKill, setPendingKill] = useState<{
     pid: number;
@@ -85,12 +88,13 @@ export function ProcessPanel() {
       const targets = [...selectedPids];
       const killed = await ipc.killByPids(targets);
       setBatchKillName(null);
-      clearSelection();
       if (killed === 0) {
         alert('未结束任何进程：可能均为受保护进程、权限不足或已退出');
       } else if (killed < targets.length) {
+        clearSelection();
         alert(`已结束 ${killed}/${targets.length} 个进程（其余受保护/无权限/已退出）`);
       } else {
+        clearSelection();
         alert(`已结束 ${killed} 个进程`);
       }
     } catch (e) {
@@ -160,6 +164,12 @@ export function ProcessPanel() {
     }
   }
 
+  function toggleMultiSelectMode() {
+    clearSelection();
+    if (multiSelectEnabled) setBatchKillName(null);
+    setMultiSelectEnabled((enabled) => !enabled);
+  }
+
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留进程表，仅在表头下挂一条
   // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
   const hasData = processes.length > 0;
@@ -174,7 +184,7 @@ export function ProcessPanel() {
   // 拼接状态摘要（进程数 / 刷新中 / 出错 / 陈旧 / 已选）
   const summary = `${processes.length} 个进程${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
     staleAt !== null ? ` · 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
-  }${selectedPids.size > 0 ? ` · 已选 ${selectedPids.size} 个` : ''}`;
+  }${multiSelectEnabled && selectedPids.size > 0 ? ` · 已选 ${selectedPids.size} 个` : ''}`;
 
   return (
     <div ref={panelRef} className="flex h-full flex-col">
@@ -198,6 +208,15 @@ export function ProcessPanel() {
         }
         secondaryActions={
           <>
+            <Button
+              size="xs"
+              variant={multiSelectEnabled ? 'primary' : 'secondary'}
+              aria-pressed={multiSelectEnabled}
+              onClick={toggleMultiSelectMode}
+            >
+              {multiSelectEnabled ? <Check size={13} aria-hidden="true" /> : <ListChecks size={13} aria-hidden="true" />}
+              {multiSelectEnabled ? '完成' : '多选'}
+            </Button>
             <button
               onClick={toggleViewMode}
               className="rounded-md border border-line bg-surface-raised px-2 py-1 text-xs text-content-secondary hover:bg-surface-overlay hover:text-content-primary"
@@ -214,8 +233,10 @@ export function ProcessPanel() {
                 结束所有 node.exe
               </button>
             )}
-            {selectedPids.size > 0 && (
-              <button
+            {multiSelectEnabled && selectedPids.size > 0 && (
+              <Button
+                size="xs"
+                variant="dangerQuiet"
                 onClick={() => {
                   const name = mostCommonName(
                     [...selectedPids].map(
@@ -224,10 +245,10 @@ export function ProcessPanel() {
                   );
                   if (name) setBatchKillName(name);
                 }}
-                className="rounded-md border border-danger/40 bg-transparent px-2 py-1 text-xs text-danger hover:bg-danger hover:text-on-accent"
               >
+                <Trash2 size={13} aria-hidden="true" />
                 批量结束 ({selectedPids.size})
-              </button>
+              </Button>
             )}
           </>
         }
@@ -266,6 +287,7 @@ export function ProcessPanel() {
           sidebarProportion={sidebarProportion}
           onSidebarResize={setSidebarProportion}
           viewMode={viewMode}
+          multiSelectEnabled={multiSelectEnabled}
           onKillSingle={(pid, name) => setPendingKill({ pid, name })}
           onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
           onKillGroup={(name, pids) => setGroupKill({ name, pids })}
@@ -347,6 +369,7 @@ function ProcessTableArea({
   sidebarProportion,
   onSidebarResize,
   viewMode,
+  multiSelectEnabled,
   onKillSingle,
   onKillTree,
   onKillGroup,
@@ -355,18 +378,20 @@ function ProcessTableArea({
   sidebarProportion: number;
   onSidebarResize: (p: number) => void;
   viewMode: 'tree' | 'project';
+  multiSelectEnabled: boolean;
   onKillSingle: (pid: number, name: string) => void;
   onKillTree: (pid: number, name: string) => void;
   onKillGroup: (name: string, pids: number[]) => void;
 }) {
   const tableOrGroup = viewMode === 'project' ? (
     <ProjectGroupView
+      multiSelectEnabled={multiSelectEnabled}
       onKillSingle={onKillSingle}
       onKillGroup={onKillGroup}
       onKillTree={onKillTree}
     />
   ) : (
-    <ProcessTable onKillSingle={onKillSingle} onKillTree={onKillTree} />
+    <ProcessTable multiSelectEnabled={multiSelectEnabled} onKillSingle={onKillSingle} onKillTree={onKillTree} />
   );
 
   // 小屏：无侧栏，直接铺满

@@ -16,6 +16,7 @@ export {
   Folder,
   Inbox,
   Info,
+  ListChecks,
   LoaderCircle,
   Maximize2,
   Moon,

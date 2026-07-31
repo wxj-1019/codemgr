@@ -63,7 +63,11 @@ export function WorkspacePanelActivationBoundary({
 }) {
   const activate = () => setActive(panelId);
   return (
-    <div className="h-full w-full" onPointerDownCapture={activate} onFocusCapture={activate}>
+    <div
+      className="workspace-panel-activation-boundary h-full w-full"
+      onPointerDownCapture={activate}
+      onFocusCapture={activate}
+    >
       {children}
     </div>
   );

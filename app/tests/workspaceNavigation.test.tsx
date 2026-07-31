@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { isValidElement, type ComponentProps } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -174,6 +176,21 @@ describe('workspace shell wiring', () => {
 
     expect(setActive).toHaveBeenCalledTimes(2);
     expect(setActive).toHaveBeenLastCalledWith('perf');
+  });
+
+  it('preserves the Mosaic window height through the activation boundary', () => {
+    const { container } = render(
+      <WorkspacePanelActivationBoundary panelId="process" setActive={vi.fn()}>
+        <div className="mosaic-window" />
+      </WorkspacePanelActivationBoundary>,
+    );
+    const boundary = container.firstElementChild;
+    const css = readFileSync(resolve(__dirname, '../src/index.css'), 'utf8');
+
+    expect(boundary).toHaveClass('workspace-panel-activation-boundary');
+    expect(css).toMatch(
+      /\.workspace-panel-activation-boundary\s*>\s*\.mosaic-window\s*\{[^}]*height:\s*100%;[^}]*width:\s*100%;[^}]*\}/s,
+    );
   });
 
   it('does not report ready while the plugin registry is still loading', () => {
