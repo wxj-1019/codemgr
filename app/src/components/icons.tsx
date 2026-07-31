@@ -1,7 +1,9 @@
 import { Folder, Package } from 'lucide-react';
 
 export {
+  Activity,
   AlertCircle,
+  BarChart3,
   Camera,
   Check,
   CheckCircle2,
@@ -20,6 +22,7 @@ export {
   Globe,
   Inbox,
   Info,
+  Layers,
   ListChecks,
   LoaderCircle,
   Maximize2,
@@ -29,10 +32,12 @@ export {
   Play,
   Plus,
   RefreshCw,
+  Rocket,
   RotateCcw,
   Search,
   Settings,
   Square,
+  Sparkles,
   Sun,
   Terminal,
   Trash2,

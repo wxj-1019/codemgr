@@ -219,8 +219,19 @@ export function ProcessPanel() {
                 placeholder="搜索进程/命令行/PID…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-2 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-7 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
+              {filter !== '' && (
+                <IconButton
+                  label="清除搜索"
+                  size="xs"
+                  variant="ghost"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-content-muted hover:text-content-primary"
+                  onClick={() => setFilter('')}
+                >
+                  <X size={12} aria-hidden="true" />
+                </IconButton>
+              )}
             </div>
             <IconButton label="导出" size="sm" onClick={(e) => setExportMenu({ x: e.clientX, y: e.clientY })}>
               <Download />
@@ -233,18 +244,20 @@ export function ProcessPanel() {
               size="xs"
               variant={multiSelectEnabled ? 'primary' : 'secondary'}
               aria-pressed={multiSelectEnabled}
+              title={multiSelectEnabled ? '退出多选模式' : '进入多选模式（点击行切换选择）'}
               onClick={toggleMultiSelectMode}
             >
               {multiSelectEnabled ? <Check size={13} aria-hidden="true" /> : <ListChecks size={13} aria-hidden="true" />}
               {multiSelectEnabled ? '完成' : '多选'}
             </Button>
-            <button
+            <Button
+              size="xs"
+              variant="secondary"
               onClick={toggleViewMode}
-              className="rounded-md border border-line bg-surface-raised px-2 py-1 text-xs text-content-secondary hover:bg-surface-overlay hover:text-content-primary"
               title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
             >
               {viewMode === 'tree' ? '按项目' : '树形'}
-            </button>
+            </Button>
             {hasNode && (
               <button
                 onClick={() => setConfirmKillAllNode(true)}
@@ -272,17 +285,19 @@ export function ProcessPanel() {
               </Button>
             )}
             {multiSelectEnabled && selectedPids.size === 2 && (
-              <button
+              <Button
+                size="xs"
+                variant="secondary"
+                title="对比两个进程的环境变量差异"
                 onClick={() => {
                   const [p1, p2] = [...selectedPids]
                     .map((pid) => processes.find((p) => p.pid === pid))
                     .filter((x): x is ProcessInfo => !!x);
                   if (p1 && p2) setEnvDiffPair({ a: p1, b: p2 });
                 }}
-                className="rounded-md border border-line bg-surface-raised px-2 py-1 text-xs text-content-secondary hover:bg-surface-overlay hover:text-content-primary"
               >
                 对比环境变量
-              </button>
+              </Button>
             )}
           </>
         }

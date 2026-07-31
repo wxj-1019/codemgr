@@ -69,7 +69,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <table ref={tableRef} role="grid" className="w-full text-sm">
-        <thead className="sticky top-0 bg-base-800 text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 bg-surface-raised text-left text-xs uppercase text-fg-muted">
           <tr>
             <th className="px-3 py-2 font-medium">端口</th>
             <th className="px-3 py-2 font-medium">协议</th>
@@ -97,8 +97,8 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                 onClick={() => onSelect(c.pid)}
                 onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, conn: c }); }}
                 onKeyDown={(e) => onRowKeyDown(e, i)}
-                className={`cursor-pointer border-b border-base-700/50 hover:bg-base-700 ${
-                  selected ? 'bg-base-700/60' : ''
+                className={`cursor-pointer border-b border-line transition-colors duration-200 hover:bg-accent/5 ${
+                  selected ? 'bg-gradient-to-r from-accent/15 to-transparent border-l-[3px] border-l-accent' : ''
                 } ${focused ? 'ring-1 ring-inset ring-accent/60 outline-none' : ''}`}
               >
                 <td

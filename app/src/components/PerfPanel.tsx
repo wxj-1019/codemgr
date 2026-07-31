@@ -158,13 +158,13 @@ function CpuView({
           {current.cpu.perCore.map((c: number, i: number) => (
             <div key={i} className="flex items-center gap-2">
               <span className="w-12 text-xs text-fg-muted">Core {i}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded bg-base-700">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-raised">
                 <div
-                  className="h-full bg-accent"
+                  className="h-full rounded-full bg-gradient-to-r from-accent to-accent-data transition-all duration-500 ease-in-out"
                   style={{ width: `${Math.min(100, c)}%` }}
                 />
               </div>
-              <span className="w-10 text-right font-mono text-xs text-fg-secondary">
+              <span className="w-10 text-right font-mono text-xs text-fg-secondary transition-colors duration-300">
                 {c.toFixed(0)}%
               </span>
             </div>
@@ -242,7 +242,7 @@ function MemoryView({
 
 function DiskView({ current }: { current: PerfData }) {
   return (
-    <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+    <div className="rounded-xl border border-line bg-surface-panel p-4">
       <div className="mb-3 text-sm text-fg-secondary">磁盘空间</div>
       <div className="space-y-3">
         {current.disks.map((d, i) => {
@@ -265,9 +265,9 @@ function DiskView({ current }: { current: PerfData }) {
                   {fmtBytes(d.totalBytes)}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded bg-base-700">
+              <div className="h-2 overflow-hidden rounded-full bg-surface-raised">
                 <div
-                  className={`h-full ${color}`}
+                  className={`h-full rounded-full transition-all duration-500 ease-in-out ${color}`}
                   style={{ width: `${usedPct}%` }}
                 />
               </div>
@@ -287,7 +287,7 @@ function NetworkView({ current }: { current: PerfData }) {
     (n) => n.recvBytesPerSec > 0 || n.sendBytesPerSec > 0,
   );
   return (
-    <div className="rounded-lg border border-base-700 bg-base-800 p-4">
+    <div className="rounded-xl border border-line bg-surface-panel p-4">
       <div className="mb-3 text-sm text-fg-secondary">网络适配器（活跃）</div>
       {active.length === 0 ? (
         <div className="text-sm text-fg-muted">无活跃网络流量</div>
@@ -302,7 +302,7 @@ function NetworkView({ current }: { current: PerfData }) {
           </thead>
           <tbody>
             {active.map((n, i) => (
-              <tr key={i} className="border-t border-base-700/30">
+              <tr key={i} className="border-t border-line">
                 <td className="py-1.5 font-mono text-fg-primary">{n.name}</td>
                 <td className="py-1.5 text-right font-mono text-accent">
                   {fmtBytes(n.recvBytesPerSec)}/s

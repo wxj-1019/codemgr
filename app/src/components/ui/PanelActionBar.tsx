@@ -30,7 +30,7 @@ export function PanelActionBar({
       role="toolbar"
       aria-label={label}
       className={cx(
-        'panel-action-bar flex min-h-9 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-line bg-surface-panel/80 px-2 py-1.5',
+        'panel-action-bar flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-line bg-surface-panel/80 px-3 py-2',
         className,
       )}
     >

@@ -55,7 +55,7 @@ const GroupHeaderRow = memo(function GroupHeaderRow({
   onKillGroup: () => void;
 }) {
   return (
-    <tr className="border-b border-base-700 bg-base-800/60 hover:bg-base-700">
+    <tr className="border-b border-line bg-surface-raised/60 transition-colors duration-150 hover:bg-surface-raised/80">
       {multiSelectEnabled && <td className="px-1 py-2" />}
       <td className="px-2 py-2">
         <button
@@ -135,8 +135,8 @@ const GroupProcRow = memo(function GroupProcRow({
       tabIndex={isNavFocused || isKeyboardEntry ? 0 : -1}
       data-pid={proc.pid}
       data-row-focused={isNavFocused ? 'true' : undefined}
-      className={`border-b border-base-700/30 hover:bg-base-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
-        multiSelectEnabled && isSelected ? 'bg-base-700/50' : ''
+      className={`border-b border-line transition-colors duration-200 hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+        multiSelectEnabled && isSelected ? 'bg-gradient-to-r from-accent/15 to-transparent border-l-[3px] border-l-accent' : ''
       } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
       onClick={() => onActivate(proc.pid)}
       onKeyDown={(e) => onRowKeyDown(e, proc)}
