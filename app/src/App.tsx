@@ -7,6 +7,7 @@ import { LabelRuleEditor } from './components/LabelRuleEditor';
 import { Panel } from './components/Panel';
 import { PluginHost } from './components/PluginHost';
 import { Button } from './components/ui/Button';
+import { WelcomeBanner, WELCOME_SEEN_KEY } from './components/workspace/WelcomeBanner';
 import {
   BUILTIN_PANEL_DEFINITIONS,
   getPanelTitle,
@@ -103,6 +104,14 @@ export function App() {
   const setActive = useActivePanelStore((state) => state.setActive);
   const reconcileActive = useActivePanelStore((state) => state.reconcile);
   const [rulesOpen, setRulesOpen] = useState(false);
+  // UX-08：首启欢迎条（一次性，关闭后写 localStorage 标记）
+  const [showWelcome, setShowWelcome] = useState(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem(WELCOME_SEEN_KEY) !== '1',
+  );
+  const dismissWelcome = () => {
+    localStorage.setItem(WELCOME_SEEN_KEY, '1');
+    setShowWelcome(false);
+  };
   const { theme, toggle } = useThemeStore();
   const registryLoaded = usePluginRegistryStore((state) => state.loaded);
   const registryIds = usePluginRegistryStore((state) => state.ids);
@@ -176,6 +185,7 @@ export function App() {
           onFocusPanel={handleFocusPanel}
         />
         {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
+        {showWelcome && <WelcomeBanner onClose={dismissWelcome} />}
         <div className="workspace-mosaic">
           <Mosaic<PanelId>
             className="mosaic-theme"

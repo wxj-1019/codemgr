@@ -43,3 +43,25 @@ export function conflictPorts(conns: NetConnection[]): Set<string> {
   }
   return conflicts;
 }
+
+// 冲突端口的持有者 PID 列表（UX-20：tooltip 指明"冲突对方是谁"）。
+// 与 conflictPorts 同口径（监听态 + 协议隔离）；返回 `协议:端口` → 监听该端口的
+// 全部 PID（含冲突双方，UI 自行排除自身）。
+export function conflictHolders(conns: NetConnection[]): Map<string, number[]> {
+  const owners = new Map<string, Set<number>>();
+  for (const c of conns) {
+    if (!isListenLike(c)) continue;
+    const key = `${c.protocol}:${c.localPort}`;
+    let pids = owners.get(key);
+    if (!pids) {
+      pids = new Set<number>();
+      owners.set(key, pids);
+    }
+    pids.add(c.pid);
+  }
+  const holders = new Map<string, number[]>();
+  for (const [key, pids] of owners) {
+    if (pids.size > 1) holders.set(key, [...pids]);
+  }
+  return holders;
+}

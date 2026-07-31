@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterConnections, isListenLike, conflictPorts } from '../src/lib/portFilter';
+import { filterConnections, isListenLike, conflictPorts, conflictHolders } from '../src/lib/portFilter';
 import type { NetConnection } from '../electron/ipc-types';
 
 const conn = (over: Partial<NetConnection> = {}): NetConnection => ({
@@ -87,5 +87,45 @@ describe('conflictPorts', () => {
       conn({ localPort: 53, pid: 200, protocol: 'udp' }),
     ];
     expect(conflictPorts(list).size).toBe(0);
+  });
+});
+
+describe('conflictHolders（UX-20 冲突对方）', () => {
+  const c = (over: Partial<Parameters<typeof import('../src/lib/portFilter').filterConnections>[0]> = {}) => ({
+    protocol: 'tcp' as const,
+    localAddr: '0.0.0.0',
+    localPort: 8080,
+    remoteAddr: '',
+    remotePort: 0,
+    state: 'LISTENING' as const,
+    pid: 100,
+    processName: 'node',
+    ...over,
+  });
+
+  it('同端口多 PID → 列出全部持有者', () => {
+    const holders = conflictHolders([
+      c({ localPort: 8080, pid: 100 }),
+      c({ localPort: 8080, pid: 200 }),
+      c({ localPort: 3000, pid: 300 }),
+    ]);
+    expect(holders.get('tcp:8080')).toEqual([100, 200]);
+    expect(holders.has('tcp:3000')).toBe(false);
+  });
+
+  it('同一进程多地址监听不算冲突', () => {
+    const holders = conflictHolders([
+      c({ localPort: 8080, pid: 100, localAddr: '0.0.0.0' }),
+      c({ localPort: 8080, pid: 100, localAddr: '127.0.0.1' }),
+    ]);
+    expect(holders.size).toBe(0);
+  });
+
+  it('TCP/UDP 独立命名空间', () => {
+    const holders = conflictHolders([
+      c({ localPort: 5353, pid: 100, protocol: 'tcp' }),
+      c({ localPort: 5353, pid: 200, protocol: 'udp' }),
+    ]);
+    expect(holders.size).toBe(0);
   });
 });

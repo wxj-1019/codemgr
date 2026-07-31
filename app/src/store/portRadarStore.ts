@@ -6,6 +6,8 @@ interface PortRadarState {
   connections: NetConnection[];
   loading: boolean;
   error: string | null;
+  /** 上次出错时间（UX-27）：成功恢复后仍保留一段时间，错误横幅不至于一闪而过。 */
+  lastErrorAt: number | null;
   staleAt: number | null;        // 上次成功采样时间；null=数据新鲜或从未成功（A2）
   selectedPid: number | null;
   filter: string;
@@ -27,13 +29,14 @@ export const usePortRadarStore = create<PortRadarState>()(
       connections: [],
       loading: false,
       error: null,
+      lastErrorAt: null,
       staleAt: null,
       selectedPid: null,
       filter: '',
       pollMs: 3000,  // 端口雷达默认 3s（与原硬编码 POLL_MS 一致）
       setConnections: (c) => set({ connections: c, error: null, staleAt: null }),
       setLoading: (b) => set({ loading: b }),
-      setError: (e) => set({ error: e }),
+      setError: (e) => set((s) => (e !== null ? { error: e, lastErrorAt: Date.now() } : { error: null, lastErrorAt: null })),
       setStaleAt: (ts) => set({ staleAt: ts }),
       select: (pid) => set({ selectedPid: pid }),
       setFilter: (f) => set({ filter: f }),

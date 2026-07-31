@@ -206,3 +206,64 @@ describe('PortTable keyboard navigation', () => {
     expect(getRows()[0]).not.toHaveAttribute('data-row-focused', 'true');
   });
 });
+
+describe('PortTable 扩展（UX-19/20/25）', () => {
+  it('showAll 时显示非监听连接（ESTABLISHED）', () => {
+    render(
+      <PortTable
+        connections={[
+          conn({ localPort: 3000, state: 'LISTENING', processName: 'node' }),
+          conn({ localPort: 5173, state: 'ESTABLISHED', processName: 'other' }),
+        ]}
+        selectedPid={null}
+        showAll
+        onSelect={() => {}}
+        onKill={() => {}}
+      />
+    );
+    expect(screen.getByText('5173')).toBeInTheDocument();
+  });
+
+  it('冲突 tooltip 指明对方 PID（UX-20）', () => {
+    render(
+      <PortTable
+        connections={[
+          conn({ localPort: 8080, pid: 100, processName: 'node' }),
+          conn({ localPort: 8080, pid: 200, processName: 'java' }),
+        ]}
+        selectedPid={null}
+        onSelect={() => {}}
+        onKill={() => {}}
+      />
+    );
+    const cells = screen.getAllByText('8080');
+    expect(cells[0]).toHaveAttribute('title', '端口冲突：也正被 PID 200 监听');
+  });
+
+  it('数据收缩后焦点索引钳制在合法范围（UX-25）', () => {
+    const { rerender } = render(
+      <PortTable
+        connections={[conn({ localPort: 3000, pid: 100 }), conn({ localPort: 3001, pid: 200 }), conn({ localPort: 3002, pid: 300 })]}
+        selectedPid={null}
+        onSelect={() => {}}
+        onKill={() => {}}
+      />
+    );
+    // 聚焦最后一行（index 2）
+    const rows = screen.getAllByRole('row').slice(1);
+    fireEvent.keyDown(rows[2], { key: 'End' });
+    expect(rows[2]).toHaveAttribute('data-row-focused', 'true');
+
+    // 数据收缩到 1 行：焦点应钳制到 index 0（不越界、不消失）
+    rerender(
+      <PortTable
+        connections={[conn({ localPort: 3000, pid: 100 })]}
+        selectedPid={null}
+        onSelect={() => {}}
+        onKill={() => {}}
+      />
+    );
+    const newRows = screen.getAllByRole('row').slice(1);
+    expect(newRows[0]).toHaveAttribute('data-row-focused', 'true');
+  });
+});

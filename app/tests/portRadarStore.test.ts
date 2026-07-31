@@ -83,3 +83,34 @@ describe('portRadarStore', () => {
     expect(usePortRadarStore.getState().staleAt).toBeNull();
   });
 });
+
+describe('portRadarStore lastErrorAt（UX-27 错误横幅保留窗口）', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    usePortRadarStore.getState().reset();
+  });
+
+  it('setError(消息) 记录 lastErrorAt', () => {
+    usePortRadarStore.getState().setError('boom');
+    const s = usePortRadarStore.getState();
+    expect(s.error).toBe('boom');
+    expect(s.lastErrorAt).not.toBeNull();
+  });
+
+  it('成功（setConnections）保留 lastErrorAt——横幅不随恢复一闪而过', () => {
+    usePortRadarStore.getState().setError('boom');
+    const lastErrorAt = usePortRadarStore.getState().lastErrorAt;
+    usePortRadarStore.getState().setConnections([sampleConn()]);
+    const s = usePortRadarStore.getState();
+    expect(s.error).toBeNull();
+    expect(s.lastErrorAt).toBe(lastErrorAt);
+  });
+
+  it('手动清除（setError(null)）同时清 lastErrorAt——关闭按钮可彻底关掉横幅', () => {
+    usePortRadarStore.getState().setError('boom');
+    usePortRadarStore.getState().setError(null);
+    const s = usePortRadarStore.getState();
+    expect(s.error).toBeNull();
+    expect(s.lastErrorAt).toBeNull();
+  });
+});

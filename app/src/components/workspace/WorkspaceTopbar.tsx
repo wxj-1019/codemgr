@@ -1,4 +1,4 @@
-import { CheckCircle2, Maximize2 } from '../icons';
+import { CheckCircle2, Focus } from '../icons';
 import { IconButton } from '../ui/IconButton';
 
 interface WorkspaceTopbarProps {
@@ -30,7 +30,7 @@ export function WorkspaceTopbar({
       <div className="workspace-no-drag flex shrink-0 items-center gap-1.5">
         {canFocusPanel && (
           <IconButton label="只保留当前面板" size="xs" variant="ghost" onClick={onFocusPanel}>
-            <Maximize2 size={13} aria-hidden="true" />
+            <Focus size={13} aria-hidden="true" />
           </IconButton>
         )}
         <div

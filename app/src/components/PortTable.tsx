@@ -2,18 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NetConnection } from '../../electron/ipc-types';
 import { labelForPort, isDevPort, isDbPort } from '../lib/portLabels';
 import { TriangleAlert } from './icons';
-import { isListenLike, conflictPorts } from '../lib/portFilter';
+import { isListenLike, conflictPorts, conflictHolders } from '../lib/portFilter';
 
 interface PortTableProps {
   connections: NetConnection[];
   selectedPid: number | null;
   onSelect: (pid: number) => void;
   onKill: (pid: number, name: string) => void;
+  /** UX-19：true 时显示全部连接（含 ESTABLISHED 等非监听态），默认仅监听。 */
+  showAll?: boolean;
 }
 
-export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTableProps) {
-  const rows = connections.filter(isListenLike);
+export function PortTable({ connections, selectedPid, onSelect, onKill, showAll = false }: PortTableProps) {
+  const rows = showAll ? connections : connections.filter(isListenLike);
   const conflicts = useMemo(() => conflictPorts(connections), [connections]);
+  // UX-20：冲突端口 → 持有者 PID 列表（tooltip 指明"冲突对方是谁"）
+  const holders = useMemo(() => conflictHolders(connections), [connections]);
 
   // ── 键盘导航（纯导航模型：焦点框与 selectedPid 分离）──
   // 端口表同一 pid 可能在多行（多端口监听），焦点用 index 锚定更准确。
@@ -21,6 +25,16 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const tableRef = useRef<HTMLTableElement | null>(null);
+
+  // UX-25：数据变化（过滤/轮询）后焦点索引可能越界——收敛到合法范围，
+  // 避免焦点环凭空消失、键盘入口退到第一行。
+  useEffect(() => {
+    setFocusedIdx((cur) => {
+      if (cur === null) return null;
+      if (cur >= rows.length) return Math.max(0, rows.length - 1);
+      return cur;
+    });
+  }, [rows.length]);
 
   // 焦点行变化时自动 focus + scrollIntoView（roving tabindex 配套）。
   // jsdom 无 scrollIntoView 实现，加 typeof 防御（真实 Electron 环境有该方法）。
@@ -88,7 +102,17 @@ export function PortTable({ connections, selectedPid, onSelect, onKill }: PortTa
                   className={`px-3 py-2 font-mono ${
                     conflict ? 'text-danger' : 'text-accent'
                   }`}
-                  title={conflict ? '端口冲突：多个进程监听同一端口' : undefined}
+                  title={
+                    conflict
+                      ? (() => {
+                          const others = (holders.get(`${c.protocol}:${c.localPort}`) ?? [])
+                            .filter((pid) => pid !== c.pid);
+                          return others.length > 0
+                            ? `端口冲突：也正被 PID ${others.join(', ')} 监听`
+                            : '端口冲突：多个进程监听同一端口';
+                        })()
+                      : undefined
+                  }
                 >
                   {conflict && <TriangleAlert size={13} className="mr-1 inline-block align-[-2px]" aria-label="端口冲突" />}
                   {c.localPort}

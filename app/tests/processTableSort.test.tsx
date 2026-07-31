@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ProcessTable } from '../src/components/ProcessTable';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import type { ProcessInfo } from '../electron/ipc-types';
@@ -78,5 +78,52 @@ describe('ProcessTable sort', () => {
     render(<ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />);
     // 默认 sortKey=pid, sortAsc=true → 10,20,30
     expect(rowPids()).toEqual([10, 20, 30]);
+  });
+});
+
+describe('ProcessTable CPU 排序冻结（UX-14）', () => {
+  beforeEach(() => {
+    cleanup();
+    localStorage.clear();
+    useProcessPanelStore.getState().reset();
+    useProcessPanelStore.setState({ filter: '', viewMode: 'tree', expandedPids: new Set(), sortKey: 'pid', sortAsc: true });
+  });
+
+  it('按 CPU 排序后数值更新不改变行序（点击目标不漂移）', () => {
+    useProcessPanelStore.setState({
+      processes: [
+        p({ pid: 1, name: 'a.exe' }),
+        p({ pid: 2, name: 'b.exe' }),
+        p({ pid: 3, name: 'c.exe' }),
+      ],
+      cpuMap: { 1: 10, 2: 50, 3: 30 },
+    });
+    render(<ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />);
+    // 第一次点 CPU 表头：切到 cpu 升序 → pid 1,3,2
+    fireEvent.click(screen.getByText(/CPU%/));
+    expect(rowPids()).toEqual([1, 3, 2]);
+
+    // 轮询更新 cpuMap：若实时重排会变成 pid 3,1,2——冻结后行序不变
+    act(() => {
+      useProcessPanelStore.setState({ cpuMap: { 1: 90, 2: 5, 3: 40 } });
+    });
+    expect(rowPids()).toEqual([1, 3, 2]);
+  });
+
+  it('再次点击同列（翻转方向）后按新方向重排', () => {
+    useProcessPanelStore.setState({
+      processes: [
+        p({ pid: 1, name: 'a.exe' }),
+        p({ pid: 2, name: 'b.exe' }),
+        p({ pid: 3, name: 'c.exe' }),
+      ],
+      cpuMap: { 1: 10, 2: 50, 3: 30 },
+    });
+    render(<ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />);
+    fireEvent.click(screen.getByText(/CPU%/));
+    expect(rowPids()).toEqual([1, 3, 2]);
+
+    fireEvent.click(screen.getByText(/CPU%/)); // 翻转降序
+    expect(rowPids()).toEqual([2, 3, 1]);
   });
 });

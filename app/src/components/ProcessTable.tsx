@@ -6,7 +6,9 @@ import { usePerfStore } from '../store/perfStore';
 import { useFocusStore } from '../store/focusStore';
 import { labelForProcess } from '../lib/processLabels';
 import { formatBytes } from '../lib/format';
+import { useNotice } from '../hooks/useNotice';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { PanelAlert } from './ui/PanelAlert';
 
 interface ProcessTableProps {
   multiSelectEnabled?: boolean;
@@ -194,6 +196,7 @@ const ProcessRow = memo(function ProcessRow({
         className={`px-2 py-1 text-right font-mono ${
           gpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
+        title={gpu ? undefined : '性能面板未开启或无 GPU 数据'}
       >
         {gpu ? gpu.gpuPercent.toFixed(1) : '—'}
       </td>
@@ -291,7 +294,21 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
   }, [processes, filter]);
 
   // ---- Sort ----
+  // UX-14：按 CPU/GPU（volatile 列）排序时行序会随每轮轮询重排，用户瞄准的
+  // 行会漂走。冻结排序：进入 volatile 排序时快照当时的顺序，轮询期间数值
+  // 实时刷新但行序稳定；再次点击同列（翻转方向）或换列时才重排。
+  const volatileSort = sortKey === 'cpu' || sortKey === 'gpu';
+  const [frozenOrder, setFrozenOrder] = useState<{ key: typeof sortKey; asc: boolean; pids: number[] } | null>(null);
   const sorted = useMemo(() => {
+    if (volatileSort && frozenOrder && frozenOrder.key === sortKey && frozenOrder.asc === sortAsc) {
+      const order = new Map(frozenOrder.pids.map((pid, i) => [pid, i]));
+      // 冻结顺序稳定排序；新出现的进程（过滤/新启动）追加在末尾
+      return [...filtered].sort((a, b) => {
+        const ia = order.get(a.pid) ?? Number.MAX_SAFE_INTEGER;
+        const ib = order.get(b.pid) ?? Number.MAX_SAFE_INTEGER;
+        return ia - ib;
+      });
+    }
     const arr = [...filtered];
 
     if (sortKey === 'name') {
@@ -316,7 +333,16 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
       );
     }
     return arr;
-  }, [filtered, sortKey, sortAsc, cpuMap, gpuMap]);
+  }, [filtered, sortKey, sortAsc, cpuMap, gpuMap, volatileSort, frozenOrder]);
+  const sortedRef = useRef(sorted);
+  sortedRef.current = sorted;
+  // 进入/切换 volatile 排序时快照当前排序结果（effect 在 render 后运行，
+  // sorted 已按新 sortKey 计算完毕）
+  useEffect(() => {
+    if (volatileSort) {
+      setFrozenOrder({ key: sortKey, asc: sortAsc, pids: sortedRef.current.map((p) => p.pid) });
+    }
+  }, [sortKey, sortAsc, volatileSort]);
 
   // ---- Build display tree from sorted flat list ----
   const rows = useMemo(
@@ -335,6 +361,13 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
     () => rows.length > 0 && rows.every((r) => selectedPids.has(r.proc.pid)),
     [selectedPids, rows],
   );
+
+  // UX-21：部分选中时表头全选框呈半选态（indeterminate），避免"空框误导"
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const someSelected = !allSelected && rows.some((r) => selectedPids.has(r.proc.pid));
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected]);
 
   const setSortKey = useProcessPanelStore((s) => s.setSortKey);
   const toggleSort = useProcessPanelStore((s) => s.toggleSort);
@@ -369,10 +402,11 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
     setMenu({ x: e.clientX, y: e.clientY, proc });
   }, []);
 
-  // 复制到剪贴板：失败静默（与侧栏 copyCmd 一致，clipboard 可能被环境阻断）
+  // UX-22：复制失败不再静默（剪贴板被占用/权限被禁时用户需要知道）
+  const { notice, show: showNotice } = useNotice();
   const copyText = useCallback((text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => { /* blocked */ });
-  }, []);
+    navigator.clipboard?.writeText(text).catch(() => showNotice('danger', '复制失败：剪贴板不可用'));
+  }, [showNotice]);
 
   // ── 键盘导航（纯导航模型：焦点框与 selectedPids 分离）──
   // 焦点用 pid 锚定（非 index）：排序/折叠/过滤后行序会变，按 pid 定位才稳定。
@@ -533,7 +567,8 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
   );
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
+      {notice && <PanelAlert tone={notice.tone}>{notice.text}</PanelAlert>}
       <table
         ref={tableRef}
         role="grid"
@@ -548,6 +583,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
                   aria-label="全选可见行"
                   checked={allSelected}

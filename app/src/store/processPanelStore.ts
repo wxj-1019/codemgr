@@ -32,6 +32,8 @@ interface ProcessPanelState {
   selectedPids: Set<number>;
   loading: boolean;
   error: string | null;
+  /** 上次出错时间（UX-27）：成功恢复后仍保留一段时间，错误横幅不至于一闪而过。 */
+  lastErrorAt: number | null;
   staleAt: number | null;        // 上次成功采样时间；null=数据新鲜或从未成功（A2）
   // 详情侧栏占容器宽度的比例（0-1），驱动 allotment 受控 sizes。持久化，刷新恢复。
   sidebarProportion: number;
@@ -78,6 +80,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       selectedPids: new Set<number>(),
       loading: false,
       error: null,
+      lastErrorAt: null,
       staleAt: null,
       // 侧栏约占容器 30%；allotment 用比例驱动，窗口 resize 时侧栏按比例缩放
       sidebarProportion: 0.3,
@@ -160,7 +163,7 @@ export const useProcessPanelStore = create<ProcessPanelState>()(
       })),
       clearSelection: () => set({ selectedPids: new Set() }),
       setLoading: (b) => set({ loading: b }),
-      setError: (e) => set({ error: e }),
+      setError: (e) => set((s) => (e !== null ? { error: e, lastErrorAt: Date.now() } : { error: null, lastErrorAt: null })),
       setStaleAt: (ts) => set({ staleAt: ts }),
       // 钳制到 15%-60%：太窄曲线/命令行看不清，太宽挤掉进程表
       setSidebarProportion: (p) => set({ sidebarProportion: Math.min(0.6, Math.max(0.15, p)) }),

@@ -13,6 +13,7 @@ export {
   CircleX,
   Download,
   Ellipsis,
+  Focus,
   Folder,
   Inbox,
   Info,

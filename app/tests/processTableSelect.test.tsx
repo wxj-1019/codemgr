@@ -207,3 +207,35 @@ describe('ProcessTable select-all visibility', () => {
     expect(useProcessPanelStore.getState().selectedPids).toEqual(new Set([1]));
   });
 });
+
+describe('ProcessTable 表头半选态（UX-21）', () => {
+  beforeEach(() => {
+    cleanup();
+    localStorage.clear();
+    useProcessPanelStore.getState().reset();
+    useFocusStore.getState().focus(null);
+    useProcessPanelStore.setState({ filter: '', viewMode: 'tree', sortKey: 'pid', sortAsc: true });
+  });
+
+  it('部分选中时全选框呈 indeterminate（不再空框误导）', () => {
+    useProcessPanelStore.setState({
+      processes: [p({ pid: 1, name: 'a.exe' }), p({ pid: 2, name: 'b.exe' })],
+      selectedPids: new Set([1]),
+    });
+    render(<ProcessTable multiSelectEnabled onKillSingle={() => {}} onKillTree={() => {}} />);
+    const cb = selectAllCheckbox();
+    expect(cb.checked).toBe(false);
+    expect(cb.indeterminate).toBe(true);
+  });
+
+  it('全选后恢复 determinate 且 checked', () => {
+    useProcessPanelStore.setState({
+      processes: [p({ pid: 1, name: 'a.exe' }), p({ pid: 2, name: 'b.exe' })],
+      selectedPids: new Set([1, 2]),
+    });
+    render(<ProcessTable multiSelectEnabled onKillSingle={() => {}} onKillTree={() => {}} />);
+    const cb = selectAllCheckbox();
+    expect(cb.checked).toBe(true);
+    expect(cb.indeterminate).toBe(false);
+  });
+});

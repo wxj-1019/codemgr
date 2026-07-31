@@ -13,10 +13,14 @@ export function usePerf() {
   const pollMs = usePerfStore((s) => s.pollMs);
   const pollable = useVisibilityStore(selectPollable(PANEL));
   const stoppedRef = useRef(false);
+  // UX-26：effect 重跑世代计数——旧 in-flight 请求完成后校验世代，
+  // 杜绝陈旧结果写入新轮询周期（stoppedRef 复位后旧请求会误判存活）。
+  const genRef = useRef(0);
   const busyRef = useRef(false);
   const firstRef = useRef(true);
 
   useEffect(() => {
+    const gen = ++genRef.current;
     stoppedRef.current = false;
     busyRef.current = false;
 
@@ -27,7 +31,7 @@ export function usePerf() {
       if (isFirst) setLoading(true);  // only first load shows loading
       try {
         const result = await ipc.fetchPerf();
-        if (stoppedRef.current) return;
+        if (stoppedRef.current || genRef.current !== gen) return;
         if (result.ok) {
           setPerf(result.data);
           firstRef.current = false;
@@ -38,7 +42,7 @@ export function usePerf() {
           if (isFirst) firstRef.current = false;
         }
       } catch (e) {
-        if (!stoppedRef.current) setError(String(e));
+        if (!stoppedRef.current && genRef.current === gen) setError(String(e));
       } finally {
         busyRef.current = false;
         // 成功路径也会把 firstRef 置 false；用 isFirst 快照保证 loading 一定复位
@@ -52,6 +56,7 @@ export function usePerf() {
     const timer = setInterval(poll, pollMs);
     return () => {
       stoppedRef.current = true;
+      genRef.current++;
       clearInterval(timer);
     };
   }, [setPerf, setLoading, setError, setStaleAt, pollable, pollMs]);

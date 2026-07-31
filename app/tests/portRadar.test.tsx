@@ -5,8 +5,9 @@ import { PortRadar } from '../src/components/PortRadar';
 
 vi.mock('../src/hooks/usePortRadar', () => ({ usePortRadar: vi.fn() }));
 vi.mock('../src/components/PortTable', () => ({
-  PortTable: ({ onKill }: { onKill?: (pid: number, name: string) => void }) => (
+  PortTable: ({ onKill, showAll }: { onKill?: (pid: number, name: string) => void; showAll?: boolean }) => (
     <div>
+      <span data-testid="show-all-prop">{String(!!showAll)}</span>
       <button onClick={() => onKill?.(3000, 'node.exe')}>kill-row</button>
     </div>
   ),
@@ -41,5 +42,23 @@ describe('PortRadar 单杀反馈（UX-03）', () => {
     fireEvent.click(screen.getByRole('button', { name: 'kill-row' }));
     fireEvent.click(screen.getByRole('button', { name: '结束进程' }));
     expect(await screen.findByText(/受保护进程，无法结束/)).toBeInTheDocument();
+  });
+});
+
+describe('PortRadar 仅监听/全部连接切换（UX-19）', () => {
+  it('默认「仅监听」；点击切换到「全部连接」并透传给 PortTable', async () => {
+    mockIpc({
+      fetchConnections: vi.fn(() => Promise.resolve({
+        ok: true as const,
+        data: [],
+        sampledAt: Date.now(),
+      } as never)),
+    });
+    render(<PortRadar />);
+    expect(screen.getByRole('button', { name: '仅监听' })).toBeInTheDocument();
+    expect(screen.getByTestId('show-all-prop')).toHaveTextContent('false');
+    fireEvent.click(screen.getByRole('button', { name: '仅监听' }));
+    expect(screen.getByRole('button', { name: '全部连接' })).toBeInTheDocument();
+    expect(screen.getByTestId('show-all-prop')).toHaveTextContent('true');
   });
 });

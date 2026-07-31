@@ -74,7 +74,7 @@ export const BUILTIN_PANEL_CATALOG: Record<BuiltInPanelId, BuiltInPanelCatalogEn
     renderer: () => <SessionPanel />,
   },
   'run-profiles': {
-    title: 'Run Profiles',
+    title: '运行配置',
     group: 'workflow',
     icon: <CatalogIcon label="R" />,
     renderer: () => <RunProfilesPanel />,

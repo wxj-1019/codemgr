@@ -56,7 +56,7 @@ describe('WorkspaceSidebar', () => {
     expect(within(workflow).getAllByRole('button').map((button) => button.textContent)).toEqual([
       '快照',
       'AI 会话',
-      'Run Profiles',
+      '运行配置',
     ]);
   });
 
@@ -285,5 +285,26 @@ describe('workspace shell wiring', () => {
     await user.click(screen.getByRole('button', { name: '恢复经典布局' }));
 
     expect(restore).toHaveBeenCalledOnce();
+  });
+});
+
+describe('WorkspaceSidebar 布局预设（UX-11）', () => {
+  it('当前是自定义布局（preset=null）时应用预设需确认', () => {
+    const onApplyPreset = vi.fn();
+    renderSidebar({ preset: null, onApplyPreset });
+    fireEvent.change(screen.getByLabelText('布局预设'), { target: { value: 'classic' } });
+    // 确认对话框出现，未直接应用
+    expect(screen.getByRole('dialog', { name: '应用布局预设' })).toBeInTheDocument();
+    expect(onApplyPreset).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '应用预设' }));
+    expect(onApplyPreset).toHaveBeenCalledWith('classic');
+  });
+
+  it('当前就是预设布局时直接应用（不打断）', () => {
+    const onApplyPreset = vi.fn();
+    renderSidebar({ preset: 'classic', onApplyPreset });
+    fireEvent.change(screen.getByLabelText('布局预设'), { target: { value: 'dev-focus' } });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onApplyPreset).toHaveBeenCalledWith('dev-focus');
   });
 });

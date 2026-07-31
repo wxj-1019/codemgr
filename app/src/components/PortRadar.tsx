@@ -18,12 +18,14 @@ import { Search, X } from './icons';
 export function PortRadar() {
   usePortRadar();  // 启动轮询
   const {
-    connections, loading, error, selectedPid, select, filter, setFilter,
+    connections, loading, error, lastErrorAt, selectedPid, select, filter, setFilter,
     pollMs, setPollMs, staleAt,
   } = usePortRadarStore();
   const focus = useFocusStore((s) => s.focus);
   const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
   const [killBusy, setKillBusy] = useState(false);
+  // UX-19：仅监听（默认）/ 全部连接（含 ESTABLISHED 等）切换——设计文档 §3.1 承诺
+  const [showAll, setShowAll] = useState(false);
   // 操作结果反馈横幅（UX-03/UX-17）：取代原生 alert，自动消失
   const { notice, show: showNotice } = useNotice();
 
@@ -54,15 +56,19 @@ export function PortRadar() {
 
   const visible = filterConnections(connections, filter);
   const listenCount = visible.filter(isListenLike).length;
+  // UX-19/UX-21：摘要计数随过滤词变化会误导（"5 个监听端口"实为"匹配 5 个"）
+  const summaryCount = showAll ? visible.length : listenCount;
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留表格，仅在表头下挂一条
   // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
   const hasData = connections.length > 0;
   const isFirstLoad = connections.length === 0 && !error;
-  const showErrorBanner = !!error && hasData;
+  // UX-27：错误恢复后横幅保留 60s（单次短暂失败不至于一闪而过）
+  const recentError = lastErrorAt !== null && Date.now() - lastErrorAt < 60000;
+  const showErrorBanner = (!!error || recentError) && hasData;
   const showLoadState = (isFirstLoad && loading) || (!!error && !hasData);
 
-  // 拼接状态摘要文本（监听数 / 刷新中 / 出错 / 数据陈旧）
-  const summary = `${listenCount} 个监听端口${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
+  // 拼接状态摘要文本（监听数/连接数 / 刷新中 / 出错 / 数据陈旧）
+  const summary = `${summaryCount} 个${showAll ? '连接' : '监听端口'}${loading ? ' · 刷新中…' : ''}${error ? ' · 上次刷新出错' : ''}${
     staleAt !== null ? ` · 数据陈旧（${formatRelativeTime(staleAt)}）` : ''
   }`;
 
@@ -73,6 +79,18 @@ export function PortRadar() {
         summary={summary}
         actions={
           <>
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              aria-pressed={showAll}
+              className={`rounded-md border px-2 py-1 text-xs ${
+                showAll
+                  ? 'border-accent/50 bg-accent/10 text-accent'
+                  : 'border-line bg-surface-raised text-content-secondary hover:bg-surface-overlay'
+              }`}
+              title={showAll ? '显示全部连接（含已建立连接）' : '仅显示监听中的端口'}
+            >
+              {showAll ? '全部连接' : '仅监听'}
+            </button>
             <PollIntervalSelect value={pollMs} onChange={setPollMs} />
             <div className="relative min-w-32 max-w-48 flex-1">
               <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-content-muted" aria-hidden="true" />
@@ -91,7 +109,7 @@ export function PortRadar() {
       {showErrorBanner && (
         <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
           <p className="truncate text-xs text-danger">
-            上次刷新失败：{error}
+            {error ? `上次刷新失败：${error}` : '上次刷新出错（已恢复）'}
           </p>
           <IconButton
             label="关闭错误提示"
@@ -121,6 +139,7 @@ export function PortRadar() {
           <PortTable
             connections={visible}
             selectedPid={selectedPid}
+            showAll={showAll}
             onSelect={(pid) => { select(pid); focus(pid, 'port'); }}
             onKill={(pid, name) => setPendingKill({ pid, name })}
           />

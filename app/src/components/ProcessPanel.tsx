@@ -269,21 +269,23 @@ export function ProcessPanel() {
               {multiSelectEnabled ? <Check size={13} aria-hidden="true" /> : <ListChecks size={13} aria-hidden="true" />}
               {multiSelectEnabled ? '完成' : '多选'}
             </Button>
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={toggleViewMode}
-              className="rounded-md border border-line bg-surface-raised px-2 py-1 text-xs text-content-secondary hover:bg-surface-overlay hover:text-content-primary"
               title={viewMode === 'tree' ? '切换到按项目分组视图' : '切换到树形视图'}
             >
               {viewMode === 'tree' ? '按项目' : '树形'}
-            </button>
+            </Button>
             {hasNode && (
-              <button
+              <Button
+                variant="dangerQuiet"
+                size="xs"
                 onClick={() => setConfirmKillAllNode(true)}
-                className="rounded-md border border-danger/40 bg-transparent px-2 py-1 text-xs text-danger hover:bg-danger hover:text-on-accent"
                 title="结束系统中所有 node.exe 进程（受保护名单排除）"
               >
                 结束所有 node.exe
-              </button>
+              </Button>
             )}
             {multiSelectEnabled && selectedPids.size > 0 && (
               <Button

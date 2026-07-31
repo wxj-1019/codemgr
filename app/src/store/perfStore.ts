@@ -16,6 +16,8 @@ interface PerfState {
   history: PerfHistoryPoint[]; // rolling window of 60
   loading: boolean;
   error: string | null;
+  /** 上次出错时间（UX-27）：成功恢复后仍保留一段时间，错误横幅不至于一闪而过。 */
+  lastErrorAt: number | null;
   staleAt: number | null;        // 上次成功采样时间；null=数据新鲜或从未成功（A2）
   // 轮询间隔（ms），0 = 暂停。持久化，重启后保留。
   pollMs: number;
@@ -34,6 +36,7 @@ export const usePerfStore = create<PerfState>()(
       history: [],
       loading: false,
       error: null,
+      lastErrorAt: null,
       staleAt: null,
       pollMs: 1000,  // 性能面板默认 1s（与原硬编码 POLL_MS 一致）
       setPerf: (p) =>
@@ -49,7 +52,7 @@ export const usePerfStore = create<PerfState>()(
           return { current: p, history: next, error: null, staleAt: null };
         }),
       setLoading: (b) => set({ loading: b }),
-      setError: (e) => set({ error: e }),
+      setError: (e) => set((s) => (e !== null ? { error: e, lastErrorAt: Date.now() } : { error: null, lastErrorAt: null })),
       setStaleAt: (ts) => set({ staleAt: ts }),
       setPollMs: (ms) => set({ pollMs: ms }),
       reset: () => set({ current: null, history: [], loading: false, error: null, staleAt: null, pollMs: 1000 }),

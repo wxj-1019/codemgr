@@ -223,3 +223,18 @@ describe('ProjectGroupView multi-select mode', () => {
     expect(container.querySelector('tbody tr:nth-child(2)')).not.toBeNull();
   });
 });
+
+describe('ProjectGroupView 表头半选态（UX-21）', () => {
+  it('部分选中时全选框呈 indeterminate', () => {
+    useProcessPanelStore.setState({
+      processes: [proc({ pid: 10 }), proc({ pid: 20, name: 'node.exe', cmdline: 'node server.js' })],
+      selectedPids: new Set([10]),
+      expandedGroups: new Set(['C:/work/app']),
+      filter: '',
+    });
+    render(<ProjectGroupView {...props} multiSelectEnabled />);
+    const cb = screen.getByLabelText(/全选/) as HTMLInputElement;
+    expect(cb.checked).toBe(false);
+    expect(cb.indeterminate).toBe(true);
+  });
+});
