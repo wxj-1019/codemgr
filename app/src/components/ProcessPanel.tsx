@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { useProcessPanel } from '../hooks/useProcessPanel';
@@ -197,6 +197,12 @@ export function ProcessPanel() {
     setMultiSelectEnabled((enabled) => !enabled);
   }
 
+  // 稳定回调（UX-13 memo 链路）：父组件每轮轮询重渲染，内联箭头会生成新引用
+  // 击穿 ProcessTable/ProjectGroupView 的行 memo——useCallback 固定身份。
+  const onKillSingle = useCallback((pid: number, name: string) => setPendingKill({ pid, name }), []);
+  const onKillTree = useCallback((pid: number, name: string) => setPendingKillTree({ pid, name }), []);
+  const onKillGroup = useCallback((name: string, pids: number[]) => setGroupKill({ name, pids }), []);
+
   // 错误降级为横幅，而非整屏替换：有数据 + 出错时保留进程表，仅在表头下挂一条
   // 可关闭的红色横幅；只有「无数据 + 出错」或「首次加载 + loading」才走整屏状态。
   const hasData = processes.length > 0;
@@ -318,9 +324,9 @@ export function ProcessPanel() {
           onSidebarResize={setSidebarProportion}
           viewMode={viewMode}
           multiSelectEnabled={multiSelectEnabled}
-          onKillSingle={(pid, name) => setPendingKill({ pid, name })}
-          onKillTree={(pid, name) => setPendingKillTree({ pid, name })}
-          onKillGroup={(name, pids) => setGroupKill({ name, pids })}
+          onKillSingle={onKillSingle}
+          onKillTree={onKillTree}
+          onKillGroup={onKillGroup}
         />
       )}
 

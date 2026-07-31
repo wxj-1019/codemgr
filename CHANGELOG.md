@@ -62,6 +62,12 @@
 - **复制命令行有反馈（UX-22 补）**：详情侧栏复制成功显示「已复制」、失败显示「复制失败」（1.5s 恢复），不再静默吞掉。
 - **单杀确认文案统一（UX-23）**：端口雷达与进程面板同一话术。
 
+#### 项目分组视图虚拟化（UX-13，2026-08-01）
+- **补上设计文档 §3.2 承诺缺口**：项目分组视图 >100 行启用虚拟滚动（与 ProcessTable 同阈值、同 overscan），300 个 node 同组不再整组铺进 DOM——此前每 2s 轮询全量重渲染，超大组直接卡顿。
+- **修复 GroupRow memo 击穿**：行组件改为只收原始类型 props（组头行/进程行拆分 memo 化），动态值（CPU%、选中态）改为行内 zustand selector 按行订阅——轮询时只有值变化的那一行重渲染，不再整表重绘。扁平行模型只在分组/展开变化时重建。
+- **键盘导航虚拟化感知**：焦点行未渲染时走 `virtualizer.scrollToIndex` 兜底（pending fallback + 渲染后补 focus，与 ProcessTable 同模式），ArrowDown/Up/Home/End 在 300 进程分组下依旧可用；全局聚焦（端口/快照点击定位）同样按行索引滚动。
+- ProcessPanel 三个 kill 回调 useCallback 稳定化，补齐 memo 链路（父组件每轮轮询重渲染不再击穿行 memo）。
+
 ### 测试
 - app 308→433（新增 layoutStore 聚焦上限/持久化迁移、WorkspaceTopbar 聚焦操作、Mosaic 放大高度链、进程多选模式，以及工作台 Phase 1-6 回归），全过。native 49/49 全过（含 disk/gpu）。共 482 PASS。
 - **修复**：`codemgr-native/scripts/build.mjs` 的 CMake 发现逻辑——`vswhere -latest` 只取最新 VS 实例，若其无 CMake 组件（如只装 BuildTools）会失败回退 PATH。改为：最新实例无 CMake 时遍历**所有** VS 实例找第一个带 CMake 的（如本机 VS2022 BuildTools 无 CMake → 回退到 VS2019 Community）。
