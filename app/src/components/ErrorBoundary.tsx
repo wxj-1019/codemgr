@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.reset}
-                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-base-900 hover:opacity-90"
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent hover:opacity-90"
               >
                 重试
               </button>

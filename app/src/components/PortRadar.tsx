@@ -7,7 +7,7 @@ import { ipc } from '../lib/ipc';
 import { filterConnections, isListenLike } from '../lib/portFilter';
 import { PortTable } from './PortTable';
 import { ConfirmDialog } from './ConfirmDialog';
-import { LoadState } from './LoadState';
+import { StateView } from './ui/StateView';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
 import { PanelActionBar } from './ui/PanelActionBar';
@@ -127,14 +127,11 @@ export function PortRadar() {
 
       <main className="flex min-h-0 flex-1 overflow-hidden p-2">
         {showLoadState ? (
-          <LoadState
-            loading={loading}
-            error={error}
-            empty={connections.length === 0 && !loading && !error}
-            emptyText="暂无监听端口"
-            isFirstLoad={isFirstLoad}
-            paused={pollMs === 0}
-          />
+          error ? (
+            <StateView state="error" title="加载失败" description={error} />
+          ) : (
+            <StateView state="loading" title="加载中…" />
+          )
         ) : (
           <PortTable
             connections={visible}

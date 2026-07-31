@@ -14,7 +14,7 @@ import { ProcessTable } from './ProcessTable';
 import { ProjectGroupView } from './ProjectGroupView';
 import { ProcessDetailSidebar } from './ProcessDetailSidebar';
 import { ConfirmDialog } from './ConfirmDialog';
-import { LoadState } from './LoadState';
+import { StateView } from './ui/StateView';
 import { Dialog } from './ui/Dialog';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
@@ -330,13 +330,11 @@ export function ProcessPanel() {
       {/* 加载/错误/空状态，或进程表 + 可拖宽侧栏 */}
       {showLoadState ? (
         <div className="flex flex-1 overflow-hidden">
-          <LoadState
-            loading={loading}
-            error={error}
-            empty={false}
-            isFirstLoad={isFirstLoad}
-            paused={pollMs === 0}
-          />
+          {error ? (
+            <StateView state="error" title="加载失败" description={error} />
+          ) : (
+            <StateView state="loading" title="加载中…" />
+          )}
         </div>
       ) : (
         <ProcessTableArea

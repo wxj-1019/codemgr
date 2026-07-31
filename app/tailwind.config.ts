@@ -27,18 +27,6 @@ export default {
         info: opaque('info'),
         'on-accent': opaque('on-accent'),
 
-        // Compatibility mappings for existing components.
-        base: {
-          900: opaque('surface-canvas'),
-          800: translucent('surface-panel'),
-          700: translucent('surface-raised'),
-          600: translucent('line'),
-        },
-        fg: {
-          primary: opaque('content-primary'),
-          secondary: opaque('content-secondary'),
-          muted: opaque('content-muted'),
-        },
         accent: {
           DEFAULT: opaque('accent'),
           hover: opaque('accent-hover'),

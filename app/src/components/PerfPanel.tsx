@@ -10,7 +10,7 @@ import {
 import { usePerf } from '../hooks/usePerf';
 import { usePerfStore } from '../store/perfStore';
 import type { PerfData } from '../../electron/ipc-types';
-import { LoadState } from './LoadState';
+import { StateView } from './ui/StateView';
 import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { PanelAlert } from './ui/PanelAlert';
@@ -18,7 +18,7 @@ import { useFocusStore } from '../store/focusStore';
 import { formatBytesPerSec, formatRelativeTime } from '../lib/format';
 
 // 共享区块样式（避免 ~10 处重复 className）
-const sectionSurface = 'rounded-lg border border-line bg-surface-panel p-4';
+const sectionSurface = 'glass rounded-[14px] p-4';
 
 type SubTab = 'cpu' | 'memory' | 'disk' | 'network' | 'gpu';
 
@@ -42,15 +42,10 @@ export function PerfPanel() {
   const [sub, setSub] = useState<SubTab>('cpu');
 
   if (!current) {
-    return (
-      <LoadState
-        loading={!error}
-        error={error}
-        empty={false}
-        isFirstLoad
-        paused={pollMs === 0}
-      />
-    );
+    if (error) {
+      return <StateView state="error" title="加载失败" description={error} />;
+    }
+    return <StateView state="loading" title="加载中…" />;
   }
 
   const subTabs: { id: SubTab; label: string }[] = [
@@ -250,7 +245,7 @@ function MemoryView({
 
 function DiskView({ current }: { current: PerfData }) {
   return (
-    <div className="rounded-lg border border-line bg-surface-panel p-4">
+    <div className="glass rounded-[14px] p-4">
       <div className="mb-3 text-sm text-content-secondary">磁盘空间</div>
       <div className="space-y-3">
         {current.disks.map((d, i) => {
@@ -295,7 +290,7 @@ function NetworkView({ current }: { current: PerfData }) {
     (n) => n.recvBytesPerSec > 0 || n.sendBytesPerSec > 0,
   );
   return (
-    <div className="rounded-lg border border-line bg-surface-panel p-4">
+    <div className="glass rounded-[14px] p-4">
       <div className="mb-3 text-sm text-content-secondary">网络适配器（活跃）</div>
       {active.length === 0 ? (
         <div className="text-sm text-content-muted">无活跃网络流量</div>
@@ -339,7 +334,7 @@ function GpuView({
   // 降级：无 GPU 计数器（虚拟机/远程桌面）
   if (!gpu.available) {
     return (
-      <div className="rounded-lg border border-line bg-surface-panel p-8 text-center">
+      <div className="glass rounded-[14px] p-8 text-center">
         <div className="text-sm text-content-muted">此环境不支持 GPU 计数器（虚拟机/远程桌面/无 GPU）</div>
       </div>
     );
