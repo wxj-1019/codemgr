@@ -11,6 +11,13 @@ const TONE_CLASSES: Record<PanelAlertTone, string> = {
   danger: 'border-danger/25 bg-danger/10 text-danger',
 };
 
+const CONTENT_CLASSES: Record<PanelAlertTone, string> = {
+  info: 'text-content-secondary',
+  success: 'text-content-secondary',
+  warning: 'text-content-secondary',
+  danger: 'text-danger',
+};
+
 const ICONS = {
   info: Info,
   success: CheckCircle2,
@@ -38,7 +45,9 @@ export function PanelAlert({ tone = 'info', className, children, ...props }: Pan
       )}
     >
       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <div className="min-w-0 text-content-secondary">{children}</div>
+      <div className={cx('flex min-w-0 flex-1 items-center justify-between gap-3', CONTENT_CLASSES[tone])}>
+        {children}
+      </div>
     </div>
   );
 }

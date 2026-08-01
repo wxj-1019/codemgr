@@ -131,7 +131,7 @@ export function PortRadar() {
       />
 
       {showErrorBanner && (
-        <PanelAlert tone="danger" className="flex items-center justify-between gap-3">
+        <PanelAlert tone="danger" className="gap-3">
           <span className="truncate text-xs">
             {error ? `上次刷新失败：${error}` : '上次刷新出错（已恢复）'}
           </span>
