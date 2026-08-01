@@ -21,6 +21,8 @@ const UNGROUPED = '未分组';
 // 避免 N 个进程瞬时并发造成 main 进程尖刺。
 const BATCH_SIZE = 5;
 const BATCH_DELAY_MS = 50;
+// 虚拟滚动固定行高（py-2 + text-sm ≈ 37px）：与 ProcessTable 的 ROW_HEIGHT 同步，改行高时两处需同时更新。
+const ROW_HEIGHT = 37;
 
 interface ProjectGroupViewProps {
   /** 多选模式（main 合入）：true 时行首渲染 checkbox，点击行=切换选择；false 时点击行=聚焦。 */
@@ -205,10 +207,10 @@ const GroupProcRow = memo(function GroupProcRow({
 
 // 可排序表头列（H3）：name/cpu/memory/pid，点击切换升降序
 const SORTABLE_HEADERS: { key: GroupSortKey; label: string; cls: string }[] = [
-  { key: 'name', label: '项目 / 名称', cls: 'px-2 py-2 font-medium' },
-  { key: 'cpu', label: 'CPU%', cls: 'w-16 px-2 py-2 font-medium text-right' },
-  { key: 'memory', label: '内存/MB', cls: 'w-20 px-2 py-2 font-medium text-right' },
-  { key: 'pid', label: 'PID', cls: 'w-16 px-2 py-2 font-medium text-right' },
+  { key: 'name', label: '项目 / 名称', cls: 'px-3 py-2 font-medium' },
+  { key: 'cpu', label: 'CPU%', cls: 'w-16 px-3 py-2 font-medium text-right' },
+  { key: 'memory', label: '内存/MB', cls: 'w-20 px-3 py-2 font-medium text-right' },
+  { key: 'pid', label: 'PID', cls: 'w-16 px-3 py-2 font-medium text-right' },
 ];
 
 type FlatRow =
@@ -339,8 +341,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
   const virtualizer = useVirtualizer({
     count: shouldVirtualize ? flatRows.length : 0,
     getScrollElement: () => scrollRef.current,
-    // 组头与进程行行高统一（py-2 + text-sm ≈ 37px）
-    estimateSize: () => 37,
+    estimateSize: () => ROW_HEIGHT,
     overscan: 10,
   });
   const virtualItems = shouldVirtualize ? virtualizer.getVirtualItems() : [];
@@ -520,7 +521,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
                 </button>
               </th>
             ))}
-            <th className="w-32 px-2 py-2 font-medium">标签</th>
+            <th className="w-32 px-3 py-2 font-medium">标签</th>
             {SORTABLE_HEADERS.slice(1).map((h) => (
               <th key={h.key} className={h.cls}>
                 <button
@@ -533,9 +534,9 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
                 </button>
               </th>
             ))}
-            <th className="w-14 px-2 py-2 font-medium text-right">线程</th>
-            <th className="px-2 py-2 font-medium">命令行</th>
-            <th className="w-20 px-2 py-2 font-medium text-right">操作</th>
+            <th className="w-14 px-3 py-2 font-medium text-right">线程</th>
+            <th className="px-3 py-2 font-medium">命令行</th>
+            <th className="w-20 px-3 py-2 font-medium text-right">操作</th>
           </tr>
         </thead>
         <tbody>

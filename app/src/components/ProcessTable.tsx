@@ -92,7 +92,7 @@ interface ProcessRowProps {
   multiSelectEnabled: boolean;
   isFocused: boolean;
   isKeyboardEntry: boolean;
-  isFocusedGlobal?: boolean;  // 全局聚焦高亮（C），与多选选中态视觉区分
+  isFocusedGlobal?: boolean;  // 全局聚焦环（C）：ring-2 ring-accent/60 常驻环，与多选选中态 gradient 靠环粗细/位置区分
   onToggleExpand: (pid: number) => void;
   onActivate: (pid: number) => void;
   onToggleSelect: (pid: number) => void;
