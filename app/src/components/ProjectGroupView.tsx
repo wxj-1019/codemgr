@@ -21,8 +21,8 @@ const UNGROUPED = '未分组';
 // 避免 N 个进程瞬时并发造成 main 进程尖刺。
 const BATCH_SIZE = 5;
 const BATCH_DELAY_MS = 50;
-// 虚拟滚动固定行高（py-2 + text-sm ≈ 37px）：与 ProcessTable 的 ROW_HEIGHT 同步，改行高时两处需同时更新。
-const ROW_HEIGHT = 37;
+// 虚拟滚动固定行高（kill 按钮 py-1 + text-sm 行高 + td py-2 ≈ 46px）：与 ProcessTable 的 ROW_HEIGHT 同步，改行高时两处需同时更新。
+const ROW_HEIGHT = 46;
 
 interface ProjectGroupViewProps {
   /** 多选模式（main 合入）：true 时行首渲染 checkbox，点击行=切换选择；false 时点击行=聚焦。 */
@@ -92,7 +92,7 @@ const GroupHeaderRow = memo(function GroupHeaderRow({
         </span>
         <button
           onClick={onKillGroup}
-          className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
+          className="btn-danger-quiet rounded-lg px-2 py-1 text-[10px]"
           title={`结束本组全部 ${procCount} 个进程`}
         >
           结束本组
@@ -196,7 +196,7 @@ const GroupProcRow = memo(function GroupProcRow({
             e.stopPropagation();
             onKillSingle(proc.pid, proc.name);
           }}
-          className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
+          className="btn-danger-quiet rounded-lg px-2 py-1 text-[10px]"
         >
           结束
         </button>

@@ -75,9 +75,10 @@ function formatMem(bytes: number): string {
 }
 
 // 虚拟列表：可见行数超过阈值才启用（设计文档 §3.2：>100 进程启用虚拟滚动）。
-// 树形行高固定（py-2 + text-sm ≈ 37px），用固定 estimateSize，不做逐行测量。
+// 行高固定（kill 按钮 py-1 + text-sm 行高 + td py-2 ≈ 46px），用固定 estimateSize，不做逐行测量；
+// 与 ProjectGroupView 的 ROW_HEIGHT 同步，改行高时两处需同时更新。
 const VIRTUALIZE_THRESHOLD = 100;
-const ROW_HEIGHT = 37;
+const ROW_HEIGHT = 46;
 
 /** Color classes for each process-label kind（Aurora v1.2：底色降到 14% 透明度，字色不变）。 */
 // ---- Memoized row: only re-renders when its own inputs change ----
