@@ -155,13 +155,13 @@ const ProcessRow = memo(function ProcessRow({
                 e.stopPropagation();
                 onToggleExpand(proc.pid);
               }}
-              className="w-4 text-xs text-fg-muted hover:text-fg-primary"
+              className="w-4 text-xs text-content-muted hover:text-content-primary"
             >
               {isExpanded ? '▾' : '▸'}
             </button>
           )}
           {!hasChildren && <span className="w-4" />}
-          <span className="text-fg-primary truncate max-w-[200px]">
+          <span className="text-content-primary truncate max-w-[200px]">
             {proc.name}
           </span>
           {label && (
@@ -175,7 +175,7 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       <td
         className={`px-2 py-1.5 text-right font-mono ${
-          cpuHighlight ? 'text-danger' : 'text-fg-primary'
+          cpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
       >
         {cpu.toFixed(1)}
@@ -183,7 +183,7 @@ const ProcessRow = memo(function ProcessRow({
       {/* v2.1 GPU% 列（数据来自 perfStore 轮询；无 GPU 环境显示 —） */}
       <td
         className={`px-2 py-1.5 text-right font-mono ${
-          gpuHighlight ? 'text-danger' : 'text-fg-primary'
+          gpuHighlight ? 'text-danger' : 'text-content-primary'
         }`}
         title={gpu ? undefined : '性能面板未开启或无 GPU 数据'}
       >
@@ -191,19 +191,19 @@ const ProcessRow = memo(function ProcessRow({
       </td>
       <td
         className={`whitespace-nowrap px-2 py-1.5 text-right font-mono ${
-          memHighlight ? 'text-warn' : 'text-fg-primary'
+          memHighlight ? 'text-warn' : 'text-content-primary'
         }`}
       >
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1.5 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1.5 text-right font-mono text-content-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1.5 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1.5 text-right font-mono text-content-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1.5 font-mono text-fg-muted truncate max-w-[400px] text-xs"
+        className="px-2 py-1.5 font-mono text-content-muted truncate max-w-[400px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
@@ -560,7 +560,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs text-fg-muted">
+        <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs text-content-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">
@@ -660,7 +660,7 @@ export function ProcessTable({ multiSelectEnabled = false, onKillSingle, onKillT
           )}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={multiSelectEnabled ? 9 : 8} className="px-3 py-8 text-center text-content-muted">
                 无进程
               </td>
             </tr>

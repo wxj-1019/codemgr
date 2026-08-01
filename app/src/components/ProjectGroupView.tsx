@@ -61,25 +61,25 @@ const GroupHeaderRow = memo(function GroupHeaderRow({
       <td className="px-2 py-2">
         <button
           onClick={onToggle}
-          className="flex items-center gap-1 text-sm font-medium text-fg-primary"
+          className="flex items-center gap-1 text-sm font-medium text-content-primary"
           title={dir || '未分组进程'}
         >
-          <span className="w-4 text-xs text-fg-muted">
+          <span className="w-4 text-xs text-content-muted">
             {procCount > 0 ? (isExpanded ? '▾' : '▸') : ''}
           </span>
-          <span className="text-fg-muted">{dir ? <FolderIcon /> : <PackageIcon />}</span>
+          <span className="text-content-muted">{dir ? <FolderIcon /> : <PackageIcon />}</span>
           <span className="truncate max-w-[260px]">{name}</span>
-          <span className="ml-1 text-xs font-normal text-fg-muted">
+          <span className="ml-1 text-xs font-normal text-content-muted">
             ({procCount} 进程 · 合计 {formatMem(totalMemory)})
           </span>
         </button>
       </td>
       <td className="px-2 py-2" />
       <td className="px-2 py-2" />
-      <td className="px-2 py-2 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-2 text-right font-mono text-content-secondary">
         {formatMem(totalMemory)}
       </td>
-      <td className="px-2 py-2 text-right text-xs text-fg-muted" colSpan={3}>
+      <td className="px-2 py-2 text-right text-xs text-content-muted" colSpan={3}>
         {dir || '—'}
       </td>
       <td className="px-2 py-2 text-right">
@@ -158,7 +158,7 @@ const GroupProcRow = memo(function GroupProcRow({
       )}
       <td className="px-2 py-1">
         <div className="flex items-center gap-1" style={{ paddingLeft: 24 }}>
-          <span className="text-fg-primary truncate max-w-[200px]">
+          <span className="text-content-primary truncate max-w-[200px]">
             {proc.name}
           </span>
         </div>
@@ -170,20 +170,20 @@ const GroupProcRow = memo(function GroupProcRow({
           </span>
         )}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-primary">
+      <td className="px-2 py-1 text-right font-mono text-content-primary">
         {cpu.toFixed(1)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-primary">
+      <td className="px-2 py-1 text-right font-mono text-content-primary">
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1 text-right font-mono text-content-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-fg-secondary">
+      <td className="px-2 py-1 text-right font-mono text-content-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1 font-mono text-fg-muted truncate max-w-[300px] text-xs"
+        className="px-2 py-1 font-mono text-content-muted truncate max-w-[300px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
@@ -485,7 +485,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-content-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">
@@ -511,7 +511,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
               <th key={h.key} className={h.cls}>
                 <button
                   onClick={() => toggleSort(h.key)}
-                  className="hover:text-fg-primary"
+                  className="hover:text-content-primary"
                   title={`按${h.label}排序`}
                 >
                   {h.label}
@@ -524,7 +524,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
               <th key={h.key} className={h.cls}>
                 <button
                   onClick={() => toggleSort(h.key)}
-                  className="hover:text-fg-primary"
+                  className="hover:text-content-primary"
                   title={`按${h.label}排序`}
                 >
                   {h.label}
@@ -581,7 +581,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
           )}
           {flatRows.length === 0 && (
             <tr>
-              <td colSpan={colSpan} className="px-3 py-8 text-center text-fg-muted">
+              <td colSpan={colSpan} className="px-3 py-8 text-center text-content-muted">
                 无进程
               </td>
             </tr>

@@ -83,7 +83,7 @@ export function PortTable({ connections, selectedPid, onSelect, onKill, showAll 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <table ref={tableRef} role="grid" className="w-full text-sm">
-        <thead className="sticky top-0 bg-surface-raised text-left text-xs uppercase text-fg-muted">
+        <thead className="sticky top-0 bg-surface-raised text-left text-xs uppercase text-content-muted">
           <tr>
             <th className="px-3 py-2 font-medium">端口</th>
             <th className="px-3 py-2 font-medium">协议</th>
