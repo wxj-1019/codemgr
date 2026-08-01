@@ -14,6 +14,7 @@ import { PollIntervalSelect } from './PollIntervalSelect';
 import { formatRelativeTime } from '../lib/format';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { IconButton } from './ui/IconButton';
+import { PanelAlert } from './ui/PanelAlert';
 import { Download, Search, X } from './icons';
 
 export function PortRadar() {
@@ -130,10 +131,10 @@ export function PortRadar() {
       />
 
       {showErrorBanner && (
-        <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
-          <p className="truncate text-xs text-danger">
+        <PanelAlert tone="danger" className="flex items-center justify-between gap-3">
+          <span className="truncate text-xs">
             {error ? `上次刷新失败：${error}` : '上次刷新出错（已恢复）'}
-          </p>
+          </span>
           <IconButton
             label="关闭错误提示"
             size="xs"
@@ -143,7 +144,7 @@ export function PortRadar() {
           >
             <X size={14} aria-hidden="true" />
           </IconButton>
-        </div>
+        </PanelAlert>
       )}
 
       <main className="flex min-h-0 flex-1 overflow-hidden p-2">

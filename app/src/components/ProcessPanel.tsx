@@ -24,6 +24,7 @@ import { PollIntervalSelect } from './PollIntervalSelect';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { PanelAlert } from './ui/PanelAlert';
 import { Check, Download, ListChecks, Search, Trash2, X } from './icons';
 import { useContainerWidth } from '../hooks/useContainerWidth';
 
@@ -351,10 +352,10 @@ export function ProcessPanel() {
       />
 
       {showErrorBanner && (
-        <div className="flex items-center justify-between gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2">
-          <p className="truncate text-xs text-danger">
-            {error ? `上次刷新失败：{error}` : '上次刷新出错（已恢复）'}
-          </p>
+        <PanelAlert tone="danger" className="flex items-center justify-between gap-3">
+          <span className="truncate text-xs">
+            {error ? `上次刷新失败：${error}` : '上次刷新出错（已恢复）'}
+          </span>
           <IconButton
             label="关闭错误提示"
             size="xs"
@@ -364,7 +365,7 @@ export function ProcessPanel() {
           >
             <X size={14} aria-hidden="true" />
           </IconButton>
-        </div>
+        </PanelAlert>
       )}
 
       {/* 加载/错误/空状态，或进程表 + 可拖宽侧栏 */}
