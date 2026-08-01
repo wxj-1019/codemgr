@@ -11,6 +11,7 @@ import { notify } from '../lib/notify';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PanelActionBar } from './ui/PanelActionBar';
 import { Badge } from './ui/Badge';
+import { StateView } from './ui/StateView';
 
 export function SessionPanel() {
   useSessions(); // 启动订阅（订阅 processPanelStore，无独立轮询）
@@ -51,11 +52,11 @@ export function SessionPanel() {
     return (
       <div className="flex h-full flex-col">
         <PanelActionBar label="AI 会话" />
-        <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-content-muted">
-          {scanning
-            ? <>正在扫描进程…</>
-            : <>未检测到 AI 开发会话。<br />Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。</>}
-        </div>
+        <StateView
+          state={scanning ? 'loading' : 'empty'}
+          title={scanning ? '正在扫描进程…' : '未检测到 AI 开发会话'}
+          description={scanning ? undefined : 'Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。'}
+        />
       </div>
     );
   }

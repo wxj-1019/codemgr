@@ -16,6 +16,7 @@ import { RunLogView } from './RunLogView';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { StateView } from './ui/StateView';
 import { Globe } from './icons';
 
 const STATUS_BADGE: Record<ServiceStatus['kind'], { text: string; cls: string }> = {
@@ -124,9 +125,11 @@ export function RunProfilesPanel() {
       {loadError && <PanelAlert tone="danger">加载 Run Profiles 失败：{loadError}</PanelAlert>}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-sm text-content-muted">
-            尚无 Run Profile。点「新建」配置一个开发服务（如 pnpm dev）。
-          </div>
+          <StateView
+            state="empty"
+            title="尚无 Run Profile"
+            description="点「新建」配置一个开发服务（如 pnpm dev）。"
+          />
         ) : (
           <div className="space-y-2">
             {profiles.map((p) => {
