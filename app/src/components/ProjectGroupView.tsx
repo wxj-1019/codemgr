@@ -138,13 +138,13 @@ const GroupProcRow = memo(function GroupProcRow({
       data-row-focused={isNavFocused ? 'true' : undefined}
       className={`border-b border-line transition-colors duration-200 hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
         multiSelectEnabled && isSelected ? 'bg-gradient-to-r from-accent/15 to-transparent border-l-[3px] border-l-accent' : ''
-      } ${isFocusedGlobal ? 'ring-2 ring-inset ring-cyan-400/70' : ''}`}
+      } ${isFocusedGlobal ? 'ring-2 ring-inset ring-accent/60' : ''}`}
       onClick={() => onActivate(proc.pid)}
       onKeyDown={(e) => onRowKeyDown(e, proc)}
       onContextMenu={(e) => onContextMenuRow(e, proc)}
     >
       {multiSelectEnabled && (
-        <td role="gridcell" className="px-1 py-1">
+        <td role="gridcell" className="px-1 py-2">
           <input
             type="checkbox"
             aria-label={`选择 ${proc.name}（PID ${proc.pid}）`}
@@ -156,39 +156,39 @@ const GroupProcRow = memo(function GroupProcRow({
           />
         </td>
       )}
-      <td className="px-2 py-1">
+      <td className="px-2 py-2">
         <div className="flex items-center gap-1" style={{ paddingLeft: 24 }}>
           <span className="text-content-primary truncate max-w-[200px]">
             {proc.name}
           </span>
         </div>
       </td>
-      <td className="px-2 py-1">
+      <td className="px-2 py-2">
         {label && (
           <span className={`rounded px-1 text-[10px] ${kindColorOf(label.kind)}`}>
             {label.label}
           </span>
         )}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-content-primary">
+      <td className="px-2 py-2 text-right font-mono text-content-primary">
         {cpu.toFixed(1)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-content-primary">
+      <td className="px-2 py-2 text-right font-mono text-content-primary">
         {formatMem(proc.workingSetBytes)}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-content-secondary">
+      <td className="px-2 py-2 text-right font-mono text-content-secondary">
         {proc.pid}
       </td>
-      <td className="px-2 py-1 text-right font-mono text-content-secondary">
+      <td className="px-2 py-2 text-right font-mono text-content-secondary">
         {proc.threadCount}
       </td>
       <td
-        className="px-2 py-1 font-mono text-content-muted truncate max-w-[300px] text-xs"
+        className="px-2 py-2 font-mono text-content-muted truncate max-w-[300px] text-xs"
         title={proc.cmdline}
       >
         {proc.cmdline || '—'}
       </td>
-      <td className="px-2 py-1 text-right">
+      <td className="px-2 py-2 text-right">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -339,7 +339,8 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
   const virtualizer = useVirtualizer({
     count: shouldVirtualize ? flatRows.length : 0,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (i) => (flatRows[i]?.type === 'group' ? 37 : 29),
+    // 组头与进程行行高统一（py-2 + text-sm ≈ 37px）
+    estimateSize: () => 37,
     overscan: 10,
   });
   const virtualItems = shouldVirtualize ? virtualizer.getVirtualItems() : [];
@@ -485,7 +486,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
           if (row) lastDomFocusPidRef.current = Number(row.dataset.pid);
         }}
       >
-        <thead className="sticky top-0 z-10 bg-base-800 text-left text-xs uppercase text-content-muted">
+        <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs uppercase text-content-muted">
           <tr>
             {multiSelectEnabled && (
               <th className="w-8 px-1 py-2">

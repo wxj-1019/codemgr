@@ -159,14 +159,14 @@ describe('ProjectGroupView multi-select mode', () => {
     );
   });
 
-  it('marks only the globally focused child with the persistent cyan ring', () => {
+  it('marks only the globally focused child with the persistent accent ring', () => {
     useFocusStore.getState().focus(20, 'port');
     const { container } = render(<ProjectGroupView {...props} />);
     const children = Array.from(container.querySelectorAll<HTMLTableRowElement>('tbody tr[role="row"]'));
 
     expect(children[1]).toHaveAttribute('data-pid', '20');
-    expect(children[1]).toHaveClass('ring-2', 'ring-inset', 'ring-cyan-400/70');
-    expect(children[0]).not.toHaveClass('ring-2', 'ring-cyan-400/70');
+    expect(children[1]).toHaveClass('ring-2', 'ring-inset', 'ring-accent/60');
+    expect(children[0]).not.toHaveClass('ring-2', 'ring-accent/60');
   });
 
   it('uses roving tabindex and moves child-row focus with ArrowDown', () => {

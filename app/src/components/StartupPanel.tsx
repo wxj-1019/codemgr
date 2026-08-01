@@ -34,7 +34,7 @@ export function StartupPanel() {
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-surface-raised text-left text-xs uppercase text-content-muted">
+            <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs uppercase text-content-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">名称</th>
                 <th className="px-3 py-2 font-medium">来源</th>

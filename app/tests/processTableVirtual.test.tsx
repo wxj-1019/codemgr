@@ -73,8 +73,8 @@ describe('ProcessTable virtualization', () => {
 
     // jsdom 的 scrollHeight/clientHeight 恒为 0；scrollToIndex 到末行时
     // getMaxScrollOffset() = scrollHeight - clientHeight 会被钳成 0（纯 jsdom 限制，
-    // 浏览器里滚动容器有真实内容高度）。mock 成内容总高 8700 = 300 行 × 29px、视口 600。
-    vi.spyOn(window.HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(8700);
+    // 浏览器里滚动容器有真实内容高度）。mock 成内容总高 11100 = 300 行 × 37px、视口 600。
+    vi.spyOn(window.HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(11100);
     vi.spyOn(window.HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
   });
 
@@ -97,7 +97,7 @@ describe('ProcessTable virtualization', () => {
       <ProcessTable onKillSingle={() => {}} onKillTree={() => {}} />,
     );
     const rendered = getRenderedRows(container);
-    // 600px 视口 / 29px 行高 ≈ 21 行 + overscan，远小于 300 全量
+    // 600px 视口 / 37px 行高 ≈ 16 行 + overscan，远小于 300 全量
     expect(rendered.length).toBeGreaterThan(0);
     expect(rendered.length).toBeLessThan(100);
     // 首屏在顶部：下方应有占位行撑出总高度
