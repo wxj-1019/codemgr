@@ -19,7 +19,7 @@ export function Panel({ id, children }: { id: PanelId; children: ReactNode }) {
   return (
     <div
       ref={ref}
-      className={`panel-container glass flex h-full w-full flex-col overflow-hidden rounded-[18px]${isActive ? ' panel-active' : ''}`}
+      className={`panel-container glass flex h-full w-full flex-col overflow-hidden rounded-[14px]${isActive ? ' panel-active' : ''}`}
     >
       {children}
     </div>

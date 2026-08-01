@@ -214,7 +214,7 @@ const ProcessRow = memo(function ProcessRow({
             e.stopPropagation();
             onKill(proc.pid, proc.name);
           }}
-          className="btn-danger-quiet rounded-lg px-1.5 py-0.5 text-[10px]"
+          className="btn-danger-quiet rounded-lg px-2 py-1 text-[10px]"
         >
           结束
         </button>
@@ -224,7 +224,7 @@ const ProcessRow = memo(function ProcessRow({
               e.stopPropagation();
               onKillTree(proc.pid, proc.name);
             }}
-            className="btn-danger-quiet ml-1 rounded px-1.5 py-0.5 text-[10px]"
+            className="btn-danger-quiet ml-1 rounded px-2 py-1 text-[10px]"
             title="结束该进程及其所有子进程"
           >
             树

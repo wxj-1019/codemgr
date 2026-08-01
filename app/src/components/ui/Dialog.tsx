@@ -94,7 +94,7 @@ export function Dialog({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`glass-elevated ${widthClass} dialog-enter max-h-[85vh] overflow-auto rounded-[20px] p-5 shadow-2xl outline-none`}
+        className={`glass-elevated ${widthClass} dialog-enter max-h-[85vh] overflow-auto rounded-[14px] p-5 shadow-2xl outline-none`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

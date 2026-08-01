@@ -255,7 +255,7 @@ export function ProcessPanel() {
                 placeholder="搜索进程/命令行/PID…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full max-w-48 rounded-md border border-line bg-surface-raised py-1 pl-7 pr-7 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
+                className="w-full max-w-48 rounded-lg border border-line bg-surface-raised py-1 pl-7 pr-7 text-sm text-content-primary placeholder-content-muted outline-none focus:border-focus/60"
               />
               {filter !== '' && (
                 <IconButton

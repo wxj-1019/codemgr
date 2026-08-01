@@ -11,6 +11,8 @@ import { ipc } from '../lib/ipc';
 import { notify } from '../lib/notify';
 import { kindColorOf } from '../lib/kindColors';
 import { ConfirmDialog } from './ConfirmDialog';
+import { IconButton } from './ui/IconButton';
+import { X } from './icons';
 import { newRuleId, type LabelRulesSnapshot, useLabelRulesStore } from '../store/labelRulesStore';
 
 // Aurora v1.2：kind 配色统一走 lib/kindColors（原三处重复定义已收敛）
@@ -165,7 +167,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose} onKeyDown={onModalKeyDown}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose} onKeyDown={onModalKeyDown}>
       <div
         ref={modalRef}
         role="dialog"
@@ -193,7 +195,7 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
             >
               导入
             </button>
-            <button onClick={onClose} className="text-content-muted hover:text-content-primary" aria-label="关闭">✕</button>
+            <IconButton label="关闭" size="xs" onClick={onClose}><X /></IconButton>
           </div>
         </div>
 
@@ -231,8 +233,12 @@ export function LabelRuleEditor({ onClose }: { onClose: () => void }) {
                     <span className="truncate font-mono text-[11px] text-content-muted">
                       {u.field} · {u.groups.map((g) => g.include.join('+')).join(' | ')}
                     </span>
-                    <button onClick={() => removeUserRule(u.id)}
-                      className="ml-auto shrink-0 text-content-muted hover:text-danger" aria-label="删除">✕</button>
+                    <IconButton
+                      label="删除"
+                      size="xs"
+                      className="ml-auto shrink-0 text-content-muted hover:text-danger"
+                      onClick={() => removeUserRule(u.id)}
+                    ><X /></IconButton>
                   </div>
                 ))}
               </div>

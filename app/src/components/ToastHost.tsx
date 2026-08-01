@@ -30,7 +30,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
   return (
     <div
       role={meta.role}
-      className={`glass-elevated flex items-center gap-2 overflow-hidden rounded-2xl shadow-2xl ${
+      className={`glass-elevated flex items-center gap-2 overflow-hidden rounded-[14px] shadow-2xl ${
         exiting ? 'toast-exit' : 'toast-enter'
       }`}
     >

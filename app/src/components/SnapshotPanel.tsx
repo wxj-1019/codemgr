@@ -530,7 +530,7 @@ function DiffView({
           {selectedPids.size > 0 && (
             <button
               onClick={onBatchKill}
-              className="btn-danger-quiet ml-auto rounded-lg px-3 py-1 text-xs"
+              className="btn-danger-quiet ml-auto rounded-lg px-2 py-1 text-xs"
             >
               结束选中 ({selectedPids.size})
             </button>

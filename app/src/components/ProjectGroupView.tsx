@@ -517,7 +517,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
                   title={`按${h.label}排序`}
                 >
                   {h.label}
-                  {sort?.key === h.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
+                  {sort?.key === h.key ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
                 </button>
               </th>
             ))}
@@ -530,7 +530,7 @@ export function ProjectGroupView({ multiSelectEnabled = false, onKillSingle, onK
                   title={`按${h.label}排序`}
                 >
                   {h.label}
-                  {sort?.key === h.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
+                  {sort?.key === h.key ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
                 </button>
               </th>
             ))}

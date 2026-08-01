@@ -134,7 +134,7 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
       ref={ref}
       role="menu"
       onKeyDown={onMenuKeyDown}
-      className="glass-elevated menu-enter fixed z-[60] min-w-[140px] rounded-2xl py-1 text-sm shadow-2xl"
+      className="glass-elevated menu-enter fixed z-[60] min-w-[140px] rounded-[14px] py-1 text-sm shadow-2xl"
       style={{ left: pos.x, top: pos.y }}
     >
       {items.map((it, i) => (
