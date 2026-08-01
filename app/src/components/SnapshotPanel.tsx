@@ -649,7 +649,7 @@ function ChangedList({ changed }: { changed: SnapshotDiff['changed'] }) {
   return (
     <div className="py-1">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-surface-raised text-left text-xs text-content-muted">
+        <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs uppercase text-content-muted">
           <tr>
             <th className="px-3 py-2 font-medium">PID</th>
             <th className="px-3 py-2 font-medium">字段</th>

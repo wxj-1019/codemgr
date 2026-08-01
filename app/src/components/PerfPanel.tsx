@@ -296,7 +296,7 @@ function NetworkView({ current }: { current: PerfData }) {
         <div className="text-sm text-content-muted">无活跃网络流量</div>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-xs uppercase text-content-muted">
+          <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs uppercase text-content-muted">
             <tr>
               <th className="py-1 text-left">适配器</th>
               <th className="py-1 text-right">↓ 接收</th>
@@ -397,7 +397,7 @@ function GpuView({
         <div className={sectionSurface}>
           <div className="mb-2 text-sm text-content-secondary">GPU 占用 Top 5（数据来自性能面板轮询）</div>
           <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-content-muted">
+            <thead className="sticky top-0 z-10 bg-surface-raised text-left text-xs uppercase text-content-muted">
               <tr>
                 <th className="py-1 text-left">PID</th>
                 <th className="py-1 text-right">GPU%</th>
