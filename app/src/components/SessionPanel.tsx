@@ -53,6 +53,7 @@ export function SessionPanel() {
       <div className="flex h-full flex-col">
         <PanelActionBar label="AI 会话" />
         <StateView
+          className="flex-1"
           state={scanning ? 'loading' : 'empty'}
           title={scanning ? '正在扫描进程…' : '未检测到 AI 开发会话'}
           description={scanning ? undefined : 'Codex / Claude / Aider / Cursor / Ollama 等运行时会出现在此。'}

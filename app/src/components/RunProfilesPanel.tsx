@@ -126,6 +126,7 @@ export function RunProfilesPanel() {
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {profiles.length === 0 ? (
           <StateView
+            className="h-full"
             state="empty"
             title="尚无 Run Profile"
             description="点「新建」配置一个开发服务（如 pnpm dev）。"
