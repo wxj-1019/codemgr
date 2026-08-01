@@ -32,33 +32,33 @@ export function EnvDiffDialog({ a, b, onClose }: Props) {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }} title="对比环境变量"
       description={`A：${label(a)}  ↔  B：${label(b)}`} widthClass="w-[640px]">
-      {state === 'loading' && <p className="text-sm text-fg-muted">读取环境变量中…</p>}
+      {state === 'loading' && <p className="text-sm text-content-muted">读取环境变量中…</p>}
       {state === 'error' && <p className="text-sm text-danger">读取失败：权限不足或进程已退出</p>}
       {state === 'done' && diff && (
         <div className="max-h-[60vh] space-y-3 overflow-auto text-xs">
           <section>
-            <h4 className="mb-1 font-medium text-fg-primary">值不同（{diff.changed.length}）</h4>
-            {diff.changed.length === 0 ? <p className="text-fg-muted">无</p> : diff.changed.map((c) => (
-              <div key={c.key} className="mb-1 rounded border border-base-700 bg-base-900 p-1.5 font-mono">
+            <h4 className="mb-1 font-medium text-content-primary">值不同（{diff.changed.length}）</h4>
+            {diff.changed.length === 0 ? <p className="text-content-muted">无</p> : diff.changed.map((c) => (
+              <div key={c.key} className="mb-1 rounded border border-line bg-surface-panel p-1.5 font-mono">
                 <div className="text-accent">{c.key}</div>
-                <div className="break-all text-fg-muted">A: {c.aVal}</div>
-                <div className="break-all text-fg-secondary">B: {c.bVal}</div>
+                <div className="break-all text-content-muted">A: {c.aVal}</div>
+                <div className="break-all text-content-secondary">B: {c.bVal}</div>
               </div>
             ))}
           </section>
           <section>
-            <h4 className="mb-1 font-medium text-fg-primary">仅 A 有（{diff.removed.length}）</h4>
-            {diff.removed.length === 0 ? <p className="text-fg-muted">无</p> : (
-              <p className="break-all font-mono text-fg-secondary">{diff.removed.join(', ')}</p>
+            <h4 className="mb-1 font-medium text-content-primary">仅 A 有（{diff.removed.length}）</h4>
+            {diff.removed.length === 0 ? <p className="text-content-muted">无</p> : (
+              <p className="break-all font-mono text-content-secondary">{diff.removed.join(', ')}</p>
             )}
           </section>
           <section>
-            <h4 className="mb-1 font-medium text-fg-primary">仅 B 有（{diff.added.length}）</h4>
-            {diff.added.length === 0 ? <p className="text-fg-muted">无</p> : (
-              <p className="break-all font-mono text-fg-secondary">{diff.added.join(', ')}</p>
+            <h4 className="mb-1 font-medium text-content-primary">仅 B 有（{diff.added.length}）</h4>
+            {diff.added.length === 0 ? <p className="text-content-muted">无</p> : (
+              <p className="break-all font-mono text-content-secondary">{diff.added.join(', ')}</p>
             )}
           </section>
-          <p className="text-fg-muted">相同 {diff.sameCount} 个变量</p>
+          <p className="text-content-muted">相同 {diff.sameCount} 个变量</p>
         </div>
       )}
     </Dialog>

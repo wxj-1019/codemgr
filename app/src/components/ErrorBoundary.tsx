@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertCircle className="h-10 w-10 text-danger/50" aria-hidden="true" />
             </div>
             <p className="text-sm font-medium text-danger">界面渲染出错</p>
-            <p className="mt-2 break-all font-mono text-xs text-fg-muted">
+            <p className="mt-2 break-all font-mono text-xs text-content-muted">
               {this.state.error.message}
             </p>
             <div className="mt-4 flex justify-center gap-2">

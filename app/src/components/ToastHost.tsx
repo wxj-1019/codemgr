@@ -38,7 +38,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
       <div className={`w-[3px] self-stretch ${meta.accentCls}`} />
       <div className="flex flex-1 items-center gap-2 px-3 py-2">
         <span className={`shrink-0 ${meta.iconCls}`}>{meta.icon}</span>
-        <span className="min-w-0 flex-1 break-words text-sm text-fg-primary">{toast.message}</span>
+        <span className="min-w-0 flex-1 break-words text-sm text-content-primary">{toast.message}</span>
         <IconButton label="关闭通知" size="xs" onClick={handleDismiss}><X /></IconButton>
       </div>
     </div>

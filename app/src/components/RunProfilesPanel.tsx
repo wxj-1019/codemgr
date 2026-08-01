@@ -143,7 +143,7 @@ export function RunProfilesPanel() {
                 <div key={p.id} className="rounded-xl border border-line bg-surface-panel/60 p-3 transition-all duration-200 hover:bg-surface-raised/50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-fg-primary">{p.name}</span>
+                      <span className="text-sm font-medium text-content-primary">{p.name}</span>
                       {run && <Badge tone="success" className="ml-2">PID {run.pid}</Badge>}
                       {!run && failedRun && (
                         <Badge tone="danger" className="ml-2" title={failedRun.error ?? undefined}>启动失败</Badge>
@@ -181,8 +181,8 @@ export function RunProfilesPanel() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-1 font-mono text-xs text-fg-muted">{p.command} {p.args.join(' ')}</div>
-                  <div className="font-mono text-xs text-fg-muted truncate">{p.cwd}</div>
+                  <div className="mt-1 font-mono text-xs text-content-muted">{p.command} {p.args.join(' ')}</div>
+                  <div className="font-mono text-xs text-content-muted truncate">{p.cwd}</div>
                   {logOpenFor === p.id && latestRunOf(p.id) && (
                     <RunLogView runId={latestRunOf(p.id)!.runId} />
                   )}

@@ -61,8 +61,8 @@ export function RunLogView({ runId }: { runId: string }) {
   }
 
   return (
-    <div className="mt-2 rounded border border-base-700 bg-base-900">
-      <div className="flex items-center justify-between px-2 py-1 text-[10px] text-fg-muted">
+    <div className="mt-2 rounded border border-line bg-surface-panel">
+      <div className="flex items-center justify-between px-2 py-1 text-[10px] text-content-muted">
         <span>
           {state.lines.length} 行
           {state.droppedBefore > 0 ? ` · 已丢弃早期 ${state.droppedBefore} 行` : ''}
@@ -71,7 +71,7 @@ export function RunLogView({ runId }: { runId: string }) {
         <button
           aria-label="清空本地日志视图"
           onClick={() => setState(createRunLogViewState())}
-          className="rounded px-1 hover:bg-base-700 hover:text-fg-primary"
+          className="rounded px-1 hover:bg-surface-overlay hover:text-content-primary"
         >
           清空
         </button>
@@ -79,7 +79,7 @@ export function RunLogView({ runId }: { runId: string }) {
       <pre
         ref={boxRef}
         onScroll={onScroll}
-        className="max-h-64 overflow-auto px-2 py-1 font-mono text-[11px] leading-4 text-fg-secondary"
+        className="max-h-64 overflow-auto px-2 py-1 font-mono text-[11px] leading-4 text-content-secondary"
       >
         {state.lines.length === 0
           ? '暂无输出'

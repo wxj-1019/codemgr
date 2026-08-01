@@ -397,7 +397,7 @@ export function ProcessDetailSidebar({
           {diagState === 'loading' ? '生成中…' : '复制诊断上下文'}
         </button>
         {diagState === 'error' && (
-          <p className="mb-2 text-xs text-red-400">生成失败</p>
+          <p className="mb-2 text-xs text-danger">生成失败</p>
         )}
         <button
           onClick={() => onKill(proc.pid, proc.name)}

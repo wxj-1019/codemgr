@@ -146,7 +146,7 @@ export function ContextMenu({ open, x, y, items, onClose }: ContextMenuProps) {
             tabIndex={i === focusIdx ? 0 : -1}
             onClick={() => { it.onSelect(); onClose(); }}
             className={`block w-full px-3 py-1.5 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-accent/10 ${
-              it.danger ? 'text-danger hover:bg-danger/10' : 'text-fg-primary'
+              it.danger ? 'text-danger hover:bg-danger/10' : 'text-content-primary'
             }`}
           >
             {it.label}
