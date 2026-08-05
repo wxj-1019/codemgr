@@ -71,7 +71,7 @@
 | 规则 | 触发条件 | Issue 字段 |
 |------|---------|-----------|
 | 系统 CPU 持续高 | 系统 CPU 均值 >80% 连续 3 个轮询周期 | severity=alert, title=「系统 CPU 持续高占用」, action=open-perf |
-| 单进程 CPU 异常 | 进程 CPU >30% 连续 2 周期 | severity=attention, 含 processId, action=locate-process |
+| 单进程 CPU 异常 | 进程 `cpuPercent >= 100`（占满一核；字段语义为相对单核 0-100）连续 2 周期 | severity=attention, 含 processId, action=locate-process |
 | 内存增长趋势 | 进程 RSS 最近 3 样本递增且总增幅 >15%（或 >200MB） | severity=attention, 含 processId, action=locate-process（泄漏信号） |
 | 磁盘空间低 | 任一盘剩余 <10% | severity=alert, 含 disk 信息, action=open-details |
 
@@ -99,14 +99,9 @@ HomePanel（渲染）
    └─ 动作 → 联动：openPanel + 进程选中（复用 processPanelStore / layoutStore 既有机制）
 ```
 
-## 5. 磁盘数据接线（system:diskUsage）
+## 5. 磁盘数据（修订：免新增 IPC）
 
-native `diskVolumes()` 已存在（插件数据源用过）。标准接线（AGENTS.md §10.1 的 6 处中的 5 处，native 免改）：
-- `app/electron/ipc-types.ts`：`IPC.system.diskUsage` 通道常量 + `ExposedApi.getDiskUsage(): Promise<DiskVolume[]>`
-- `app/electron/main.ts`：`ipcMain.handle('system:diskUsage', () => native.diskVolumes())`（catch 返回降级值 `[]`）
-- `app/electron/preload.ts`：`getDiskUsage` 封装
-- `app/src/lib/ipc.ts`：`getDiskUsage()` 薄封装
-- 测试：main 侧 handler 存在性 + 渲染层调用（mock）
+原计划新增 `system:diskUsage` IPC——实施前发现 `perfCounters()` 的 `PerfData.disks`（`{ name, totalBytes, freeBytes, readBytesPerSec, writeBytesPerSec, activePercent }`）已含剩余空间数据，首页磁盘卡与「磁盘空间低」检测**直接复用 perf 数据**，零 IPC/native 改动（spec §3.3 磁盘卡点击无详情，保持禁用）。
 
 ## 6. 信息架构与导航
 
