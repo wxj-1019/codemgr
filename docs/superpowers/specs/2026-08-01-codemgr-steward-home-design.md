@@ -49,15 +49,15 @@
 - `issueCount`：检测引擎当前问题数
 - `gpuPercent`：GPU 引擎使用率（有 GPU 时；无 GPU 降级不参与）
 
-单指标分级：`normal | attention | alert`
-- CPU：<70 normal；70–85 attention；>85 alert
-- 内存：<70 normal；70–85 attention；>85 alert
-- 磁盘：>20 normal；10–20 attention；<10 alert
-- GPU：<80 normal；80–90 attention；>90 alert
+单指标分级：`normal | attention | alert`（实现语义：high 方向 `>= attentionAt` 即 attention、`>= alertAt` 即 alert；low 方向（磁盘）`<=`）
+- CPU：<70 normal；≥70 attention；≥85 alert
+- 内存：<70 normal；≥70 attention；≥85 alert
+- 磁盘：>20 normal；≤20 attention；≤10 alert
+- GPU：<80 normal；≥80 attention；≥90 alert
 
 整体分级：`excellent | good | attention | alert`
-1. 取所有指标中最差级（weakest link）
-2. 若 `issueCount >= 2` 且整体非 alert，降一档（attention→good、good→excellent 不变）——异常数量修正
+1. 取所有指标中最差级（weakest link）：alert→alert、attention→good、normal→excellent
+2. 若 `issueCount >= 2` 且当前级为 `good`，降一档至 `attention`（不越过 alert；全 normal 指标时保持 excellent——问题由清单单独呈现，评估只反映指标）——异常数量修正
 3. 输出 `{ level, reasons: string[] }`，reasons 列出所有触达最差级的指标人话描述（如「内存使用率 88%」「C: 盘剩余 9%」），横幅展示 level + reasons 摘要
 
 ### 3.3 状态卡片
@@ -73,7 +73,7 @@
 | 系统 CPU 持续高 | 系统 CPU 均值 >80% 连续 3 个轮询周期 | severity=alert, title=「系统 CPU 持续高占用」, action=open-perf |
 | 单进程 CPU 异常 | 进程 `cpuPercent >= 100`（占满一核；字段语义为相对单核 0-100）连续 2 周期 | severity=attention, 含 processId, action=locate-process |
 | 内存增长趋势 | 进程 RSS 最近 3 样本递增且总增幅 >15%（或 >200MB） | severity=attention, 含 processId, action=locate-process（泄漏信号） |
-| 磁盘空间低 | 任一盘剩余 <10% | severity=alert, 含 disk 信息, action=open-details |
+| 磁盘空间低 | 任一盘剩余 ≤10% | severity=alert, 含 disk 信息, action=open-perf |
 
 Issue 去重：同规则同实体（pid/盘符）只保留一条，状态变化时更新；消除后移除。
 Issue 上限：最多 10 条，超出丢弃最低严重度（防刷屏）。
