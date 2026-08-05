@@ -176,8 +176,8 @@ describe('useHome', () => {
     });
     useLayoutStore.setState({ root: 'home', preset: 'classic' });
     renderHook(() => useHome());
-    // 首帧（immediate）+ 2 个 tick = 3 轮连续失败 → streak=3 → error（async act 保证
-    // refresh 的 await 链完整 drain，busy 守卫不丢 tick，与 memory-growth 用例同款）
+    // 双源同频失败下第 2 轮即达上限（streak=4≥3），此处断言第 3 轮后 error 已置位。
+    // async act 保证 refresh 的 await 链完整 drain，busy 守卫不丢 tick（与 memory-growth 用例同款）。
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(2000); });
     await act(async () => { vi.advanceTimersByTime(2000); });

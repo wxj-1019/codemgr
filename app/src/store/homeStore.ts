@@ -94,9 +94,14 @@ export const useHomeStore = create<HomeState>((set, get) => ({
         // 任一数据源面板未挂载 → 自驱采样（M4：无数据空转消除）。
         // 全部挂载时跳过 await：refresh 主体同步执行，轮询 tick 语义保持确定性。
         await sampleSources(leaves);
+      } else {
+        // 双面板挂载：本轮无自驱采样，失败计数不适用 → 清零（防此前自驱采样
+        // 累计的 streak 残留：模块级变量不会自动清零，否则切回双面板后 error
+        // 每轮仍折算非 null，首页出现残留错误横幅）。
+        sampleFailStreak = 0;
       }
       // 每轮末尾统一折算 error：自驱采样连续失败达上限 → 错误文案；成功恢复自动清除。
-      // 面板挂载路径（非自驱采样）不参与计数，streak 恒 0 → error 恒 null。
+      // 面板挂载路径（非自驱采样）不参与计数，streak 由上方 else 分支清零 → error 恒 null。
       const error = sampleFailStreak >= SAMPLE_FAIL_LIMIT ? '连续多次获取系统数据失败' : null;
       const perf = usePerfStore.getState().current;
       if (!perf) {
