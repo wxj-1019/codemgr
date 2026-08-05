@@ -188,8 +188,8 @@ body {
 /* ── 糖果玻璃：紫调描边 + 顶部光泽高光（cel-shading） ── */
 .glass {
   background: var(--bg-panel);
-  backdrop-filter: blur(20px) saturate(1.15);
-  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
   border: 1px solid var(--border);
   box-shadow:
     inset 0 2px 0 rgb(255 255 255 / 0.30),
@@ -199,8 +199,8 @@ body {
 /* 浮层材质（Dialog/ContextMenu/下拉）：比面板更实，浮在玻璃面板上仍保证可读性。 */
 .glass-elevated {
   background: var(--bg-elevated);
-  backdrop-filter: blur(20px) saturate(1.15);
-  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
   border: 1px solid var(--border);
   box-shadow:
     inset 0 2px 0 rgb(255 255 255 / 0.35),
@@ -210,8 +210,8 @@ body {
 /* 软玻璃：用于卡片内嵌，更低透明度 + 更轻 blur */
 .glass-soft {
   background: rgb(var(--surface-panel-rgb) / 0.40);
-  backdrop-filter: blur(12px) saturate(1.10);
-  -webkit-backdrop-filter: blur(12px) saturate(1.10);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
   border: 1px solid var(--border);
 }
 
@@ -472,9 +472,10 @@ body {
   min-width: 0;
   flex-direction: column;
   border-right: 1px solid var(--line);
-  background: rgb(var(--surface-panel-rgb) / 0.85);
-  backdrop-filter: blur(24px) saturate(1.12);
-  -webkit-backdrop-filter: blur(24px) saturate(1.12);
+  /* macOS 侧边栏材质：比内容面板更透 */
+  background: rgb(var(--surface-panel-rgb) / 0.62);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
 }
 
 .workspace-sidebar-brand {
