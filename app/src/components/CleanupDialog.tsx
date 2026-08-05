@@ -105,7 +105,7 @@ export function CleanupDialog({ open, onOpenChange }: CleanupDialogProps) {
         </ul>
       )}
       <div className="mt-4 flex items-center justify-between gap-2">
-        <span className="text-xs text-content-secondary">将结束 {checkedCount} 个进程</span>
+        <span className="text-xs text-content-secondary">将清理 {checkedCount} 个进程</span>
         <div className="flex justify-end gap-2">
           <Button
             variant="secondary"

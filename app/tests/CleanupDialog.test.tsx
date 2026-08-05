@@ -30,7 +30,7 @@ describe('CleanupDialog', () => {
     seed();
     render(<><ToastHost /><CleanupDialog open onOpenChange={vi.fn()} /></>);
     expect(screen.getByText('node.exe')).toBeInTheDocument();
-    expect(screen.getByText(/将结束 1 个进程/)).toBeInTheDocument();
+    expect(screen.getByText(/将清理 1 个进程/)).toBeInTheDocument();
     expect(screen.getByRole('checkbox')).toBeChecked();
   });
 
