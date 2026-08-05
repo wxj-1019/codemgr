@@ -152,4 +152,38 @@ describe('useHome', () => {
     act(() => { useVisibilityStore.setState({ windowVisible: true }); });
     expect(useHomeStore.getState().issues.some((i) => i.rule === 'system-cpu')).toBe(true);
   });
+
+  it('自驱采样连续失败 3 次置 error，成功恢复清除', async () => {
+    vi.useFakeTimers();
+    // 布局 root='home'（自驱采样路径）；fetchPerf/fetchProcesses 前 3 次失败、第 4 次成功。
+    // 两者必须同频失败：任一成功路径都会清 sampleFailStreak，streak 达不到 3。
+    let perfCalls = 0;
+    let procCalls = 0;
+    ipcMock = mockIpc({
+      fetchPerf: vi.fn(async () => {
+        perfCalls++;
+        return perfCalls > 3
+          ? { ok: true, data: makePerf(), sampledAt: Date.now() }
+          : { ok: false, data: null, sampledAt: Date.now() };
+      }),
+      fetchProcesses: vi.fn(async () => {
+        procCalls++;
+        return procCalls > 3
+          ? { ok: true, data: [{ pid: 42, ppid: 0, name: 'node.exe', cmdline: '', cwd: '', kernelTimeMs: 0, userTimeMs: 0, workingSetBytes: 5e8, createTimeMs: 0, threadCount: 1, handleCount: 1 }], sampledAt: Date.now() }
+          : { ok: false, data: [], sampledAt: Date.now() };
+      }),
+      fetchCpu: vi.fn(async () => [{ pid: 42, cpuPercent: 10 }]),
+    });
+    useLayoutStore.setState({ root: 'home', preset: 'classic' });
+    renderHook(() => useHome());
+    // 首帧（immediate）+ 2 个 tick = 3 轮连续失败 → streak=3 → error（async act 保证
+    // refresh 的 await 链完整 drain，busy 守卫不丢 tick，与 memory-growth 用例同款）
+    await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(useHomeStore.getState().error).toBe('连续多次获取系统数据失败');
+    // 第 4 轮 mock 成功 → streak 清零 → error 清除
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(useHomeStore.getState().error).toBeNull();
+  });
 });

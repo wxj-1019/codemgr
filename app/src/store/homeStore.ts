@@ -11,6 +11,7 @@ interface HomeState {
   issues: Issue[];
   detector: IssueDetector; // 跨轮次保持 streak/去重/占位状态
   running: boolean;
+  error: string | null; // 自驱采样连续失败（首页自身数据源问题）时的错误横幅文案
   refresh: () => Promise<void>;
   setRunning: (b: boolean) => void;
   reset: () => void;
@@ -19,6 +20,10 @@ interface HomeState {
 // 模块级 busy 守卫（usePerf busyRef 同款语义）：refresh 是 async（可能自驱采样），
 // 防 2s tick 与未完成的采样重叠导致结果乱序；并发调用丢弃后到者。
 let busy = false;
+// 自驱采样连续失败计数：连续 SAMPLE_FAIL_LIMIT 次失败 → error（首页不再无限「数据采集中」）；
+// 任一数据源成功即清零。仅自驱采样路径计数——面板挂载时 error 语义不适用。
+let sampleFailStreak = 0;
+const SAMPLE_FAIL_LIMIT = 3;
 
 /**
  * 自驱采样（I1 复审修正）：门控依据 = 布局树叶子集（面板是否真的挂载），
@@ -28,15 +33,22 @@ let busy = false;
  * 并写共享 store（首页数据与面板同源），同时消除无数据空转（M4）。
  * 根为 null（空布局）时 getPanelLeaves 返回 [] → 按「所有面板未挂载」自驱采样。
  * 失败保持旧数据（A2 语义）；不写面板 store 的 error/staleAt 字段——错误横幅归
- * 面板自身的轮询负责（UX-27），首页不接管。
+ * 面板自身的轮询负责（UX-27），首页不接管。首页自身的数据源问题（连续失败）由
+ * sampleFailStreak 折算为 homeStore.error（本文件 refresh 末尾统一写入）。
  */
 async function sampleSources(leaves: ReadonlySet<string>) {
   if (!leaves.has('perf')) {
     try {
       const r = await ipc.fetchPerf();
-      if (r.ok) usePerfStore.getState().setPerf(r.data);
+      if (r.ok) {
+        usePerfStore.getState().setPerf(r.data);
+        sampleFailStreak = 0; // 任一生效数据源成功即清失败计数
+      } else {
+        sampleFailStreak++;
+      }
     } catch (e) {
       console.error('home fetchPerf failed:', e);
+      sampleFailStreak++;
     }
   }
   if (!leaves.has('process')) {
@@ -44,6 +56,7 @@ async function sampleSources(leaves: ReadonlySet<string>) {
       const r = await ipc.fetchProcesses();
       if (r.ok) {
         useProcessPanelStore.getState().setProcesses(r.data);
+        sampleFailStreak = 0;
         // CPU 是 best-effort 富化：失败不拖垮已有进程列表（useProcessPanel 同款写法）
         try {
           const cpus = await ipc.fetchCpu();
@@ -55,9 +68,12 @@ async function sampleSources(leaves: ReadonlySet<string>) {
         } catch (cpuErr) {
           console.error('home fetchCpu failed:', cpuErr);
         }
+      } else {
+        sampleFailStreak++;
       }
     } catch (e) {
       console.error('home fetchProcesses failed:', e);
+      sampleFailStreak++;
     }
   }
 }
@@ -67,6 +83,7 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   issues: [],
   detector: new IssueDetector(),
   running: false,
+  error: null,
   refresh: async () => {
     if (busy) return;
     busy = true;
@@ -78,8 +95,16 @@ export const useHomeStore = create<HomeState>((set, get) => ({
         // 全部挂载时跳过 await：refresh 主体同步执行，轮询 tick 语义保持确定性。
         await sampleSources(leaves);
       }
+      // 每轮末尾统一折算 error：自驱采样连续失败达上限 → 错误文案；成功恢复自动清除。
+      // 面板挂载路径（非自驱采样）不参与计数，streak 恒 0 → error 恒 null。
+      const error = sampleFailStreak >= SAMPLE_FAIL_LIMIT ? '连续多次获取系统数据失败' : null;
       const perf = usePerfStore.getState().current;
-      if (!perf) return; // 数据源不可用（采集失败/无 preload）→ 保持旧评估，不计算
+      if (!perf) {
+        // 数据源不可用（采集失败/无 preload）→ 保持旧评估，不计算；error 仍须落库
+        // （连续失败时 perf 恒 null，若无此 set，error 永远写不出去，首页仍无限「数据采集中」）。
+        set({ error });
+        return;
+      }
       const ps = useProcessPanelStore.getState();
       const diskFreeMin = perf.disks.filter((d) => d.totalBytes > 0)
         .reduce((min, d) => Math.min(min, (d.freeBytes / d.totalBytes) * 100), 100);
@@ -97,11 +122,14 @@ export const useHomeStore = create<HomeState>((set, get) => ({
         gpuPercent: perf.gpu.available ? perf.gpu.totalPercent : null, // 真实字段 available/totalPercent
         issueCount: issues.length,
       });
-      set({ assessment, issues });
+      set({ assessment, issues, error });
     } finally {
       busy = false;
     }
   },
   setRunning: (b) => set({ running: b }),
-  reset: () => set({ assessment: null, issues: [], running: false, detector: new IssueDetector() }),
+  reset: () => {
+    sampleFailStreak = 0;
+    set({ assessment: null, issues: [], running: false, error: null, detector: new IssueDetector() });
+  },
 }));
