@@ -578,22 +578,6 @@ body {
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-/* 导航项活跃指示器 */
-.workspace-sidebar-item[data-active='true'] {
-  position: relative;
-}
-.workspace-sidebar-item[data-active='true']::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2px;
-  height: 16px;
-  border-radius: 1px;
-  background: linear-gradient(180deg, rgb(var(--accent-rgb)), rgb(var(--accent-data-rgb)));
-}
-
 @media (max-width: 720px) {
   .workspace-shell {
     grid-template-columns: 56px minmax(0, 1fr);
@@ -639,11 +623,6 @@ body {
     height: 32px;
     margin-inline: auto;
     padding: 0;
-  }
-
-  .workspace-sidebar-item[data-active='true']::before {
-    left: -4px;
-    height: 20px;
   }
 
   .workspace-sidebar-tools {
