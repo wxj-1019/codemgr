@@ -1,25 +1,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useHomeStore } from '../src/store/homeStore';
 import { useHome } from '../src/hooks/useHome';
 import { usePerfStore } from '../src/store/perfStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import { useVisibilityStore } from '../src/store/visibilityStore';
+import { mockIpc } from './setup';
+import type { PerfData } from '../electron/ipc-types';
+
+let ipcMock: ReturnType<typeof mockIpc>;
 
 beforeEach(() => {
   useHomeStore.getState().reset();
   usePerfStore.getState().reset();
   useProcessPanelStore.getState().reset();
-  // M6：useHome 已接入可见性门控，测试间恢复默认（窗口前台 + home 面板可见）
+  // M6：useHome 已接入可见性门控，测试间恢复默认（窗口前台 + 全部面板可见；
+  // 整表重置，防上个用例把 perf/process 置 false 后经 spread 泄漏到下个用例）
   useVisibilityStore.setState({
     windowVisible: true,
-    visible: { ...useVisibilityStore.getState().visible, home: true },
+    visible: { home: true, port: true, process: true, perf: true, snapshot: true },
   });
+  // I1：refresh 在数据源面板未挂载时会自驱采样 → 预置 window.codemgr mock
+  ipcMock = mockIpc();
 });
 afterEach(() => { vi.useRealTimers(); });
 
 // 按 electron/ipc-types 的 PerfData 真实形状播种（gpu 为 available/totalPercent 结构，含 timestamp）
-const seedPerf = () => usePerfStore.getState().setPerf({
+const makePerf = (): PerfData => ({
   timestamp: Date.now(),
   cpu: { totalPercent: 88, perCore: [88] },
   memory: { totalBytes: 1e10, availableBytes: 2e9, usedPercent: 80 },
@@ -27,6 +34,7 @@ const seedPerf = () => usePerfStore.getState().setPerf({
   networks: [],
   gpu: { available: false, totalPercent: 0, vramUsedBytes: 0, vramBudgetBytes: 0, perProcess: [], adapters: [] },
 });
+const seedPerf = () => usePerfStore.getState().setPerf(makePerf());
 
 describe('useHome', () => {
   it('挂载后 2s tick 计算评估与问题', () => {
@@ -38,6 +46,9 @@ describe('useHome', () => {
       procHistory: { 42: [{ ts: 1, cpu: 120, mem: 5e8 }, { ts: 2, cpu: 120, mem: 5e8 }] },
     });
     renderHook(() => useHome());
+    // I1：perf/process 面板可见（默认）→ 直接读共享 store，不重复采样
+    expect(ipcMock.fetchPerf).not.toHaveBeenCalled();
+    expect(ipcMock.fetchProcesses).not.toHaveBeenCalled();
     // 第 1 tick（immediate refresh）：CPU 88 第 1 轮 → 无 system-cpu；进程 cpu 120 第 1 轮占位 → 无 process-cpu
     expect(useHomeStore.getState().assessment).not.toBeNull();
     expect(useHomeStore.getState().issues.some((i) => i.rule === 'process-cpu')).toBe(false);
@@ -52,9 +63,29 @@ describe('useHome', () => {
     expect(useHomeStore.getState().running).toBe(false);
   });
 
-  it('perf 数据缺失时不计算（assessment 保持 null）', () => {
+  it('数据源面板未挂载时自驱采样（classic=home 首屏不再空转）', async () => {
+    ipcMock = mockIpc({
+      fetchPerf: vi.fn(async () => ({ ok: true, data: makePerf(), sampledAt: Date.now() })),
+      fetchProcesses: vi.fn(async () => ({
+        ok: true,
+        data: [{ pid: 42, ppid: 0, name: 'node.exe', cmdline: '', cwd: '', kernelTimeMs: 0, userTimeMs: 0, workingSetBytes: 5e8, createTimeMs: 0, threadCount: 1, handleCount: 1 }],
+        sampledAt: Date.now(),
+      })),
+      fetchCpu: vi.fn(async () => [{ pid: 42, cpuPercent: 120 }]),
+    });
+    // classic=home 首屏：perf/process 面板未挂载 → home 代为采样
+    useVisibilityStore.setState({
+      visible: { ...useVisibilityStore.getState().visible, perf: false, process: false },
+    });
     renderHook(() => useHome());
-    expect(useHomeStore.getState().assessment).toBeNull();
+
+    await waitFor(() => expect(useHomeStore.getState().assessment).not.toBeNull());
+    // 共享 store 同步被采样（首页数据与面板同源，M4 无空转）
+    expect(usePerfStore.getState().current?.cpu.totalPercent).toBe(88);
+    expect(useProcessPanelStore.getState().processes.some((p) => p.pid === 42)).toBe(true);
+    expect(useProcessPanelStore.getState().cpuMap[42]).toBe(120);
+    // 第 1 轮：进程 cpu 120 第 1 轮占位 → 无 process-cpu 问题
+    expect(useHomeStore.getState().issues.some((i) => i.rule === 'process-cpu')).toBe(false);
   });
 
   it('窗口不可见时暂停轮询（数据冻结），恢复可见立即补一次刷新', () => {
