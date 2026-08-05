@@ -25,7 +25,8 @@ interface VisibilityState {
 export const useVisibilityStore = create<VisibilityState>((set) => ({
   // v2.2 加 'snapshot'：快照面板本身不轮询（spec §2.4 明确不加 interval），但保持
   // visible map 一致——后续若加按需刷新节流也走同一可见性入口。
-  visible: { port: true, process: true, perf: true, snapshot: true },
+  // steward home 加 'home'：首页数据中枢（2s tick）接入同一可见性门控（M6）。
+  visible: { home: true, port: true, process: true, perf: true, snapshot: true },
   setVisible: (id, v) =>
     set((s) => (s.visible[id] === v ? s : { visible: { ...s.visible, [id]: v } })),
   windowVisible: true,

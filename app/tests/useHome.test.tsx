@@ -4,11 +4,17 @@ import { useHomeStore } from '../src/store/homeStore';
 import { useHome } from '../src/hooks/useHome';
 import { usePerfStore } from '../src/store/perfStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
+import { useVisibilityStore } from '../src/store/visibilityStore';
 
 beforeEach(() => {
   useHomeStore.getState().reset();
   usePerfStore.getState().reset();
   useProcessPanelStore.getState().reset();
+  // M6：useHome 已接入可见性门控，测试间恢复默认（窗口前台 + home 面板可见）
+  useVisibilityStore.setState({
+    windowVisible: true,
+    visible: { ...useVisibilityStore.getState().visible, home: true },
+  });
 });
 afterEach(() => { vi.useRealTimers(); });
 
@@ -49,5 +55,29 @@ describe('useHome', () => {
   it('perf 数据缺失时不计算（assessment 保持 null）', () => {
     renderHook(() => useHome());
     expect(useHomeStore.getState().assessment).toBeNull();
+  });
+
+  it('窗口不可见时暂停轮询（数据冻结），恢复可见立即补一次刷新', () => {
+    vi.useFakeTimers();
+    seedPerf();
+    useProcessPanelStore.setState({
+      processes: [{ pid: 42, ppid: 0, name: 'node.exe', cmdline: '', cwd: '', kernelTimeMs: 0, userTimeMs: 0, workingSetBytes: 5e8, createTimeMs: 0, threadCount: 1, handleCount: 1 }],
+      cpuMap: { 42: 120 },
+      procHistory: { 42: [{ ts: 1, cpu: 120, mem: 5e8 }, { ts: 2, cpu: 120, mem: 5e8 }] },
+    });
+    renderHook(() => useHome());
+    // tick1（immediate）：CPU 88 streak=1、进程 cpu 占位；tick2：process-cpu 问题出现
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(useHomeStore.getState().issues.some((i) => i.rule === 'process-cpu' && i.processId === 42)).toBe(true);
+    const frozen = useHomeStore.getState().assessment;
+    // 窗口切后台 → pollable=false → interval 清理，数据冻结
+    act(() => { useVisibilityStore.setState({ windowVisible: false }); });
+    act(() => { vi.advanceTimersByTime(6000); });
+    expect(useHomeStore.getState().assessment).toBe(frozen);
+    // 若轮询未停，streak 已 ≥3，system-cpu（连续 3 轮 >80%）应已出现——断言未出现证明已冻结
+    expect(useHomeStore.getState().issues.some((i) => i.rule === 'system-cpu')).toBe(false);
+    // 恢复前台 → effect 重跑立即补一次 refresh → streak=3 → system-cpu 出现
+    act(() => { useVisibilityStore.setState({ windowVisible: true }); });
+    expect(useHomeStore.getState().issues.some((i) => i.rule === 'system-cpu')).toBe(true);
   });
 });
