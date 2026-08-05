@@ -7,6 +7,7 @@ import { SnapshotPanel } from '../SnapshotPanel';
 import { SessionPanel } from '../SessionPanel';
 import { RunProfilesPanel } from '../RunProfilesPanel';
 import { StartupPanel } from '../StartupPanel';
+import { HomePanel } from '../HomePanel';
 import { PluginPanel } from '../PluginPanel';
 import {
   isBuiltInPanel,
@@ -44,11 +45,17 @@ function CatalogIcon({ label }: { label: string }) {
 }
 
 export const BUILTIN_PANEL_CATALOG: Record<BuiltInPanelId, BuiltInPanelCatalogEntry> = {
-  port: {
-    title: '端口雷达',
+  home: {
+    title: '首页',
     group: 'monitoring',
-    icon: <CatalogIcon label="P" />,
-    renderer: () => <PortRadar />,
+    icon: <CatalogIcon label="首" />,
+    renderer: () => <HomePanel />,
+  },
+  perf: {
+    title: '性能',
+    group: 'monitoring',
+    icon: <CatalogIcon label="M" />,
+    renderer: () => <PerfPanel />,
   },
   process: {
     title: '进程',
@@ -56,11 +63,11 @@ export const BUILTIN_PANEL_CATALOG: Record<BuiltInPanelId, BuiltInPanelCatalogEn
     icon: <CatalogIcon label="C" />,
     renderer: () => <ProcessPanel />,
   },
-  perf: {
-    title: '性能',
+  port: {
+    title: '端口雷达',
     group: 'monitoring',
-    icon: <CatalogIcon label="M" />,
-    renderer: () => <PerfPanel />,
+    icon: <CatalogIcon label="P" />,
+    renderer: () => <PortRadar />,
   },
   snapshot: {
     title: '快照',
@@ -82,7 +89,7 @@ export const BUILTIN_PANEL_CATALOG: Record<BuiltInPanelId, BuiltInPanelCatalogEn
   },
   startup: {
     title: '启动项',
-    group: 'workflow',
+    group: 'monitoring',
     icon: <CatalogIcon label="启" />,
     renderer: () => <StartupPanel />,
   },

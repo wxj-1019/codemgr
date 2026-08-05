@@ -20,9 +20,9 @@ describe('layoutStore', () => {
     useLayoutStore.getState().reset();
   });
 
-  it('defaults to the classic preset (process fills the screen)', () => {
+  it('defaults to the classic preset (home fills the screen)', () => {
     const s = useLayoutStore.getState();
-    expect(s.root).toBe('process');
+    expect(s.root).toBe('home');
     expect(s.preset).toBe('classic');
   });
 
@@ -55,10 +55,10 @@ describe('layoutStore', () => {
     expect(useLayoutStore.getState().preset).toBe('dev-focus');
   });
 
-  it('applyPreset("classic") restores single process panel', () => {
+  it('applyPreset("classic") restores single home panel', () => {
     useLayoutStore.getState().applyPreset('dev-focus');
     useLayoutStore.getState().applyPreset('classic');
-    expect(useLayoutStore.getState().root).toBe('process');
+    expect(useLayoutStore.getState().root).toBe('home');
     expect(useLayoutStore.getState().preset).toBe('classic');
   });
 
@@ -134,7 +134,7 @@ describe('layoutStore', () => {
 
     expect(useLayoutStore.getState().root).toEqual({
       direction: 'row',
-      first: 'process',
+      first: 'home',
       second: 'plugin:disk-volumes',
       splitPercentage: 70,
     });

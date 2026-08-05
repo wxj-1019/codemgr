@@ -12,8 +12,8 @@ import type { MosaicNode } from 'react-mosaic-component';
  * 设计依据：spec D1（react-mosaic-component，二叉树与持久化天然吻合）。
  */
 
-/** 内置面板的 id（v2.2 新增 'snapshot'；E2 新增 'sessions'；F1 新增 'run-profiles'；G 新增 'startup'）。 */
-export type BuiltInPanelId = 'port' | 'process' | 'perf' | 'snapshot' | 'sessions' | 'run-profiles' | 'startup';
+/** 内置面板的 id（v2.2 新增 'snapshot'；E2 新增 'sessions'；F1 新增 'run-profiles'；G 新增 'startup'；M 新增 'home'）。 */
+export type BuiltInPanelId = 'home' | 'port' | 'process' | 'perf' | 'snapshot' | 'sessions' | 'run-profiles' | 'startup';
 
 /**
  * mosaic 二叉树的叶子类型。内置面板是固定字面量；插件视图是 `plugin:<id>` 模板字面量
@@ -24,7 +24,7 @@ export type PanelId = BuiltInPanelId | `plugin:${string}`;
 
 /** 类型守卫：是否为内置面板 id。 */
 export function isBuiltInPanel(id: string): id is BuiltInPanelId {
-  return id === 'port' || id === 'process' || id === 'perf' || id === 'snapshot' || id === 'sessions' || id === 'run-profiles' || id === 'startup';
+  return id === 'home' || id === 'port' || id === 'process' || id === 'perf' || id === 'snapshot' || id === 'sessions' || id === 'run-profiles' || id === 'startup';
 }
 
 /** 类型守卫：是否为插件视图面板 id（`plugin:<id>` 形式）。 */
@@ -148,8 +148,8 @@ export function replacedPanelOf(
 
 /** 预设：固定树结构，由 applyPreset 写入。 */
 export const LAYOUT_PRESETS: Record<PresetId, MosaicNode<PanelId>> = {
-  // classic：单面板进程占满 —— 等同旧 Tab 默认体验，渐进式过渡。
-  classic: 'process',
+  // classic：单面板首页占满 —— 电脑管家首屏。
+  classic: 'home',
   // port-perf：端口左 + 性能右，水平 5:5。最常用的"监控两件事"布局。
   'port-perf': {
     direction: 'row',

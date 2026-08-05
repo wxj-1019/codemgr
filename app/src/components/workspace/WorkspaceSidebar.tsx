@@ -6,6 +6,7 @@ import {
   BarChart3,
   Camera,
   Download,
+  House,
   Inbox,
   Info,
   ListChecks,
@@ -32,7 +33,7 @@ import {
 
 // UX-30：预设选项带内容描述（此前只有短标签，无法预知布局长什么样）
 const PRESETS: readonly { id: PresetId; label: string }[] = [
-  { id: 'classic', label: '经典布局（进程单面板）' },
+  { id: 'classic', label: '经典布局（首页单面板）' },
   { id: 'port-perf', label: '端口 + 性能（双面板）' },
   { id: 'dev-focus', label: '开发聚焦（进程+端口+性能）' },
 ];
@@ -43,6 +44,7 @@ const GROUP_LABELS: Record<Exclude<PanelGroup, 'plugins'>, string> = {
 };
 
 const PANEL_ICONS: Record<string, ReactNode> = {
+  home: <House aria-hidden="true" />,
   port: <Activity aria-hidden="true" />,
   process: <Layers aria-hidden="true" />,
   perf: <BarChart3 aria-hidden="true" />,

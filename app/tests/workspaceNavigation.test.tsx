@@ -42,14 +42,16 @@ function renderSidebar(overrides: Partial<ComponentProps<typeof WorkspaceSidebar
 }
 
 describe('WorkspaceSidebar', () => {
-  it('groups all seven built-in destinations under monitoring and workflow', () => {
+  it('groups all eight built-in destinations under monitoring and workflow', () => {
     renderSidebar();
 
     const monitoring = screen.getByRole('group', { name: '监控' });
     expect(within(monitoring).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      '端口雷达',
-      '进程',
+      '首页',
       '性能',
+      '进程',
+      '端口雷达',
+      '启动项',
     ]);
 
     const workflow = screen.getByRole('group', { name: '工作流' });
@@ -57,7 +59,6 @@ describe('WorkspaceSidebar', () => {
       '快照',
       'AI 会话',
       '运行配置',
-      '启动项',
     ]);
   });
 
@@ -146,7 +147,7 @@ describe('workspace shell wiring', () => {
     const factory = createWorkspaceNodeFactory('process');
 
     expect(factory).toBeTypeOf('function');
-    await expect(factory?.()).resolves.toBe('port');
+    await expect(factory?.()).resolves.toBe('home');
   });
 
   it('stops offering Mosaic split/replace after three panels are open', () => {

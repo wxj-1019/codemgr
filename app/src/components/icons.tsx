@@ -21,6 +21,7 @@ export {
   Folder,
   FolderOpen,
   Globe,
+  House,
   Inbox,
   Info,
   Layers,
