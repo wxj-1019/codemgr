@@ -48,6 +48,10 @@ async function sampleSources(leaves: ReadonlySet<string>) {
         try {
           const cpus = await ipc.fetchCpu();
           useProcessPanelStore.getState().setCpuMap(cpus); // 按 pid 合并进 cpuMap
+          // 最终审查 Important #1：同一 tick 同时拿到 procs（含 mem）与 cpus（含 cpu）时
+          // 喂一条历史点——与 useProcessPanel.ts:48 同款。classic=home 布局下进程面板
+          // 未挂载，procHistory 全靠这里自驱采样填充；否则恒空 → memory-growth 规则永不触发。
+          useProcessPanelStore.getState().appendHistory(r.data, cpus, Date.now());
         } catch (cpuErr) {
           console.error('home fetchCpu failed:', cpuErr);
         }

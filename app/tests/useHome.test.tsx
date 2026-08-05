@@ -96,6 +96,39 @@ describe('useHome', () => {
     expect(useHomeStore.getState().issues.some((i) => i.rule === 'process-cpu')).toBe(false);
   });
 
+  it('自驱采样下 memory-growth 规则可触发（classic=home 布局）', async () => {
+    vi.useFakeTimers();
+    // 三轮 refresh 各返回递增 mem，模拟真实进程内存爬升（500→560→620MB）
+    const mems = [5e8, 5.6e8, 6.2e8];
+    let call = 0;
+    ipcMock = mockIpc({
+      fetchPerf: vi.fn(async () => ({ ok: true, data: makePerf(), sampledAt: Date.now() })),
+      fetchProcesses: vi.fn(async () => ({
+        ok: true,
+        data: [{
+          pid: 42, ppid: 0, name: 'node.exe', cmdline: '', cwd: '', kernelTimeMs: 0, userTimeMs: 0,
+          workingSetBytes: mems[Math.min(call++, mems.length - 1)],
+          createTimeMs: 0, threadCount: 1, handleCount: 1,
+        }],
+        sampledAt: Date.now(),
+      })),
+      fetchCpu: vi.fn(async () => [{ pid: 42, cpuPercent: 10 }]),
+    });
+    useLayoutStore.setState({ root: 'home', preset: 'classic' });
+    renderHook(() => useHome());
+    // 首帧（immediate）自驱采样先跑完，再依次推进 tick2/tick3（async act 保证
+    // refresh 的 await 链完整 drain，busy 守卫不丢 tick）
+    await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    // 修复前 procHistory 恒空（self-sampling 不喂 appendHistory）→ 3 轮后应采到 3 点
+    const hist = useProcessPanelStore.getState().procHistory[42];
+    expect(hist?.length).toBe(3);
+    expect(hist?.map((p) => p.mem)).toEqual([5e8, 5.6e8, 6.2e8]);
+    // 末 3 样本 5e8→5.6e8→6.2e8 递增且增幅 24% > 15% → memory-growth 触发
+    expect(useHomeStore.getState().issues.some((i) => i.rule === 'memory-growth' && i.processId === 42)).toBe(true);
+  });
+
   it('窗口不可见时暂停轮询（数据冻结），恢复可见立即补一次刷新', () => {
     vi.useFakeTimers();
     seedPerf();
