@@ -41,4 +41,37 @@ describe('assessHealth', () => {
     const r = assessHealth({ ...base, gpuPercent: null });
     expect(r.level).toBe('excellent');
   });
+
+  it('GPU 参与评估：85 → good（attention）、95 → alert', () => {
+    expect(assessHealth({ ...base, gpuPercent: 85 }).level).toBe('good');
+    expect(assessHealth({ ...base, gpuPercent: 95 }).level).toBe('alert');
+  });
+
+  it('双 alert 指标：reasons 全列且按 CPU→内存→磁盘→GPU 构造序', () => {
+    const r = assessHealth({ ...base, cpuPercent: 90, memPercent: 90 });
+    expect(r.level).toBe('alert');
+    expect(r.reasons).toEqual(['CPU 使用率 90%', '内存使用率 90%']);
+  });
+
+  it('磁盘 attention 档：剩余 15% → good', () => {
+    expect(assessHealth({ ...base, diskFreeMinPercent: 15 }).level).toBe('good');
+  });
+
+  it('磁盘边界：剩余 10%（≤10）→ alert', () => {
+    expect(assessHealth({ ...base, diskFreeMinPercent: 10 }).level).toBe('alert');
+  });
+
+  it('CPU alert：90% → alert', () => {
+    expect(assessHealth({ ...base, cpuPercent: 90 }).level).toBe('alert');
+  });
+
+  it('issueCount=1 不修正：仍 good', () => {
+    expect(assessHealth({ ...base, memPercent: 75, issueCount: 1 }).level).toBe('good');
+  });
+
+  it('行为钉死：指标全 normal + issueCount 2 → excellent（评估只反映指标）', () => {
+    const r = assessHealth({ ...base, issueCount: 2 });
+    expect(r.level).toBe('excellent');
+    expect(r.reasons).toEqual([]);
+  });
 });
