@@ -29,10 +29,13 @@ const DOT_CLASS: Record<DotTone, string> = {
   danger: 'bg-danger',
 };
 
-/** high 方向指标（CPU/内存/GPU）状态点色：<70 normal / 70-85 warn / >85 danger */
-function metricTone(pct: number): DotTone {
-  if (pct > 85) return 'danger';
-  if (pct >= 70) return 'warn';
+/**
+ * high 方向指标（CPU/内存/GPU）状态点色，阈值与 healthAssess 对齐（>=attentionAt → warn，
+ * >=alertAt → danger）。CPU/内存传 70/85；GPU 传 80/90（healthAssess 的 gpu 阈值）。
+ */
+function metricTone(pct: number, attentionAt: number, alertAt: number): DotTone {
+  if (pct >= alertAt) return 'danger';
+  if (pct >= attentionAt) return 'warn';
   return 'normal';
 }
 
@@ -70,19 +73,28 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
+/**
+ * 状态卡。可点击的卡是真 button（键盘可达 + focus 语义）；无详情（磁盘）的卡
+ * 渲染为 disabled button，视觉降不透明度且无 hover。
+ */
 function StatCard({ name, value, tone, onClick }: StatCardProps) {
+  const interactive = onClick !== undefined;
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
+      disabled={!interactive}
       className={
-        'rounded-lg border border-line bg-surface-panel/60 p-3' +
-        (onClick ? ' cursor-pointer transition-colors hover:bg-surface-panel' : '')
+        'rounded-lg border border-line bg-surface-panel/60 p-3 text-left transition-colors disabled:cursor-default disabled:opacity-60' +
+        (interactive
+          ? ' cursor-pointer hover:bg-surface-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas'
+          : '')
       }
     >
       <div className="text-xs text-content-muted">{name}</div>
       <div className="mt-1 truncate text-lg font-semibold text-content-primary">{value}</div>
-      <span className={`mt-1.5 inline-block h-1.5 w-1.5 rounded-full ${DOT_CLASS[tone]}`} />
-    </div>
+      <span aria-hidden="true" className={`mt-1.5 inline-block h-1.5 w-1.5 rounded-full ${DOT_CLASS[tone]}`} />
+    </button>
   );
 }
 
@@ -95,22 +107,12 @@ export function HomePanel() {
   const assessment = useHomeStore((s) => s.assessment);
   const issues = useHomeStore((s) => s.issues);
   const perf = usePerfStore((s) => s.current);
+  // ref 挂到两个分支（loading/内容）都渲染的外层 div（同 ProcessPanel 模式）：
+  // useContainerWidth 首帧测量 → loading 期挂载也能拿到宽度，grid-cols 不退化。
   const ref = useRef<HTMLDivElement>(null);
   const width = useContainerWidth(ref);
 
-  if (assessment === null) {
-    return (
-      <div className="flex h-full flex-col">
-        <PanelActionBar label="首页" summary="数据采集中…" />
-        <StateView state="loading" title="正在评估电脑状态…" />
-      </div>
-    );
-  }
-
-  const level = LEVEL_META[assessment.level];
-  const reasonText = assessment.reasons.length ? assessment.reasons.join('；') : '系统各项指标正常';
-
-  // ② 状态卡数据（perf 为 null 时值显示「—」，见 StatCard 取值）
+  // 状态卡数据（perf 为 null 时值显示「—」）
   const disks = perf?.disks.filter((d) => d.totalBytes > 0) ?? [];
   const diskFreePct = disks.length
     ? Math.min(...disks.map((d) => (d.freeBytes / d.totalBytes) * 100))
@@ -124,20 +126,20 @@ export function HomePanel() {
     {
       name: 'CPU',
       value: perf ? `${Math.round(perf.cpu.totalPercent)}%` : '—',
-      tone: perf ? metricTone(perf.cpu.totalPercent) : 'normal',
+      tone: perf ? metricTone(perf.cpu.totalPercent, 70, 85) : 'normal',
       onClick: openPerf,
     },
     {
       name: '内存',
       value: perf ? `${Math.round(perf.memory.usedPercent)}%` : '—',
-      tone: perf ? metricTone(perf.memory.usedPercent) : 'normal',
+      tone: perf ? metricTone(perf.memory.usedPercent, 70, 85) : 'normal',
       onClick: openPerf,
     },
     {
       name: '磁盘',
       value: diskFreePct !== null ? `剩余 ${Math.round(diskFreePct)}%` : '—',
       tone: diskFreePct !== null ? diskTone(diskFreePct) : 'normal',
-      // 磁盘卡无详情面板，不点击
+      // 磁盘卡无详情面板，不点击（disabled button）
     },
     {
       name: '网络',
@@ -148,74 +150,75 @@ export function HomePanel() {
     {
       name: 'GPU',
       value: gpuPercent !== null ? `${Math.round(gpuPercent)}%` : '—',
-      tone: gpuPercent !== null ? metricTone(gpuPercent) : 'normal',
+      tone: gpuPercent !== null ? metricTone(gpuPercent, 80, 90) : 'normal',
       onClick: openPerf,
     },
   ];
 
-  // ④ 快速动作 1：cpuMap 降序前 3 的 pid（点击时取最新）
-  const openTopCpuProcesses = () => {
-    const pids = Object.entries(useProcessPanelStore.getState().cpuMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([pid]) => Number(pid));
-    openProcess(pids);
-  };
-  // ④ 快速动作 2：issues 中 processId 去重列表（点击时取最新）
-  const openIssueProcesses = () => {
-    const pids = [...new Set(
-      useHomeStore.getState().issues
-        .filter((i) => i.processId !== undefined)
-        .map((i) => i.processId as number),
-    )];
-    openProcess(pids);
-  };
+  // 快速动作数据（渲染期计算 → disabled 与点击用同一份）：cpuMap 降序前 3 / issues 去重 pid
+  const topCpuPids = Object.entries(useProcessPanelStore.getState().cpuMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([pid]) => Number(pid));
+  const issuePids = [...new Set(
+    issues.filter((i) => i.processId !== undefined).map((i) => i.processId as number),
+  )];
 
   return (
-    <div className="flex h-full flex-col">
-      <PanelActionBar label="首页" />
-      {/* ① 评估横幅 */}
-      <div className="flex items-center gap-2 border-b border-line bg-surface-panel/60 px-3 py-2">
-        <Badge tone={level.tone}>{level.text}</Badge>
-        <span className="truncate text-xs text-content-secondary">{reasonText}</span>
-      </div>
-      {/* ② 状态卡：容器宽度 ≥960px 五卡一行，否则两卡换行 */}
-      <div
-        ref={ref}
-        className={`grid gap-2 p-3 ${width !== null && width >= 960 ? 'grid-cols-5' : 'grid-cols-2'}`}
-      >
-        {cards.map((c) => <StatCard key={c.name} {...c} />)}
-      </div>
-      {/* ③ 问题清单 */}
-      <div className="min-h-0 flex-1 overflow-auto px-3 pb-2">
-        {issues.length === 0 ? (
-          <div className="px-3 py-6 text-center text-xs text-content-muted">暂无异常</div>
-        ) : (
-          <ul className="space-y-1.5">
-            {issues.map((issue) => (
-              <li
-                key={issue.id}
-                className="flex items-center gap-2 rounded-lg border border-line bg-surface-panel/60 px-3 py-2"
-              >
-                <Badge tone={issue.severity === 'alert' ? 'danger' : 'warning'}>
-                  {issue.severity === 'alert' ? '严重' : '注意'}
-                </Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium text-content-primary">{issue.title}</div>
-                  <div className="truncate text-xs text-content-muted">{issue.detail}</div>
-                </div>
-                <Button size="xs" onClick={() => handleIssue(issue)}>处理</Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      {/* ④ 快速动作 */}
-      <div className="flex flex-wrap gap-2 border-t border-line px-3 py-2">
-        <Button size="sm" variant="secondary" onClick={openTopCpuProcesses}>查看高占用进程</Button>
-        <Button size="sm" variant="secondary" onClick={openIssueProcesses}>结束异常进程</Button>
-        <Button size="sm" variant="secondary" onClick={openPerf}>打开性能详情</Button>
-      </div>
+    <div ref={ref} className="flex h-full flex-col">
+      <PanelActionBar label="首页" summary={assessment === null ? '数据采集中…' : undefined} />
+      {assessment === null ? (
+        <StateView state="loading" title="正在评估电脑状态…" />
+      ) : (
+        <>
+          {/* ① 评估横幅 */}
+          <div className="flex items-center gap-2 border-b border-line bg-surface-panel/60 px-3 py-2">
+            <Badge tone={LEVEL_META[assessment.level].tone}>{LEVEL_META[assessment.level].text}</Badge>
+            <span title={reasonTextOf(assessment.reasons)} className="truncate text-xs text-content-secondary">
+              {reasonTextOf(assessment.reasons)}
+            </span>
+          </div>
+          {/* ② 状态卡：容器宽度 ≥960px 五卡一行，否则两卡换行 */}
+          <div className={`grid gap-2 p-3 ${width !== null && width >= 960 ? 'grid-cols-5' : 'grid-cols-2'}`}>
+            {cards.map((c) => <StatCard key={c.name} {...c} />)}
+          </div>
+          {/* ③ 问题清单 */}
+          <div className="min-h-0 flex-1 overflow-auto px-3 pb-2">
+            {issues.length === 0 ? (
+              <div className="px-3 py-6 text-center text-xs text-content-muted">暂无异常</div>
+            ) : (
+              <ul className="space-y-1.5">
+                {issues.map((issue) => (
+                  <li
+                    key={issue.id}
+                    className="flex items-center gap-2 rounded-lg border border-line bg-surface-panel/60 px-3 py-2"
+                  >
+                    <Badge tone={issue.severity === 'alert' ? 'danger' : 'warning'}>
+                      {issue.severity === 'alert' ? '严重' : '注意'}
+                    </Badge>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium text-content-primary">{issue.title}</div>
+                      <div className="truncate text-xs text-content-muted">{issue.detail}</div>
+                    </div>
+                    <Button size="xs" aria-label={`处理：${issue.title}`} onClick={() => handleIssue(issue)}>处理</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {/* ④ 快速动作（空选禁用：无数据时点了也无意义） */}
+          <div className="flex flex-wrap gap-2 border-t border-line px-3 py-2">
+            <Button size="sm" variant="secondary" disabled={topCpuPids.length === 0} onClick={() => openProcess(topCpuPids)}>查看高占用进程</Button>
+            <Button size="sm" variant="secondary" disabled={issuePids.length === 0} onClick={() => openProcess(issuePids)}>结束异常进程</Button>
+            <Button size="sm" variant="secondary" onClick={openPerf}>打开性能详情</Button>
+          </div>
+        </>
+      )}
     </div>
   );
+}
+
+/** 评估 reasons 拼接；无 reasons 时给「系统各项指标正常」占位。 */
+function reasonTextOf(reasons: string[]): string {
+  return reasons.length ? reasons.join('；') : '系统各项指标正常';
 }

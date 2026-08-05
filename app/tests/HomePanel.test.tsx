@@ -44,7 +44,8 @@ describe('HomePanel', () => {
     seed();
     render(<><ToastHost /><HomePanel /></>);
     expect(screen.getByText(/node\.exe CPU 占用持续偏高/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '处理' }));
+    // M4：按钮 aria-label=`处理：${title}`，accessible name 为完整标签
+    fireEvent.click(screen.getByRole('button', { name: /^处理：node\.exe CPU 占用持续偏高$/ }));
     expect(useProcessPanelStore.getState().selectedPids.has(42)).toBe(true);
   });
 
