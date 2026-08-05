@@ -37,6 +37,13 @@ export default {
         warn: opaque('warn'),
       },
       fontFamily: {
+        sans: [
+          '-apple-system', 'BlinkMacSystemFont', // macOS/iOS 原生 SF
+          'SF Pro Text',                          // 显式 SF
+          'Segoe UI Variable', 'Segoe UI',        // Windows 11/10（可变字体，苹果风）
+          'PingFang SC', 'Microsoft YaHei',       // 中文
+          'system-ui', 'sans-serif',
+        ],
         mono: ['ui-monospace', 'Cascadia Code', 'Consolas', 'monospace'],
       },
     },
