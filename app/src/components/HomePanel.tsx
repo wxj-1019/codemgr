@@ -24,6 +24,9 @@ const LEVEL_META: Record<HealthLevel, { text: string; tone: BadgeTone }> = {
   alert: { text: '需要处理', tone: 'danger' },
 };
 
+/** 陈旧横幅阈值：上次成功采样距今超过 5s 即提示数据陈旧（perfStore.staleAt 由面板/自驱采样写入）。 */
+const STALE_BANNER_MS = 5000;
+
 type DotTone = 'normal' | 'warn' | 'danger';
 /** 趋势箭头方向：末两点比较，持平不显示（null）。 */
 type Trend = 'up' | 'down' | null;
@@ -153,8 +156,8 @@ export function HomePanel() {
   const memTrend = history.length >= 2
     ? trendOf(history[history.length - 2].memUsedPercent, history[history.length - 1].memUsedPercent)
     : null;
-  // 陈旧提示：上次成功采样超过 5s 未更新（staleAt 由 perf 面板轮询写入）
-  const stale = staleAt !== null && Date.now() - staleAt > 5000;
+  // 陈旧提示：上次成功采样超过 STALE_BANNER_MS 未更新（staleAt 由 perf 面板/自驱采样写入）
+  const stale = staleAt !== null && Date.now() - staleAt > STALE_BANNER_MS;
   const staleTimeText = stale && staleAt !== null
     ? new Date(staleAt).toLocaleTimeString('zh-CN', { hour12: false })
     : '';
@@ -176,7 +179,7 @@ export function HomePanel() {
     },
     {
       name: '磁盘',
-      value: minDisk !== null && diskFreePct !== null ? `${minDisk.name} ${Math.round(diskFreePct)}%` : '—',
+      value: minDisk !== null && diskFreePct !== null ? `${minDisk.name} 剩余 ${Math.round(diskFreePct)}%` : '—',
       tone: diskFreePct !== null ? diskTone(diskFreePct) : 'normal',
       // 磁盘卡无详情面板，不点击（disabled button）
     },

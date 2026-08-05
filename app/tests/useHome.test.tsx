@@ -153,10 +153,11 @@ describe('useHome', () => {
     expect(useHomeStore.getState().issues.some((i) => i.rule === 'system-cpu')).toBe(true);
   });
 
-  it('自驱采样连续失败 3 次置 error，成功恢复清除', async () => {
+  it('自驱采样连续失败 3 轮置 error，成功恢复清除', async () => {
     vi.useFakeTimers();
-    // 布局 root='home'（自驱采样路径）；fetchPerf/fetchProcesses 前 3 次失败、第 4 次成功。
-    // 两者必须同频失败：任一成功路径都会清 sampleFailStreak，streak 达不到 3。
+    // 布局 root='home'（自驱采样路径）；fetchPerf/fetchProcesses 前 3 轮失败、第 4 轮成功。
+    // noDataStreak 按轮次计数：perf 恒 null 则每轮 +1，任一轮 perf 出现即清零——
+    // 双源同频失败保证 perf 前三轮恒 null（若单源成功 perf 已置位，streak 达不到 3）。
     let perfCalls = 0;
     let procCalls = 0;
     ipcMock = mockIpc({
@@ -176,14 +177,31 @@ describe('useHome', () => {
     });
     useLayoutStore.setState({ root: 'home', preset: 'classic' });
     renderHook(() => useHome());
-    // 双源同频失败下第 2 轮即达上限（streak=4≥3），此处断言第 3 轮后 error 已置位。
-    // async act 保证 refresh 的 await 链完整 drain，busy 守卫不丢 tick（与 memory-growth 用例同款）。
+    // 第 3 轮后 noDataStreak=3 达上限 → error 置位（async act 保证 refresh 的
+    // await 链完整 drain，busy 守卫不丢 tick，与 memory-growth 用例同款）。
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(2000); });
     await act(async () => { vi.advanceTimersByTime(2000); });
     expect(useHomeStore.getState().error).toBe('连续多次获取系统数据失败');
-    // 第 4 轮 mock 成功 → streak 清零 → error 清除
+    // 第 4 轮 mock 成功 → perf 置位 → noDataStreak 清零 → error 清除
     await act(async () => { vi.advanceTimersByTime(2000); });
     expect(useHomeStore.getState().error).toBeNull();
+  });
+
+  it('面板挂载路径冷启动失败也置 error（noDataStreak 按 perf 存在性计数）', async () => {
+    vi.useFakeTimers();
+    // 布局 perf+process 双面板挂载（beforeEach 默认）→ refresh 直接读共享 store，
+    // 不触发自驱采样（ipcMock 断言不应被调用）。perf 恒 null（模拟面板轮询失败
+    // 的冷启动：面板没采到过数据）→ noDataStreak 每轮 +1，第 3 轮达上限 → error。
+    // I1：此前该路径 streak 被 else 分支清零，首页永远「数据采集中」。
+    renderHook(() => useHome());
+    expect(ipcMock.fetchPerf).not.toHaveBeenCalled();
+    expect(ipcMock.fetchProcesses).not.toHaveBeenCalled();
+    await act(async () => {});                    // 首帧轮次 1：streak=1，error 仍 null
+    expect(useHomeStore.getState().error).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(2000); });  // 轮次 2：streak=2
+    await act(async () => { vi.advanceTimersByTime(2000); });  // 轮次 3：streak=3 → error
+    expect(useHomeStore.getState().error).toBe('连续多次获取系统数据失败');
+    expect(useHomeStore.getState().assessment).toBeNull();
   });
 });

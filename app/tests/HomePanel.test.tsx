@@ -129,8 +129,17 @@ describe('HomePanel', () => {
       ],
     }));
     render(<><ToastHost /><HomePanel /></>);
-    // 最小剩余百分比盘为 C:（20% < 80%）→ 值显示盘符前缀
-    expect(screen.getByText('C: 20%')).toBeInTheDocument();
+    // 最小剩余百分比盘为 C:（20% < 80%）→ 值显示盘符 + 剩余语义（M2 消除方向歧义）
+    expect(screen.getByText('C: 剩余 20%')).toBeInTheDocument();
+  });
+
+  it('数据陈旧时显示陈旧横幅', () => {
+    seed();
+    seedPerf(makePerf());
+    // staleAt 早于 5s 阈值 → 内容态顶部出现陈旧提示（时间格式行内格式化，只断言前缀）
+    usePerfStore.setState({ staleAt: Date.now() - 6000 });
+    render(<><ToastHost /><HomePanel /></>);
+    expect(screen.getByText(/数据陈旧（/)).toBeInTheDocument();
   });
 
   it('无问题时正向空态', () => {
