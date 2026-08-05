@@ -13,7 +13,7 @@ html, body, #root {
    对比度已按 designTokens 测试公式验证（on-accent/accent ≥4.5、muted/canvas ≥4.5、focus70% ≥3） */
 :root {
   /* ── 过渡令牌 ── */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 150ms cubic-bezier(0.32, 0.72, 0, 1); /* 苹果标准曲线 */
   --transition-base: 300ms cubic-bezier(0.34, 1.2, 0.64, 1);
   --transition-slow: 400ms cubic-bezier(0.34, 1.2, 0.64, 1);
 
@@ -575,6 +575,7 @@ body {
 .workspace-sidebar-item {
   width: 100%;
   flex-shrink: 1;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 /* 导航项活跃指示器 */
