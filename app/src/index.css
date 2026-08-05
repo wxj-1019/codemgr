@@ -121,7 +121,8 @@ html, body, #root {
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  /* 系统字体栈（SF/Segoe UI Variable/PingFang） */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
@@ -578,6 +579,12 @@ body {
   width: 100%;
   flex-shrink: 1;
   transition: background-color var(--transition-fast), color var(--transition-fast);
+  /* Button 基类强制 font-medium；此处非 layer 规则确定性还原字重层级
+     （inactive=400、active=500），不依赖 utility 发射顺序 */
+  font-weight: 400;
+}
+.workspace-sidebar-item[aria-current='page'] {
+  font-weight: 500;
 }
 
 @media (max-width: 720px) {

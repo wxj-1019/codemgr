@@ -92,11 +92,12 @@ function WorkspaceDestination({
       variant="ghost"
       size="sm"
       className={cx(
-        'workspace-sidebar-item !w-full shrink grid-cols-[1fr] justify-items-start justify-start gap-1.5 px-2 text-left font-normal hover:bg-surface-raised/50',
-        active && 'rounded-lg bg-surface-raised font-medium text-content-primary',
+        'workspace-sidebar-item !w-full shrink grid-cols-[1fr] justify-items-start justify-start gap-1.5 px-2 text-left hover:bg-content-primary/5',
+        active && 'rounded-lg bg-surface-raised font-medium text-content-primary hover:bg-surface-raised',
       )}
       aria-label={definition.title}
       aria-current={active ? 'page' : undefined}
+      // 保留：workspaceNavigation 测试断言该属性（无 CSS 消费方）
       data-active={active ? 'true' : undefined}
       title={definition.title}
       onClick={() => onOpen(definition.id)}
