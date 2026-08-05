@@ -2,9 +2,9 @@ import { create } from 'zustand';
 import { assessHealth, type HealthAssessment } from '../lib/healthAssess';
 import { IssueDetector, type Issue } from '../lib/issueDetector';
 import { ipc } from '../lib/ipc';
+import { useLayoutStore, getPanelLeaves } from './layoutStore';
 import { usePerfStore } from './perfStore';
 import { useProcessPanelStore } from './processPanelStore';
-import { useVisibilityStore } from './visibilityStore';
 
 interface HomeState {
   assessment: HealthAssessment | null;
@@ -21,17 +21,17 @@ interface HomeState {
 let busy = false;
 
 /**
- * 自驱采样（I1）：数据源按「面板是否挂载/可见」分流。
- * - perf/process 面板可见 → 其自身轮询 hook 已写共享 store，这里直接读（不重复采样，
- *   避免双采集竞争，roadmap R2）。
- * - 面板不可见（classic=home 首屏只有首页）→ home 代为采样并写共享 store：
- *   与面板数据保持一致（首页数据与面板同源），同时消除无数据空转（M4）。
- * 失败保持旧数据（A2 语义）；不写面板 store 的 error/staleAt 字段——错误横幅归面板
- * 自身的轮询负责（UX-27），首页不接管。
+ * 自驱采样（I1 复审修正）：门控依据 = 布局树叶子集（面板是否真的挂载），
+ * 而非 visibilityStore——visible.* 初始全 true 且面板卸载时不写回 false
+ * （useVisibilityTracking 卸载只 disconnect observer），不反映挂载状态。
+ * classic=home 首屏布局叶子只有 'home' → perf/process 未挂载 → home 代为采样
+ * 并写共享 store（首页数据与面板同源），同时消除无数据空转（M4）。
+ * 根为 null（空布局）时 getPanelLeaves 返回 [] → 按「所有面板未挂载」自驱采样。
+ * 失败保持旧数据（A2 语义）；不写面板 store 的 error/staleAt 字段——错误横幅归
+ * 面板自身的轮询负责（UX-27），首页不接管。
  */
-async function sampleSources() {
-  const visible = useVisibilityStore.getState().visible;
-  if (!visible.perf) {
+async function sampleSources(leaves: ReadonlySet<string>) {
+  if (!leaves.has('perf')) {
     try {
       const r = await ipc.fetchPerf();
       if (r.ok) usePerfStore.getState().setPerf(r.data);
@@ -39,7 +39,7 @@ async function sampleSources() {
       console.error('home fetchPerf failed:', e);
     }
   }
-  if (!visible.process) {
+  if (!leaves.has('process')) {
     try {
       const r = await ipc.fetchProcesses();
       if (r.ok) {
@@ -67,11 +67,12 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     if (busy) return;
     busy = true;
     try {
-      const visible = useVisibilityStore.getState().visible;
-      if (!visible.perf || !visible.process) {
+      // 门控依据：布局树叶子集（真正挂载的面板）
+      const leaves = new Set(getPanelLeaves(useLayoutStore.getState().root));
+      if (!leaves.has('perf') || !leaves.has('process')) {
         // 任一数据源面板未挂载 → 自驱采样（M4：无数据空转消除）。
-        // 全部可见时跳过 await：refresh 主体同步执行，轮询 tick 语义保持确定性。
-        await sampleSources();
+        // 全部挂载时跳过 await：refresh 主体同步执行，轮询 tick 语义保持确定性。
+        await sampleSources(leaves);
       }
       const perf = usePerfStore.getState().current;
       if (!perf) return; // 数据源不可用（采集失败/无 preload）→ 保持旧评估，不计算

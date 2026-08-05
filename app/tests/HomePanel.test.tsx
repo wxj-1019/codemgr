@@ -5,6 +5,7 @@ import { ToastHost } from '../src/components/ToastHost';
 import { useHomeStore } from '../src/store/homeStore';
 import { usePerfStore } from '../src/store/perfStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
+import { useLayoutStore } from '../src/store/layoutStore';
 import { __resetToastStoreForTests } from '../src/store/toastStore';
 
 beforeEach(() => {
@@ -12,6 +13,13 @@ beforeEach(() => {
   useHomeStore.getState().reset();
   usePerfStore.getState().reset();
   useProcessPanelStore.getState().reset();
+  // I1 复审：HomePanel 挂载即 useHome() 轮询，refresh 门控 = 布局叶子集。
+  // 置为 perf+process 挂载布局 → refresh 走同步读 store 路径，不触发自驱采样
+  // （否则会在未 mock window.codemgr 的测试环境里打一堆 fetch 失败日志）。
+  useLayoutStore.setState({
+    root: { direction: 'row', first: 'perf', second: 'process', splitPercentage: 70 },
+    preset: null,
+  });
   // HomePanel 经 useContainerWidth 依赖 ResizeObserver，jsdom 没有
   vi.stubGlobal('ResizeObserver', vi.fn(() => ({
     observe: vi.fn(),

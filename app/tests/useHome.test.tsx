@@ -5,6 +5,7 @@ import { useHome } from '../src/hooks/useHome';
 import { usePerfStore } from '../src/store/perfStore';
 import { useProcessPanelStore } from '../src/store/processPanelStore';
 import { useVisibilityStore } from '../src/store/visibilityStore';
+import { useLayoutStore } from '../src/store/layoutStore';
 import { mockIpc } from './setup';
 import type { PerfData } from '../electron/ipc-types';
 
@@ -14,11 +15,16 @@ beforeEach(() => {
   useHomeStore.getState().reset();
   usePerfStore.getState().reset();
   useProcessPanelStore.getState().reset();
-  // M6：useHome 已接入可见性门控，测试间恢复默认（窗口前台 + 全部面板可见；
-  // 整表重置，防上个用例把 perf/process 置 false 后经 spread 泄漏到下个用例）
+  // M6：useHome 已接入可见性门控，测试间恢复默认（窗口前台 + home 可见）
   useVisibilityStore.setState({
     windowVisible: true,
     visible: { home: true, port: true, process: true, perf: true, snapshot: true },
+  });
+  // I1 复审：自驱采样门控 = 布局树叶子集。默认测试布局 = perf+process 双面板挂载
+  // （refresh 同步读共享 store 的路径）；自驱采样用例单独把 root 置为 'home'。
+  useLayoutStore.setState({
+    root: { direction: 'row', first: 'perf', second: 'process', splitPercentage: 70 },
+    preset: null,
   });
   // I1：refresh 在数据源面板未挂载时会自驱采样 → 预置 window.codemgr mock
   ipcMock = mockIpc();
@@ -46,7 +52,7 @@ describe('useHome', () => {
       procHistory: { 42: [{ ts: 1, cpu: 120, mem: 5e8 }, { ts: 2, cpu: 120, mem: 5e8 }] },
     });
     renderHook(() => useHome());
-    // I1：perf/process 面板可见（默认）→ 直接读共享 store，不重复采样
+    // I1：perf/process 已挂载（布局叶子集含两者）→ 直接读共享 store，不重复采样
     expect(ipcMock.fetchPerf).not.toHaveBeenCalled();
     expect(ipcMock.fetchProcesses).not.toHaveBeenCalled();
     // 第 1 tick（immediate refresh）：CPU 88 第 1 轮 → 无 system-cpu；进程 cpu 120 第 1 轮占位 → 无 process-cpu
@@ -73,13 +79,15 @@ describe('useHome', () => {
       })),
       fetchCpu: vi.fn(async () => [{ pid: 42, cpuPercent: 120 }]),
     });
-    // classic=home 首屏：perf/process 面板未挂载 → home 代为采样
-    useVisibilityStore.setState({
-      visible: { ...useVisibilityStore.getState().visible, perf: false, process: false },
-    });
+    // classic=home 首屏：布局叶子只有 'home' → perf/process 未挂载 → home 代为采样
+    useLayoutStore.setState({ root: 'home', preset: 'classic' });
     renderHook(() => useHome());
 
     await waitFor(() => expect(useHomeStore.getState().assessment).not.toBeNull());
+    // 布局门控触发自驱采样（真实路径，非手工可见性标志）
+    expect(ipcMock.fetchPerf).toHaveBeenCalled();
+    expect(ipcMock.fetchProcesses).toHaveBeenCalled();
+    expect(ipcMock.fetchCpu).toHaveBeenCalled();
     // 共享 store 同步被采样（首页数据与面板同源，M4 无空转）
     expect(usePerfStore.getState().current?.cpu.totalPercent).toBe(88);
     expect(useProcessPanelStore.getState().processes.some((p) => p.pid === 42)).toBe(true);
